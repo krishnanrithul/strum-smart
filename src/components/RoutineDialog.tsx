@@ -59,20 +59,32 @@ export function RoutineDialog({ open, onOpenChange }: RoutineDialogProps) {
     };
 
     const handleSwap = async (category: "Warmup" | "Technical" | "Repertoire", currentId?: string) => {
-        const newExercise = await StorageService.getRandomExerciseByCategory(category, currentId);
-        if (newExercise && routine) {
-            setRoutine({
-                ...routine,
-                [category.toLowerCase()]: newExercise,
-            });
+        console.log('Swap clicked:', category, currentId);
+        try {
+            const newExercise = await StorageService.getRandomExerciseByCategory(category, currentId);
+            console.log('New exercise:', newExercise);
+            
+            if (newExercise && routine) {
+                setRoutine({
+                    ...routine,
+                    [category.toLowerCase()]: newExercise,
+                });
+                toast({
+                    title: "Exercise swapped!",
+                    description: `Switched to ${newExercise.title}`,
+                });
+            } else if (!newExercise) {
+                toast({
+                    title: "No other exercises",
+                    description: `No other ${category} exercises available to swap.`,
+                    variant: "destructive",
+                });
+            }
+        } catch (error) {
+            console.error('Swap error:', error);
             toast({
-                title: "Exercise swapped!",
-                description: `Switched to ${newExercise.title}`,
-            });
-        } else if (!newExercise) {
-            toast({
-                title: "No other exercises",
-                description: `No other ${category} exercises available to swap.`,
+                title: "Error",
+                description: "Failed to swap exercise",
                 variant: "destructive",
             });
         }
