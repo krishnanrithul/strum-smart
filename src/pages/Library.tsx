@@ -231,10 +231,32 @@ const Library = () => {
                   <div className="flex items-start justify-between gap-4 pr-10">
                     <div className="flex-1 min-w-0">
                       <h3 className="font-semibold mb-1 truncate">{exercise.title}</h3>
-                      <div className="flex items-center gap-2 flex-wrap">
+                      <div className="flex items-center gap-2 flex-wrap mt-2">
                         <Badge variant="outline" className={`text-xs ${getStatusColor(exercise.status)}`}>
                           {exercise.status}
                         </Badge>
+                        {exercise.songsterrUrl && (
+                          <a
+                            href={exercise.songsterrUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="text-xs text-primary hover:underline flex items-center gap-1"
+                          >
+                            🎸 Tab
+                          </a>
+                        )}
+                        {exercise.youtubeUrl && (
+                          <a
+                            href={exercise.youtubeUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="text-xs text-primary hover:underline flex items-center gap-1"
+                          >
+                            ▶️ Video
+                          </a>
+                        )}
                       </div>
                     </div>
                     <div className="text-right flex-shrink-0">
