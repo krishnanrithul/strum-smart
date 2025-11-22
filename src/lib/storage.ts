@@ -75,7 +75,9 @@ export const StorageService = {
 
     // --- Exercises ---
     getExercises: async (): Promise<Exercise[]> => {
+        console.log('Fetching exercises...');
         const { data, error } = await supabase.from("exercises").select("*").order("created_at", { ascending: false });
+        console.log('Exercises response:', { data, error });
         if (error) throw error;
         return (data || []).map(mapExercise);
     },

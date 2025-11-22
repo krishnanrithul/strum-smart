@@ -36,7 +36,9 @@ export function RoutineDialog({ open, onOpenChange }: RoutineDialogProps) {
     useEffect(() => {
         if (open) {
             const loadRoutine = async () => {
+                console.log('Loading routine...');
                 const fullRoutine = await StorageService.generateRoutine();
+                console.log('Full routine loaded:', fullRoutine);
                 setRoutine({
                     warmup: selectedCategories.warmup ? fullRoutine.warmup : null,
                     technical: selectedCategories.technical ? fullRoutine.technical : null,
