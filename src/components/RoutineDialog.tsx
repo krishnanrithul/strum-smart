@@ -12,6 +12,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { StorageService, Exercise } from "@/lib/storage";
 import { useNavigate } from "react-router-dom";
 import { Play, Dumbbell, Music, Flame, RefreshCw } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 interface RoutineDialogProps {
     open: boolean;
@@ -30,6 +31,7 @@ export function RoutineDialog({ open, onOpenChange }: RoutineDialogProps) {
         repertoire: true,
     });
     const navigate = useNavigate();
+    const { toast } = useToast();
 
     useEffect(() => {
         if (open) {
@@ -62,6 +64,16 @@ export function RoutineDialog({ open, onOpenChange }: RoutineDialogProps) {
             setRoutine({
                 ...routine,
                 [category.toLowerCase()]: newExercise,
+            });
+            toast({
+                title: "Exercise swapped!",
+                description: `Switched to ${newExercise.title}`,
+            });
+        } else if (!newExercise) {
+            toast({
+                title: "No other exercises",
+                description: `No other ${category} exercises available to swap.`,
+                variant: "destructive",
             });
         }
     };
