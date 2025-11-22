@@ -17,6 +17,7 @@ const Practice = () => {
   const [isMetronomeActive, setIsMetronomeActive] = useState(false);
   const [seconds, setSeconds] = useState(0);
   const [showCompleteDialog, setShowCompleteDialog] = useState(false);
+  const [loading, setLoading] = useState(true);
   const metronomeRef = useRef<MetronomeEngine | null>(null);
 
   useEffect(() => {
@@ -29,13 +30,23 @@ const Practice = () => {
   }, []);
 
   useEffect(() => {
-    if (id) {
-      const data = StorageService.getExercise(id);
-      if (data) {
-        setExercise(data);
-        setBpm(data.currentBpm);
+    const loadExercise = async () => {
+      if (id) {
+        setLoading(true);
+        try {
+          const data = await StorageService.getExercise(id);
+          if (data) {
+            setExercise(data);
+            setBpm(data.currentBpm);
+          }
+        } catch (error) {
+          console.error("Failed to load exercise:", error);
+        } finally {
+          setLoading(false);
+        }
       }
-    }
+    };
+    loadExercise();
   }, [id]);
 
   useEffect(() => {

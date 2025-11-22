@@ -1,6 +1,5 @@
-
 import { useState } from "react";
-import { Plus } from "lucide-react";
+import { Plus, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
     Dialog,
@@ -23,49 +22,63 @@ import { StorageService, Exercise } from "@/lib/storage";
 
 interface AddExerciseDialogProps {
     onExerciseAdded: () => void;
+    projectId?: string;
+    trigger?: React.ReactNode;
 }
 
-export function AddExerciseDialog({ onExerciseAdded }: AddExerciseDialogProps) {
+export function AddExerciseDialog({ onExerciseAdded, projectId, trigger }: AddExerciseDialogProps) {
     const [open, setOpen] = useState(false);
+    const [loading, setLoading] = useState(false);
     const [title, setTitle] = useState("");
     const [category, setCategory] = useState<Exercise["category"]>("Technical");
     const [bpm, setBpm] = useState("120");
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        StorageService.addExercise({
-            title,
-            category,
-            currentBpm: parseInt(bpm),
-            status: "New",
-        });
-        setOpen(false);
-        setTitle("");
-        setBpm("120");
-        onExerciseAdded();
+        setLoading(true);
+        try {
+            await StorageService.addExercise({
+                project_id: projectId,
+                title,
+                category,
+                currentBpm: parseInt(bpm),
+                status: "New",
+            });
+            setOpen(false);
+            setTitle("");
+            setBpm("120");
+            onExerciseAdded();
+        } catch (error) {
+            console.error("Failed to add exercise:", error);
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-                <Button className="mt-2">
-                    <Plus className="h-5 w-5 mr-2" />
-                    Add Your First Exercise
-                </Button>
+                {trigger || (
+                    <Button className="gap-2">
+                        <Plus className="h-4 w-4" />
+                        Add Exercise
+                    </Button>
+                )}
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px]">
+            <DialogContent className="sm:max-w-[425px] bg-card border-border">
                 <DialogHeader>
-                    <DialogTitle>Add New Exercise</DialogTitle>
+                    <DialogTitle>{projectId ? "Add Section" : "Add New Exercise"}</DialogTitle>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="grid gap-4 py-4">
                     <div className="grid gap-2">
-                        <Label htmlFor="title">Exercise Title</Label>
+                        <Label htmlFor="title">Title</Label>
                         <Input
                             id="title"
                             value={title}
                             onChange={(e) => setTitle(e.target.value)}
-                            placeholder="e.g., Spider Walk"
+                            placeholder={projectId ? "e.g. Intro, Solo" : "e.g. Spider Walk"}
                             required
+                            className="bg-secondary"
                         />
                     </div>
                     <div className="grid gap-2">
@@ -74,7 +87,7 @@ export function AddExerciseDialog({ onExerciseAdded }: AddExerciseDialogProps) {
                             value={category}
                             onValueChange={(value: Exercise["category"]) => setCategory(value)}
                         >
-                            <SelectTrigger>
+                            <SelectTrigger className="bg-secondary">
                                 <SelectValue placeholder="Select category" />
                             </SelectTrigger>
                             <SelectContent>
@@ -93,10 +106,13 @@ export function AddExerciseDialog({ onExerciseAdded }: AddExerciseDialogProps) {
                             onChange={(e) => setBpm(e.target.value)}
                             required
                             min="1"
+                            className="bg-secondary"
                         />
                     </div>
                     <DialogFooter>
-                        <Button type="submit">Add Exercise</Button>
+                        <Button type="submit" disabled={loading}>
+                            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Add"}
+                        </Button>
                     </DialogFooter>
                 </form>
             </DialogContent>

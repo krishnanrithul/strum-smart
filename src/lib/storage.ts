@@ -1,5 +1,16 @@
+import { supabase } from "./supabase";
+
+export interface Project {
+    id: string;
+    title: string;
+    artist?: string;
+    status: "New" | "In Progress" | "Maintenance" | "Mastered";
+    created_at?: string;
+}
+
 export interface Exercise {
     id: string;
+    project_id?: string; // Link to a Song Project
     title: string;
     category: "Technical" | "Repertoire" | "Warmup";
     currentBpm: number;
@@ -15,164 +26,141 @@ export interface Session {
     exercises: string[]; // exercise IDs
 }
 
-const STORAGE_KEYS = {
-    EXERCISES: "fretgym_exercises",
-    SESSIONS: "fretgym_sessions",
-};
+// Helper to map Supabase rows to our Interface (snake_case -> camelCase)
+const mapExercise = (row: any): Exercise => ({
+    id: row.id,
+    project_id: row.project_id,
+    title: row.title,
+    category: row.category as any,
+    currentBpm: row.current_bpm,
+    targetBpm: row.target_bpm,
+    status: row.status as any,
+    history: row.history || [],
+});
 
-const DEFAULT_EXERCISES: Exercise[] = [
-    {
-        id: "1",
-        title: "Alternate Picking",
-        category: "Technical",
-        currentBpm: 120,
-        targetBpm: 120,
-        status: "In Progress",
-        history: [{ date: new Date().toISOString(), bpm: 120 }],
-    },
-    {
-        id: "2",
-        title: "Sultans of Swing - Solo",
-        category: "Repertoire",
-        currentBpm: 95,
-        targetBpm: 95,
-        status: "In Progress",
-        history: [{ date: new Date().toISOString(), bpm: 95 }],
-    },
-    {
-        id: "3",
-        title: "Chromatic Scale",
-        category: "Warmup",
-        currentBpm: 140,
-        targetBpm: 140,
-        status: "Mastered",
-        history: [{ date: new Date().toISOString(), bpm: 140 }],
-    },
-    {
-        id: "4",
-        title: "Spider Walk",
-        category: "Warmup",
-        currentBpm: 100,
-        targetBpm: 100,
-        status: "In Progress",
-        history: [{ date: new Date().toISOString(), bpm: 100 }],
-    },
-    {
-        id: "5",
-        title: "Legato Runs",
-        category: "Technical",
-        currentBpm: 110,
-        targetBpm: 110,
-        status: "In Progress",
-        history: [{ date: new Date().toISOString(), bpm: 110 }],
-    },
-    {
-        id: "6",
-        title: "Neon - Main Riff",
-        category: "Repertoire",
-        currentBpm: 80,
-        targetBpm: 80,
-        status: "New",
-        history: [{ date: new Date().toISOString(), bpm: 80 }],
-    },
-    {
-        id: "7",
-        title: "Contrary Motion",
-        category: "Warmup",
-        currentBpm: 60,
-        targetBpm: 60,
-        status: "New",
-        history: [{ date: new Date().toISOString(), bpm: 60 }],
-    },
-    {
-        id: "8",
-        title: "Fingerstyle Arpeggios",
-        category: "Warmup",
-        currentBpm: 80,
-        targetBpm: 80,
-        status: "In Progress",
-        history: [{ date: new Date().toISOString(), bpm: 80 }],
-    },
-];
+const mapSession = (row: any): Session => ({
+    id: row.id,
+    date: row.date,
+    duration: row.duration,
+    exercises: row.exercises || [],
+});
 
 export const StorageService = {
-    getExercises: (): Exercise[] => {
-        const stored = localStorage.getItem(STORAGE_KEYS.EXERCISES);
-        let exercises: Exercise[] = [];
-
-        if (stored) {
-            exercises = JSON.parse(stored);
-        }
-
-        // Merge missing defaults
-        let hasChanges = false;
-        DEFAULT_EXERCISES.forEach(def => {
-            if (!exercises.find(e => e.id === def.id)) {
-                exercises.push(def);
-                hasChanges = true;
-            }
-        });
-
-        if (hasChanges || !stored) {
-            localStorage.setItem(STORAGE_KEYS.EXERCISES, JSON.stringify(exercises));
-        }
-
-        return exercises;
+    // --- Projects ---
+    getProjects: async (): Promise<Project[]> => {
+        const { data, error } = await supabase.from("projects").select("*").order("created_at", { ascending: false });
+        if (error) throw error;
+        return data || [];
     },
 
-    getExercise: (id: string): Exercise | undefined => {
-        const exercises = StorageService.getExercises();
-        return exercises.find((e) => e.id === id);
+    addProject: async (project: Omit<Project, "id" | "created_at">): Promise<Project> => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error("User not logged in");
+
+        const { data, error } = await supabase
+            .from("projects")
+            .insert([{ ...project, user_id: user.id }])
+            .select()
+            .single();
+
+        if (error) throw error;
+        return data;
     },
 
-    saveExercise: (exercise: Exercise) => {
-        const exercises = StorageService.getExercises();
-        const index = exercises.findIndex((e) => e.id === exercise.id);
-        if (index >= 0) {
-            exercises[index] = exercise;
-        } else {
-            exercises.push(exercise);
-        }
-        localStorage.setItem(STORAGE_KEYS.EXERCISES, JSON.stringify(exercises));
+    // --- Exercises ---
+    getExercises: async (): Promise<Exercise[]> => {
+        const { data, error } = await supabase.from("exercises").select("*").order("created_at", { ascending: false });
+        if (error) throw error;
+        return (data || []).map(mapExercise);
     },
 
-    addExercise: (exercise: Omit<Exercise, "id" | "history" | "targetBpm">) => {
-        const newExercise: Exercise = {
-            ...exercise,
-            id: crypto.randomUUID(),
-            targetBpm: exercise.currentBpm,
+    getExercise: async (id: string): Promise<Exercise | null> => {
+        const { data, error } = await supabase.from("exercises").select("*").eq("id", id).single();
+        if (error) return null;
+        return mapExercise(data);
+    },
+
+    addExercise: async (exercise: Omit<Exercise, "id" | "history" | "targetBpm">): Promise<Exercise> => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error("User not logged in");
+
+        const newExercise = {
+            user_id: user.id,
+            project_id: exercise.project_id,
+            title: exercise.title,
+            category: exercise.category,
+            current_bpm: exercise.currentBpm,
+            target_bpm: exercise.currentBpm, // Default target = current
+            status: exercise.status,
             history: [{ date: new Date().toISOString(), bpm: exercise.currentBpm }],
         };
-        StorageService.saveExercise(newExercise);
-        return newExercise;
+
+        const { data, error } = await supabase
+            .from("exercises")
+            .insert([newExercise])
+            .select()
+            .single();
+
+        if (error) throw error;
+        return mapExercise(data);
     },
 
-    updateExerciseBpm: (id: string, newBpm: number) => {
-        const exercise = StorageService.getExercise(id);
-        if (exercise) {
-            exercise.currentBpm = newBpm;
-            exercise.history.push({ date: new Date().toISOString(), bpm: newBpm });
-            StorageService.saveExercise(exercise);
-        }
+    updateExerciseBpm: async (id: string, newBpm: number) => {
+        const exercise = await StorageService.getExercise(id);
+        if (!exercise) return;
+
+        const newHistory = [...exercise.history, { date: new Date().toISOString(), bpm: newBpm }];
+
+        const { error } = await supabase
+            .from("exercises")
+            .update({
+                current_bpm: newBpm,
+                history: newHistory,
+            })
+            .eq("id", id);
+
+        if (error) throw error;
     },
 
-    updateTargetBpm: (id: string, newTarget: number) => {
-        const exercise = StorageService.getExercise(id);
-        if (exercise) {
-            exercise.targetBpm = newTarget;
-            StorageService.saveExercise(exercise);
-        }
+    updateTargetBpm: async (id: string, newTarget: number) => {
+        const { error } = await supabase
+            .from("exercises")
+            .update({ target_bpm: newTarget })
+            .eq("id", id);
+
+        if (error) throw error;
     },
 
-    checkProgressiveOverload: (id: string): { newBpm: number; reason: string } | null => {
-        const exercise = StorageService.getExercise(id);
+    // --- Sessions ---
+    getSessions: async (): Promise<Session[]> => {
+        const { data, error } = await supabase.from("sessions").select("*").order("created_at", { ascending: false });
+        if (error) throw error;
+        return (data || []).map(mapSession);
+    },
+
+    saveSession: async (session: Omit<Session, "id">): Promise<Session> => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error("User not logged in");
+
+        const { data, error } = await supabase
+            .from("sessions")
+            .insert([{ ...session, user_id: user.id }])
+            .select()
+            .single();
+
+        if (error) throw error;
+        return mapSession(data);
+    },
+
+    // --- Logic ---
+    checkProgressiveOverload: async (id: string): Promise<{ newBpm: number; reason: string } | null> => {
+        const exercise = await StorageService.getExercise(id);
         if (!exercise || exercise.history.length < 3) return null;
 
         const last3 = exercise.history.slice(-3);
         const allHitTarget = last3.every((h) => h.bpm >= exercise.targetBpm);
 
         if (allHitTarget) {
-            // Suggest 5% increase, rounded to nearest 5
             const increase = Math.max(5, Math.round((exercise.targetBpm * 0.05) / 5) * 5);
             return {
                 newBpm: exercise.targetBpm + increase,
@@ -182,8 +170,8 @@ export const StorageService = {
         return null;
     },
 
-    generateRoutine: (): { warmup: Exercise | null; technical: Exercise | null; repertoire: Exercise | null } => {
-        const exercises = StorageService.getExercises();
+    generateRoutine: async (): Promise<{ warmup: Exercise | null; technical: Exercise | null; repertoire: Exercise | null }> => {
+        const exercises = await StorageService.getExercises();
 
         const getRandom = (list: Exercise[]) =>
             list.length > 0 ? list[Math.floor(Math.random() * list.length)] : null;
@@ -192,7 +180,6 @@ export const StorageService = {
         const technicals = exercises.filter(e => e.category === "Technical");
         const repertoires = exercises.filter(e => e.category === "Repertoire");
 
-        // Prioritize "In Progress" for technical/repertoire
         const activeTechnicals = technicals.filter(e => e.status === "In Progress");
         const activeRepertoires = repertoires.filter(e => e.status === "In Progress");
 
@@ -203,26 +190,13 @@ export const StorageService = {
         };
     },
 
-    getRandomExerciseByCategory: (category: string, excludeId?: string): Exercise | null => {
-        const exercises = StorageService.getExercises();
+    getRandomExerciseByCategory: async (category: string, excludeId?: string): Promise<Exercise | null> => {
+        const exercises = await StorageService.getExercises();
         const filtered = exercises.filter(
             (e) => e.category === category && e.id !== excludeId
         );
 
         if (filtered.length === 0) return null;
         return filtered[Math.floor(Math.random() * filtered.length)];
-    },
-
-    getSessions: (): Session[] => {
-        const stored = localStorage.getItem(STORAGE_KEYS.SESSIONS);
-        return stored ? JSON.parse(stored) : [];
-    },
-
-    saveSession: (session: Omit<Session, "id">) => {
-        const sessions = StorageService.getSessions();
-        const newSession = { ...session, id: crypto.randomUUID() };
-        sessions.push(newSession);
-        localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(sessions));
-        return newSession;
     },
 };
