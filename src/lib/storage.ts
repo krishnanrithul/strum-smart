@@ -145,6 +145,15 @@ export const StorageService = {
         if (error) throw error;
     },
 
+    deleteExercise: async (id: string): Promise<void> => {
+        const { error } = await supabase
+            .from("exercises")
+            .delete()
+            .eq("id", id);
+
+        if (error) throw error;
+    },
+
     // --- Sessions ---
     getSessions: async (): Promise<Session[]> => {
         const { data, error } = await supabase.from("sessions").select("*").order("created_at", { ascending: false });

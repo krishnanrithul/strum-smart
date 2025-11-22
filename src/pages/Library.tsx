@@ -1,20 +1,34 @@
 import { useState, useEffect } from "react";
-import { ArrowLeft, Search, Loader2, Music, Dumbbell, Plus } from "lucide-react";
+import { ArrowLeft, Search, Loader2, Music, Dumbbell, Plus, Trash2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { StorageService, Exercise, Project } from "@/lib/storage";
 import { AddExerciseDialog } from "@/components/AddExerciseDialog";
 import { AddProjectDialog } from "@/components/AddProjectDialog";
 import { AddRepertoireDialog } from "@/components/AddRepertoireDialog";
+import { useToast } from "@/hooks/use-toast";
 
 const Library = () => {
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [exerciseToDelete, setExerciseToDelete] = useState<Exercise | null>(null);
+  const { toast } = useToast();
 
   const loadData = async () => {
     setLoading(true);
@@ -51,6 +65,36 @@ const Library = () => {
   const filteredProjects = projects.filter((project) =>
     project.title.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  const handleDeleteClick = (exercise: Exercise, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setExerciseToDelete(exercise);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!exerciseToDelete) return;
+
+    try {
+      await StorageService.deleteExercise(exerciseToDelete.id);
+      toast({
+        title: "Song deleted",
+        description: `${exerciseToDelete.title} has been removed.`,
+      });
+      loadData();
+    } catch (error) {
+      console.error("Failed to delete exercise:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete song. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setDeleteDialogOpen(false);
+      setExerciseToDelete(null);
+    }
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -182,24 +226,34 @@ const Library = () => {
 
           <div className="space-y-3">
             {filteredRepertoire.map((exercise) => (
-              <Link key={exercise.id} to={`/practice/${exercise.id}`}>
-                <Card className="p-4 bg-secondary border-border hover:bg-secondary/80 transition-colors">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold mb-1 truncate">{exercise.title}</h3>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <Badge variant="outline" className={`text-xs ${getStatusColor(exercise.status)}`}>
-                          {exercise.status}
-                        </Badge>
+              <div key={exercise.id} className="relative group">
+                <Link to={`/practice/${exercise.id}`}>
+                  <Card className="p-4 bg-secondary border-border hover:bg-secondary/80 transition-colors">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold mb-1 truncate">{exercise.title}</h3>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <Badge variant="outline" className={`text-xs ${getStatusColor(exercise.status)}`}>
+                            {exercise.status}
+                          </Badge>
+                        </div>
+                      </div>
+                      <div className="text-right flex-shrink-0">
+                        <div className="text-sm text-muted-foreground">Current BPM</div>
+                        <div className="text-2xl font-bold metric-display">{exercise.currentBpm}</div>
                       </div>
                     </div>
-                    <div className="text-right flex-shrink-0">
-                      <div className="text-sm text-muted-foreground">Current BPM</div>
-                      <div className="text-2xl font-bold metric-display">{exercise.currentBpm}</div>
-                    </div>
-                  </div>
-                </Card>
-              </Link>
+                  </Card>
+                </Link>
+                <Button
+                  variant="destructive"
+                  size="icon"
+                  className="absolute top-2 right-2 h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                  onClick={(e) => handleDeleteClick(exercise, e)}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
             ))}
             {filteredRepertoire.length === 0 && (
               <div className="text-center p-8 border border-dashed border-border rounded-lg text-muted-foreground">
@@ -248,6 +302,26 @@ const Library = () => {
           </div>
         </section>
       </main>
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent className="bg-card border-border">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Song?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete "{exerciseToDelete?.title}"? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConfirm}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
