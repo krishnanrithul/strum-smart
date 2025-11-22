@@ -23,6 +23,8 @@ export function AddRepertoireDialog({ onRepertoireAdded }: AddRepertoireDialogPr
     const [title, setTitle] = useState("");
     const [artist, setArtist] = useState("");
     const [bpm, setBpm] = useState("120");
+    const [songsterrUrl, setSongsterrUrl] = useState("");
+    const [youtubeUrl, setYoutubeUrl] = useState("");
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -35,11 +37,15 @@ export function AddRepertoireDialog({ onRepertoireAdded }: AddRepertoireDialogPr
                 category: "Repertoire",
                 currentBpm: parseInt(bpm),
                 status: "New",
+                songsterrUrl: songsterrUrl || undefined,
+                youtubeUrl: youtubeUrl || undefined,
             });
             setOpen(false);
             setTitle("");
             setArtist("");
             setBpm("120");
+            setSongsterrUrl("");
+            setYoutubeUrl("");
             onRepertoireAdded();
         } catch (error) {
             console.error("Failed to add repertoire song:", error);
@@ -91,6 +97,28 @@ export function AddRepertoireDialog({ onRepertoireAdded }: AddRepertoireDialogPr
                             onChange={(e) => setBpm(e.target.value)}
                             required
                             min="1"
+                            className="bg-secondary"
+                        />
+                    </div>
+                    <div className="grid gap-2">
+                        <Label htmlFor="songsterr">Songsterr Tab URL (optional)</Label>
+                        <Input
+                            id="songsterr"
+                            type="url"
+                            value={songsterrUrl}
+                            onChange={(e) => setSongsterrUrl(e.target.value)}
+                            placeholder="https://www.songsterr.com/..."
+                            className="bg-secondary"
+                        />
+                    </div>
+                    <div className="grid gap-2">
+                        <Label htmlFor="youtube">YouTube URL (optional)</Label>
+                        <Input
+                            id="youtube"
+                            type="url"
+                            value={youtubeUrl}
+                            onChange={(e) => setYoutubeUrl(e.target.value)}
+                            placeholder="https://www.youtube.com/..."
                             className="bg-secondary"
                         />
                     </div>

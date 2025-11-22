@@ -17,6 +17,8 @@ export interface Exercise {
     targetBpm: number;
     status: "New" | "In Progress" | "Maintenance" | "Mastered";
     history: { date: string; bpm: number }[];
+    songsterrUrl?: string;
+    youtubeUrl?: string;
 }
 
 export interface Session {
@@ -36,6 +38,8 @@ const mapExercise = (row: any): Exercise => ({
     targetBpm: row.target_bpm,
     status: row.status as any,
     history: row.history || [],
+    songsterrUrl: row.songsterr_url,
+    youtubeUrl: row.youtube_url,
 });
 
 const mapSession = (row: any): Session => ({
@@ -101,6 +105,8 @@ export const StorageService = {
             target_bpm: exercise.currentBpm, // Default target = current
             status: exercise.status,
             history: [{ date: new Date().toISOString(), bpm: exercise.currentBpm }],
+            songsterr_url: exercise.songsterrUrl,
+            youtube_url: exercise.youtubeUrl,
         };
 
         const { data, error } = await supabase
