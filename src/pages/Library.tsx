@@ -226,34 +226,32 @@ const Library = () => {
 
           <div className="space-y-3">
             {filteredRepertoire.map((exercise) => (
-              <div key={exercise.id} className="relative group">
-                <Link to={`/practice/${exercise.id}`}>
-                  <Card className="p-4 bg-secondary border-border hover:bg-secondary/80 transition-colors">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold mb-1 truncate">{exercise.title}</h3>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <Badge variant="outline" className={`text-xs ${getStatusColor(exercise.status)}`}>
-                            {exercise.status}
-                          </Badge>
-                        </div>
-                      </div>
-                      <div className="text-right flex-shrink-0">
-                        <div className="text-sm text-muted-foreground">Current BPM</div>
-                        <div className="text-2xl font-bold metric-display">{exercise.currentBpm}</div>
+              <Card key={exercise.id} className="relative group p-4 bg-secondary border-border hover:bg-secondary/80 transition-colors">
+                <Link to={`/practice/${exercise.id}`} className="block">
+                  <div className="flex items-start justify-between gap-4 pr-10">
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold mb-1 truncate">{exercise.title}</h3>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Badge variant="outline" className={`text-xs ${getStatusColor(exercise.status)}`}>
+                          {exercise.status}
+                        </Badge>
                       </div>
                     </div>
-                  </Card>
+                    <div className="text-right flex-shrink-0">
+                      <div className="text-sm text-muted-foreground">Current BPM</div>
+                      <div className="text-2xl font-bold metric-display">{exercise.currentBpm}</div>
+                    </div>
+                  </div>
                 </Link>
                 <Button
                   variant="destructive"
                   size="icon"
-                  className="absolute top-2 right-2 h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                  className="absolute top-2 right-2 h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity z-10"
                   onClick={(e) => handleDeleteClick(exercise, e)}
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>
-              </div>
+              </Card>
             ))}
             {filteredRepertoire.length === 0 && (
               <div className="text-center p-8 border border-dashed border-border rounded-lg text-muted-foreground">
