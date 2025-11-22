@@ -1,11 +1,11 @@
-import { supabase } from "./supabase";
+import { supabase } from "@/integrations/supabase/client";
 
 export interface Project {
     id: string;
     title: string;
     artist?: string;
     status: "New" | "In Progress" | "Maintenance" | "Mastered";
-    created_at?: string;
+    created_at: string;
 }
 
 export interface Exercise {
@@ -50,7 +50,10 @@ export const StorageService = {
     getProjects: async (): Promise<Project[]> => {
         const { data, error } = await supabase.from("projects").select("*").order("created_at", { ascending: false });
         if (error) throw error;
-        return data || [];
+        return (data || []).map(row => ({
+            ...row,
+            status: row.status as Project['status']
+        }));
     },
 
     addProject: async (project: Omit<Project, "id" | "created_at">): Promise<Project> => {
@@ -64,7 +67,10 @@ export const StorageService = {
             .single();
 
         if (error) throw error;
-        return data;
+        return {
+            ...data,
+            status: data.status as Project['status']
+        };
     },
 
     // --- Exercises ---
