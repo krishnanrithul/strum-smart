@@ -31,12 +31,12 @@ export function SessionCompleteDialog({
     const [suggestion, setSuggestion] = useState<{ newBpm: number; reason: string } | null>(null);
     const navigate = useNavigate();
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         const newBpm = parseInt(bpm);
 
         // Save session
-        StorageService.saveSession({
+        await StorageService.saveSession({
             date: new Date().toISOString(),
             duration: durationSeconds,
             exercises: [exercise.id],
@@ -44,11 +44,11 @@ export function SessionCompleteDialog({
 
         // Update exercise BPM if changed
         if (newBpm !== exercise.currentBpm) {
-            StorageService.updateExerciseBpm(exercise.id, newBpm);
+            await StorageService.updateExerciseBpm(exercise.id, newBpm);
         }
 
         // Check for progressive overload
-        const overload = StorageService.checkProgressiveOverload(exercise.id);
+        const overload = await StorageService.checkProgressiveOverload(exercise.id);
         if (overload) {
             setSuggestion(overload);
         } else {
@@ -57,9 +57,9 @@ export function SessionCompleteDialog({
         }
     };
 
-    const handleAcceptSuggestion = () => {
+    const handleAcceptSuggestion = async () => {
         if (suggestion) {
-            StorageService.updateTargetBpm(exercise.id, suggestion.newBpm);
+            await StorageService.updateTargetBpm(exercise.id, suggestion.newBpm);
             onOpenChange(false);
             navigate("/library");
         }
