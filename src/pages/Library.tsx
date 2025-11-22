@@ -257,6 +257,17 @@ const Library = () => {
                             ▶️ Video
                           </a>
                         )}
+                        {exercise.ultimateGuitarUrl && (
+                          <a
+                            href={exercise.ultimateGuitarUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="text-xs text-primary hover:underline flex items-center gap-1"
+                          >
+                            📝 UG Tab
+                          </a>
+                        )}
                       </div>
                     </div>
                     <div className="text-right flex-shrink-0">

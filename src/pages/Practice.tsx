@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { ArrowLeft, Play, Pause, RotateCcw, Plus, Minus } from "lucide-react";
+import { ArrowLeft, Play, Pause, RotateCcw, Plus, Minus, Loader2 } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -94,6 +94,14 @@ const Practice = () => {
       setBpm(val);
     }
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   if (!exercise) {
     return (
@@ -255,7 +263,19 @@ const Practice = () => {
                 </Button>
               </a>
             )}
-            {!exercise.songsterrUrl && !exercise.youtubeUrl && (
+            {exercise.ultimateGuitarUrl && (
+              <a
+                href={exercise.ultimateGuitarUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block"
+              >
+                <Button variant="outline" className="w-full h-12 text-base">
+                  📝 View Ultimate Guitar Tab
+                </Button>
+              </a>
+            )}
+            {!exercise.songsterrUrl && !exercise.youtubeUrl && !exercise.ultimateGuitarUrl && (
               <div className="text-center text-muted-foreground text-sm py-4">
                 No reference materials added yet
               </div>

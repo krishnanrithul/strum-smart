@@ -25,6 +25,7 @@ export function AddRepertoireDialog({ onRepertoireAdded }: AddRepertoireDialogPr
     const [bpm, setBpm] = useState("120");
     const [songsterrUrl, setSongsterrUrl] = useState("");
     const [youtubeUrl, setYoutubeUrl] = useState("");
+    const [ultimateGuitarUrl, setUltimateGuitarUrl] = useState("");
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -39,6 +40,7 @@ export function AddRepertoireDialog({ onRepertoireAdded }: AddRepertoireDialogPr
                 status: "New",
                 songsterrUrl: songsterrUrl || undefined,
                 youtubeUrl: youtubeUrl || undefined,
+                ultimateGuitarUrl: ultimateGuitarUrl || undefined,
             });
             setOpen(false);
             setTitle("");
@@ -46,6 +48,7 @@ export function AddRepertoireDialog({ onRepertoireAdded }: AddRepertoireDialogPr
             setBpm("120");
             setSongsterrUrl("");
             setYoutubeUrl("");
+            setUltimateGuitarUrl("");
             onRepertoireAdded();
         } catch (error) {
             console.error("Failed to add repertoire song:", error);
@@ -119,6 +122,17 @@ export function AddRepertoireDialog({ onRepertoireAdded }: AddRepertoireDialogPr
                             value={youtubeUrl}
                             onChange={(e) => setYoutubeUrl(e.target.value)}
                             placeholder="https://www.youtube.com/..."
+                            className="bg-secondary"
+                        />
+                    </div>
+                    <div className="grid gap-2">
+                        <Label htmlFor="ultimateguitar">Ultimate Guitar URL (optional)</Label>
+                        <Input
+                            id="ultimateguitar"
+                            type="url"
+                            value={ultimateGuitarUrl}
+                            onChange={(e) => setUltimateGuitarUrl(e.target.value)}
+                            placeholder="https://tabs.ultimate-guitar.com/..."
                             className="bg-secondary"
                         />
                     </div>

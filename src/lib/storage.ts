@@ -19,6 +19,7 @@ export interface Exercise {
     history: { date: string; bpm: number }[];
     songsterrUrl?: string;
     youtubeUrl?: string;
+    ultimateGuitarUrl?: string;
 }
 
 export interface Session {
@@ -40,6 +41,7 @@ const mapExercise = (row: any): Exercise => ({
     history: row.history || [],
     songsterrUrl: row.songsterr_url,
     youtubeUrl: row.youtube_url,
+    ultimateGuitarUrl: row.ultimate_guitar_url,
 });
 
 const mapSession = (row: any): Session => ({
