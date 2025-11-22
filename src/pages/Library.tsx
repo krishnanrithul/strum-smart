@@ -1,41 +1,28 @@
+import { useState, useEffect } from "react";
 import { ArrowLeft, Plus, Search } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { StorageService, Exercise } from "@/lib/storage";
+import { AddExerciseDialog } from "@/components/AddExerciseDialog";
 
 const Library = () => {
-  const exercises = [
-    {
-      id: 1,
-      title: "Alternate Picking",
-      category: "Technical",
-      lastBpm: 120,
-      status: "In Progress",
-    },
-    {
-      id: 2,
-      title: "Sultans of Swing - Solo",
-      category: "Repertoire",
-      lastBpm: 95,
-      status: "In Progress",
-    },
-    {
-      id: 3,
-      title: "Chromatic Scale",
-      category: "Warmup",
-      lastBpm: 140,
-      status: "Mastered",
-    },
-    {
-      id: 4,
-      title: "String Skipping",
-      category: "Technical",
-      lastBpm: 88,
-      status: "New",
-    },
-  ];
+  const [exercises, setExercises] = useState<Exercise[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const loadExercises = () => {
+    setExercises(StorageService.getExercises());
+  };
+
+  useEffect(() => {
+    loadExercises();
+  }, []);
+
+  const filteredExercises = exercises.filter((exercise) =>
+    exercise.title.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -73,17 +60,17 @@ const Library = () => {
             <Input
               placeholder="Search exercises..."
               className="pl-10 h-12 bg-secondary border-border"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
-          <Button size="lg" className="h-12 px-4">
-            <Plus className="h-5 w-5" />
-          </Button>
+          <AddExerciseDialog onExerciseAdded={loadExercises} />
         </div>
 
         {/* Exercise List */}
         <section className="space-y-3">
-          {exercises.map((exercise) => (
-            <Link key={exercise.id} to={`/exercise/${exercise.id}`}>
+          {filteredExercises.map((exercise) => (
+            <Link key={exercise.id} to={`/practice/${exercise.id}`}>
               <Card className="p-4 bg-secondary border-border hover:bg-secondary/80 transition-colors">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
@@ -99,7 +86,7 @@ const Library = () => {
                   </div>
                   <div className="text-right flex-shrink-0">
                     <div className="text-sm text-muted-foreground">Last BPM</div>
-                    <div className="text-2xl font-bold metric-display">{exercise.lastBpm}</div>
+                    <div className="text-2xl font-bold metric-display">{exercise.currentBpm}</div>
                   </div>
                 </div>
               </Card>
@@ -108,18 +95,17 @@ const Library = () => {
         </section>
 
         {/* Empty State Helper */}
-        <Card className="p-8 bg-card border-border text-center">
-          <div className="text-muted-foreground mb-4">
-            <div className="text-4xl mb-2">🎸</div>
-            <p className="text-sm">
-              Build your exercise library by adding songs, techniques, and warmups you want to track.
-            </p>
-          </div>
-          <Button className="mt-2">
-            <Plus className="h-5 w-5 mr-2" />
-            Add Your First Exercise
-          </Button>
-        </Card>
+        {exercises.length === 0 && (
+          <Card className="p-8 bg-card border-border text-center">
+            <div className="text-muted-foreground mb-4">
+              <div className="text-4xl mb-2">🎸</div>
+              <p className="text-sm">
+                Build your exercise library by adding songs, techniques, and warmups you want to track.
+              </p>
+            </div>
+            <AddExerciseDialog onExerciseAdded={loadExercises} />
+          </Card>
+        )}
       </main>
     </div>
   );

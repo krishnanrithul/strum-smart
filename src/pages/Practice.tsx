@@ -1,14 +1,42 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { ArrowLeft, Play, Pause, RotateCcw, Plus, Minus } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
+import { Input } from "@/components/ui/input";
+import { StorageService, Exercise } from "@/lib/storage";
+import { SessionCompleteDialog } from "@/components/SessionCompleteDialog";
+import { MetronomeEngine } from "@/lib/audio";
 
 const Practice = () => {
+  const { id } = useParams();
+  const [exercise, setExercise] = useState<Exercise | null>(null);
   const [bpm, setBpm] = useState(120);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isMetronomeActive, setIsMetronomeActive] = useState(false);
   const [seconds, setSeconds] = useState(0);
+  const [showCompleteDialog, setShowCompleteDialog] = useState(false);
+  const metronomeRef = useRef<MetronomeEngine | null>(null);
+
+  useEffect(() => {
+    metronomeRef.current = new MetronomeEngine();
+    return () => {
+      if (metronomeRef.current) {
+        metronomeRef.current.stop();
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (id) {
+      const data = StorageService.getExercise(id);
+      if (data) {
+        setExercise(data);
+        setBpm(data.currentBpm);
+      }
+    }
+  }, [id]);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -19,6 +47,24 @@ const Practice = () => {
     }
     return () => clearInterval(interval);
   }, [isPlaying]);
+
+  useEffect(() => {
+    if (metronomeRef.current) {
+      metronomeRef.current.setBpm(bpm);
+    }
+  }, [bpm]);
+
+  const toggleMetronome = () => {
+    if (!metronomeRef.current) return;
+
+    if (isMetronomeActive) {
+      metronomeRef.current.stop();
+      setIsMetronomeActive(false);
+    } else {
+      metronomeRef.current.start(bpm);
+      setIsMetronomeActive(true);
+    }
+  };
 
   const formatTime = (totalSeconds: number) => {
     const mins = Math.floor(totalSeconds / 60);
@@ -31,19 +77,39 @@ const Practice = () => {
     setIsPlaying(false);
   };
 
+  const handleBpmChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = parseInt(e.target.value);
+    if (!isNaN(val) && val >= 40 && val <= 240) {
+      setBpm(val);
+    }
+  };
+
+  if (!exercise) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold mb-4">Exercise Not Found</h1>
+          <Link to="/library">
+            <Button>Return to Library</Button>
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background pb-24">
       {/* Header */}
       <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-10">
         <div className="container mx-auto px-4 py-4 flex items-center gap-4">
-          <Link to="/">
+          <Link to="/library">
             <Button variant="ghost" size="icon">
               <ArrowLeft className="h-6 w-6" />
             </Button>
           </Link>
           <div>
             <h1 className="text-xl font-bold">Practice Session</h1>
-            <p className="text-sm text-muted-foreground">Alternate Picking</p>
+            <p className="text-sm text-muted-foreground">{exercise.title}</p>
           </div>
         </div>
       </header>
@@ -83,7 +149,16 @@ const Practice = () => {
           <Card className="p-6 bg-secondary border-border space-y-6">
             <div className="text-center">
               <div className="text-sm text-muted-foreground mb-2">Tempo</div>
-              <div className="text-6xl font-bold metric-display">{bpm}</div>
+              <div className="flex items-center justify-center gap-2">
+                <Input
+                  type="number"
+                  value={bpm}
+                  onChange={handleBpmChange}
+                  className="text-6xl font-bold metric-display h-20 w-56 text-center bg-transparent border-none focus-visible:ring-0 p-0 hover:bg-card/50 focus:bg-card/50 rounded-lg transition-colors cursor-text"
+                  min={40}
+                  max={240}
+                />
+              </div>
               <div className="text-sm text-muted-foreground mt-1">BPM</div>
             </div>
 
@@ -132,8 +207,11 @@ const Practice = () => {
               </div>
             </div>
 
-            <Button className="w-full h-14 text-lg font-semibold">
-              {isPlaying ? "Click Active" : "Start Metronome"}
+            <Button
+              className={`w-full h-14 text-lg font-semibold ${isMetronomeActive ? "bg-red-500 hover:bg-red-600" : ""}`}
+              onClick={toggleMetronome}
+            >
+              {isMetronomeActive ? "Stop Metronome" : "Start Metronome"}
             </Button>
           </Card>
         </section>
@@ -154,10 +232,24 @@ const Practice = () => {
         </section>
 
         {/* Finish Session */}
-        <Button className="w-full h-16 text-lg font-semibold" size="lg">
+        <Button
+          className="w-full h-16 text-lg font-semibold"
+          size="lg"
+          onClick={() => {
+            setIsPlaying(false);
+            setShowCompleteDialog(true);
+          }}
+        >
           Complete Session
         </Button>
       </main>
+
+      <SessionCompleteDialog
+        open={showCompleteDialog}
+        onOpenChange={setShowCompleteDialog}
+        exercise={exercise}
+        durationSeconds={seconds}
+      />
     </div>
   );
 };
