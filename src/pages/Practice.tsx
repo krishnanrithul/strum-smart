@@ -154,12 +154,12 @@ const Practice = () => {
                   type="number"
                   value={bpm}
                   onChange={handleBpmChange}
-                  className="text-6xl font-bold metric-display h-20 w-56 text-center bg-transparent border-none focus-visible:ring-0 p-0 hover:bg-card/50 focus:bg-card/50 rounded-lg transition-colors cursor-text"
+                  className="text-6xl font-bold metric-display h-20 w-56 text-center bg-card/30 border-2 border-border/50 hover:border-primary/50 focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/20 p-0 rounded-lg transition-all cursor-text"
                   min={40}
                   max={240}
                 />
               </div>
-              <div className="text-sm text-muted-foreground mt-1">BPM</div>
+              <div className="text-sm text-muted-foreground mt-1">BPM (Click to edit)</div>
             </div>
 
             <div className="space-y-4">
