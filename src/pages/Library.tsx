@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { StorageService, Exercise, Project } from "@/lib/storage";
 import { AddExerciseDialog } from "@/components/AddExerciseDialog";
 import { AddProjectDialog } from "@/components/AddProjectDialog";
+import { AddRepertoireDialog } from "@/components/AddRepertoireDialog";
 
 const Library = () => {
   const [exercises, setExercises] = useState<Exercise[]>([]);
@@ -37,6 +38,13 @@ const Library = () => {
 
   const filteredExercises = exercises.filter((exercise) =>
     !exercise.project_id && // Only show standalone exercises here
+    exercise.category !== "Repertoire" && // Exclude Repertoire from standalone drills
+    exercise.title.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const filteredRepertoire = exercises.filter((exercise) =>
+    !exercise.project_id && // Only standalone
+    exercise.category === "Repertoire" &&
     exercise.title.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
@@ -160,6 +168,45 @@ const Library = () => {
               })}
             </div>
           )}
+        </section>
+
+        {/* Repertoire Section */}
+        <section className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-lg font-semibold text-primary">
+              <Music className="h-5 w-5" />
+              <h2>Repertoire Songs</h2>
+            </div>
+            <AddRepertoireDialog onRepertoireAdded={loadData} />
+          </div>
+
+          <div className="space-y-3">
+            {filteredRepertoire.map((exercise) => (
+              <Link key={exercise.id} to={`/practice/${exercise.id}`}>
+                <Card className="p-4 bg-secondary border-border hover:bg-secondary/80 transition-colors">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold mb-1 truncate">{exercise.title}</h3>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Badge variant="outline" className={`text-xs ${getStatusColor(exercise.status)}`}>
+                          {exercise.status}
+                        </Badge>
+                      </div>
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      <div className="text-sm text-muted-foreground">Current BPM</div>
+                      <div className="text-2xl font-bold metric-display">{exercise.currentBpm}</div>
+                    </div>
+                  </div>
+                </Card>
+              </Link>
+            ))}
+            {filteredRepertoire.length === 0 && (
+              <div className="text-center p-8 border border-dashed border-border rounded-lg text-muted-foreground">
+                No repertoire songs yet. Add one to get started!
+              </div>
+            )}
+          </div>
         </section>
 
         {/* Standalone Exercises Section */}
