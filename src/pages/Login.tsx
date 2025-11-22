@@ -1,42 +1,57 @@
 import { useState } from "react";
-import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { useNavigate } from "react-router-dom";
-import { Loader2 } from "lucide-react";
+import { Loader2, Dumbbell } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Login() {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [loading, setLoading] = useState(false);
     const [isSignUp, setIsSignUp] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+    const { signIn, signUp, session } = useAuth();
     const navigate = useNavigate();
+    const { toast } = useToast();
+
+    // Redirect if already logged in
+    if (session) {
+        navigate("/");
+        return null;
+    }
 
     const handleAuth = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
-        setError(null);
 
         try {
-            if (isSignUp) {
-                const { error } = await supabase.auth.signUp({
-                    email,
-                    password,
+            const { error } = isSignUp 
+                ? await signUp(email, password)
+                : await signIn(email, password);
+
+            if (error) {
+                toast({
+                    title: "Error",
+                    description: error.message,
+                    variant: "destructive",
                 });
-                if (error) throw error;
-                alert("Check your email for the confirmation link!");
             } else {
-                const { error } = await supabase.auth.signInWithPassword({
-                    email,
-                    password,
+                toast({
+                    title: isSignUp ? "Account created!" : "Welcome back!",
+                    description: isSignUp 
+                        ? "You can now start your practice journey."
+                        : "Let's get to work.",
                 });
-                if (error) throw error;
                 navigate("/");
             }
         } catch (err: any) {
-            setError(err.message);
+            toast({
+                title: "Error",
+                description: err.message || "Something went wrong",
+                variant: "destructive",
+            });
         } finally {
             setLoading(false);
         }
@@ -46,9 +61,12 @@ export default function Login() {
         <div className="min-h-screen flex items-center justify-center bg-background p-4">
             <Card className="w-full max-w-md p-8 space-y-6 border-border bg-card">
                 <div className="text-center space-y-2">
-                    <h1 className="text-3xl font-bold tracking-tighter neon-glow">
-                        FretGym
-                    </h1>
+                    <div className="flex items-center justify-center gap-2 mb-2">
+                        <Dumbbell className="h-8 w-8 text-primary" />
+                        <h1 className="text-3xl font-bold tracking-tighter">
+                            Fret<span className="text-primary">Gym</span>
+                        </h1>
+                    </div>
                     <p className="text-muted-foreground">
                         {isSignUp ? "Create an account" : "Welcome back"}
                     </p>
@@ -68,17 +86,14 @@ export default function Login() {
                     <div className="space-y-2">
                         <Input
                             type="password"
-                            placeholder="Password"
+                            placeholder="Password (min 6 characters)"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             required
+                            minLength={6}
                             className="bg-secondary"
                         />
                     </div>
-
-                    {error && (
-                        <div className="text-sm text-red-500 text-center">{error}</div>
-                    )}
 
                     <Button
                         type="submit"

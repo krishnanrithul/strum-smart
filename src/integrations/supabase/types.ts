@@ -14,7 +14,99 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      exercises: {
+        Row: {
+          category: string
+          created_at: string | null
+          current_bpm: number
+          history: Json
+          id: string
+          project_id: string | null
+          status: string
+          target_bpm: number
+          title: string
+          user_id: string
+        }
+        Insert: {
+          category: string
+          created_at?: string | null
+          current_bpm?: number
+          history?: Json
+          id?: string
+          project_id?: string | null
+          status?: string
+          target_bpm?: number
+          title: string
+          user_id: string
+        }
+        Update: {
+          category?: string
+          created_at?: string | null
+          current_bpm?: number
+          history?: Json
+          id?: string
+          project_id?: string | null
+          status?: string
+          target_bpm?: number
+          title?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      projects: {
+        Row: {
+          artist: string | null
+          created_at: string | null
+          id: string
+          status: string
+          title: string
+          user_id: string
+        }
+        Insert: {
+          artist?: string | null
+          created_at?: string | null
+          id?: string
+          status?: string
+          title: string
+          user_id: string
+        }
+        Update: {
+          artist?: string | null
+          created_at?: string | null
+          id?: string
+          status?: string
+          title?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      sessions: {
+        Row: {
+          created_at: string | null
+          date: string
+          duration: number
+          exercises: Json
+          id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          date?: string
+          duration?: number
+          exercises?: Json
+          id?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          date?: string
+          duration?: number
+          exercises?: Json
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
