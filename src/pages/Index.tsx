@@ -17,45 +17,48 @@ const Index = () => {
 
   useEffect(() => {
     // Load data
-    const sessions = StorageService.getSessions();
-    const exercises = StorageService.getExercises();
+    const loadData = async () => {
+      const sessions = await StorageService.getSessions();
+      const exercises = await StorageService.getExercises();
 
-    // Calculate today's stats
-    const today = new Date().toISOString().split("T")[0];
-    const todaysSessions = sessions.filter((s) => s.date.startsWith(today));
+      // Calculate today's stats
+      const today = new Date().toISOString().split("T")[0];
+      const todaysSessions = sessions.filter((s) => s.date.startsWith(today));
 
-    const duration = todaysSessions.reduce((acc, s) => acc + s.duration, 0);
+      const duration = todaysSessions.reduce((acc, s) => acc + s.duration, 0);
 
-    // Find max BPM from exercises updated today
-    // This is an approximation since we don't store BPM per session explicitly in the session object yet,
-    // but we can look at exercise history.
-    let maxBpm = 0;
-    exercises.forEach(e => {
-      const todayHistory = e.history.filter(h => h.date.startsWith(today));
-      todayHistory.forEach(h => {
-        if (h.bpm > maxBpm) maxBpm = h.bpm;
+      // Find max BPM from exercises updated today
+      // This is an approximation since we don't store BPM per session explicitly in the session object yet,
+      // but we can look at exercise history.
+      let maxBpm = 0;
+      exercises.forEach(e => {
+        const todayHistory = e.history.filter(h => h.date.startsWith(today));
+        todayHistory.forEach(h => {
+          if (h.bpm > maxBpm) maxBpm = h.bpm;
+        });
       });
-    });
 
-    setTodaysStats({ duration, maxBpm });
+      setTodaysStats({ duration, maxBpm });
 
-    // Get "In Progress" exercises, sorted by last update
-    const inProgress = exercises
-      .filter((e) => e.status === "In Progress")
-      .sort((a, b) => {
-        const lastA = a.history[a.history.length - 1].date;
-        const lastB = b.history[b.history.length - 1].date;
-        return new Date(lastB).getTime() - new Date(lastA).getTime();
-      })
-      .slice(0, 3);
+      // Get "In Progress" exercises, sorted by last update
+      const inProgress = exercises
+        .filter((e) => e.status === "In Progress")
+        .sort((a, b) => {
+          const lastA = a.history[a.history.length - 1].date;
+          const lastB = b.history[b.history.length - 1].date;
+          return new Date(lastB).getTime() - new Date(lastA).getTime();
+        })
+        .slice(0, 3);
 
-    setRecentExercises(inProgress);
+      setRecentExercises(inProgress);
 
-    // Calculate streak (simplified version)
-    // In a real app, we'd check consecutive days in sessions
-    const uniqueDays = new Set(sessions.map(s => s.date.split("T")[0]));
-    setStreak(uniqueDays.size); // Just showing total active days for now as a placeholder for streak logic
+      // Calculate streak (simplified version)
+      // In a real app, we'd check consecutive days in sessions
+      const uniqueDays = new Set(sessions.map(s => s.date.split("T")[0]));
+      setStreak(uniqueDays.size); // Just showing total active days for now as a placeholder for streak logic
+    };
 
+    loadData();
   }, []);
 
   const navItems = [

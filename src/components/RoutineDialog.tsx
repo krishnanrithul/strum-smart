@@ -33,12 +33,15 @@ export function RoutineDialog({ open, onOpenChange }: RoutineDialogProps) {
 
     useEffect(() => {
         if (open) {
-            const fullRoutine = StorageService.generateRoutine();
-            setRoutine({
-                warmup: selectedCategories.warmup ? fullRoutine.warmup : null,
-                technical: selectedCategories.technical ? fullRoutine.technical : null,
-                repertoire: selectedCategories.repertoire ? fullRoutine.repertoire : null,
-            });
+            const loadRoutine = async () => {
+                const fullRoutine = await StorageService.generateRoutine();
+                setRoutine({
+                    warmup: selectedCategories.warmup ? fullRoutine.warmup : null,
+                    technical: selectedCategories.technical ? fullRoutine.technical : null,
+                    repertoire: selectedCategories.repertoire ? fullRoutine.repertoire : null,
+                });
+            };
+            loadRoutine();
         }
     }, [open, selectedCategories]);
 
@@ -53,8 +56,8 @@ export function RoutineDialog({ open, onOpenChange }: RoutineDialogProps) {
         onOpenChange(false);
     };
 
-    const handleSwap = (category: "Warmup" | "Technical" | "Repertoire", currentId?: string) => {
-        const newExercise = StorageService.getRandomExerciseByCategory(category, currentId);
+    const handleSwap = async (category: "Warmup" | "Technical" | "Repertoire", currentId?: string) => {
+        const newExercise = await StorageService.getRandomExerciseByCategory(category, currentId);
         if (newExercise && routine) {
             setRoutine({
                 ...routine,
