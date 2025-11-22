@@ -227,12 +227,7 @@ const Library = () => {
           <div className="space-y-3">
             {filteredRepertoire.map((exercise) => (
               <Card key={exercise.id} className="relative group p-4 bg-secondary border-border hover:bg-secondary/80 transition-colors">
-                <a 
-                  href={exercise.songsterrUrl || '#'} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="block"
-                >
+                <Link to={`/practice/${exercise.id}`} className="block">
                   <div className="flex items-start justify-between gap-4 pr-10">
                     <div className="flex-1 min-w-0">
                       <h3 className="font-semibold mb-1 truncate">{exercise.title}</h3>
@@ -240,6 +235,17 @@ const Library = () => {
                         <Badge variant="outline" className={`text-xs ${getStatusColor(exercise.status)}`}>
                           {exercise.status}
                         </Badge>
+                        {exercise.songsterrUrl && (
+                          <a
+                            href={exercise.songsterrUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="text-xs text-primary hover:underline flex items-center gap-1"
+                          >
+                            🎸 Tab
+                          </a>
+                        )}
                         {exercise.youtubeUrl && (
                           <a
                             href={exercise.youtubeUrl}
@@ -258,7 +264,7 @@ const Library = () => {
                       <div className="text-2xl font-bold metric-display">{exercise.currentBpm}</div>
                     </div>
                   </div>
-                </a>
+                </Link>
                 <Button
                   variant="destructive"
                   size="icon"
