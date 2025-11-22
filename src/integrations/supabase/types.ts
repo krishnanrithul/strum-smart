@@ -22,10 +22,12 @@ export type Database = {
           history: Json
           id: string
           project_id: string | null
+          songsterr_url: string | null
           status: string
           target_bpm: number
           title: string
           user_id: string
+          youtube_url: string | null
         }
         Insert: {
           category: string
@@ -34,10 +36,12 @@ export type Database = {
           history?: Json
           id?: string
           project_id?: string | null
+          songsterr_url?: string | null
           status?: string
           target_bpm?: number
           title: string
           user_id: string
+          youtube_url?: string | null
         }
         Update: {
           category?: string
@@ -46,10 +50,12 @@ export type Database = {
           history?: Json
           id?: string
           project_id?: string | null
+          songsterr_url?: string | null
           status?: string
           target_bpm?: number
           title?: string
           user_id?: string
+          youtube_url?: string | null
         }
         Relationships: []
       }

@@ -229,16 +229,37 @@ const Practice = () => {
 
         {/* Exercise Reference */}
         <section>
-          <h2 className="text-lg font-semibold mb-4 text-muted-foreground">Exercise</h2>
-          <Card className="p-6 bg-secondary border-border">
-            <div className="aspect-video bg-muted rounded-lg flex items-center justify-center text-muted-foreground mb-4">
-              Snapshot Area
-              <br />
-              (Tab/Sheet Photo)
-            </div>
-            <Button variant="outline" className="w-full">
-              Add Snapshot
-            </Button>
+          <h2 className="text-lg font-semibold mb-4 text-muted-foreground">Reference Materials</h2>
+          <Card className="p-6 bg-secondary border-border space-y-3">
+            {exercise.songsterrUrl && (
+              <a
+                href={exercise.songsterrUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block"
+              >
+                <Button variant="outline" className="w-full h-12 text-base">
+                  🎸 View Songsterr Tab
+                </Button>
+              </a>
+            )}
+            {exercise.youtubeUrl && (
+              <a
+                href={exercise.youtubeUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block"
+              >
+                <Button variant="outline" className="w-full h-12 text-base">
+                  ▶️ Watch on YouTube
+                </Button>
+              </a>
+            )}
+            {!exercise.songsterrUrl && !exercise.youtubeUrl && (
+              <div className="text-center text-muted-foreground text-sm py-4">
+                No reference materials added yet
+              </div>
+            )}
           </Card>
         </section>
 
