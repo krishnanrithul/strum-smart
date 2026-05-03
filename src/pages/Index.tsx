@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
-import { Home, Dumbbell, Library, TrendingUp, Sparkles, LogOut } from "lucide-react";
+import { Home, Dumbbell, Library, TrendingUp, Sparkles, LogOut, Sun, Moon } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { StorageService, Exercise, Session } from "@/lib/storage";
+import { StorageService, Exercise } from "@/lib/storage";
 import { RoutineDialog } from "@/components/RoutineDialog";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -12,10 +12,21 @@ const Index = () => {
   const location = useLocation();
   const currentPath = location.pathname;
   const { signOut } = useAuth();
+  const [isDark, setIsDark] = useState(true);
   const [todaysStats, setTodaysStats] = useState({ duration: 0, maxBpm: 0 });
   const [recentExercises, setRecentExercises] = useState<Exercise[]>([]);
   const [streak, setStreak] = useState(0);
   const [showRoutineDialog, setShowRoutineDialog] = useState(false);
+
+  const toggleTheme = () => {
+    const html = document.documentElement;
+    if (isDark) {
+      html.classList.add("light");
+    } else {
+      html.classList.remove("light");
+    }
+    setIsDark(!isDark);
+  };
 
   useEffect(() => {
     const loadData = async () => {
@@ -73,9 +84,14 @@ const Index = () => {
           <h1 className="text-2xl font-bold tracking-tight">
             Fret<span className="text-primary">Gym</span>
           </h1>
-          <Button variant="ghost" size="icon" onClick={() => signOut()}>
-            <LogOut className="h-5 w-5" />
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="icon" onClick={toggleTheme}>
+              {isDark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+            </Button>
+            <Button variant="ghost" size="icon" onClick={() => signOut()}>
+              <LogOut className="h-5 w-5" />
+            </Button>
+          </div>
         </div>
       </header>
 

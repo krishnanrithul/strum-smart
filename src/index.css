@@ -11,41 +11,53 @@ All colors MUST be HSL.
     /* FretGym Dark Theme - Industrial Fitness Aesthetic */
     --background: 220 10% 8%;
     --foreground: 220 8% 95%;
-
     --card: 220 10% 12%;
     --card-foreground: 220 8% 95%;
-
     --popover: 220 10% 10%;
     --popover-foreground: 220 8% 95%;
-
-    /* Neon Green Primary - Growth & Progress */
     --primary: 142 76% 56%;
     --primary-foreground: 220 10% 8%;
-
-    /* Elevated Surface */
     --secondary: 220 8% 18%;
     --secondary-foreground: 220 8% 95%;
-
     --muted: 220 8% 18%;
     --muted-foreground: 220 8% 65%;
-
     --accent: 142 76% 56%;
     --accent-foreground: 220 10% 8%;
-
-    /* Orange for alerts/warnings */
     --destructive: 25 95% 53%;
     --destructive-foreground: 220 8% 95%;
-
     --border: 220 8% 22%;
     --input: 220 8% 18%;
     --ring: 142 76% 56%;
-
     --radius: 0.75rem;
-
-    /* Custom tokens for FretGym */
     --neon-glow: 142 76% 56%;
     --surface-elevated: 220 8% 15%;
     --metric-text: 142 76% 56%;
+  }
+
+  .light {
+    --background: 0 0% 98%;
+    --foreground: 220 10% 10%;
+    --card: 0 0% 100%;
+    --card-foreground: 220 10% 10%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 10% 10%;
+    --primary: 142 60% 40%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 220 8% 92%;
+    --secondary-foreground: 220 10% 10%;
+    --muted: 220 8% 92%;
+    --muted-foreground: 220 8% 40%;
+    --accent: 142 60% 40%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 25 95% 53%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 220 8% 85%;
+    --input: 220 8% 92%;
+    --ring: 142 60% 40%;
+    --radius: 0.75rem;
+    --neon-glow: 142 60% 40%;
+    --surface-elevated: 220 8% 95%;
+    --metric-text: 142 60% 40%;
   }
 }
 

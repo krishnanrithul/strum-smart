@@ -259,11 +259,18 @@ export const StorageService = {
 
     // Fall back to templates if user has no exercises in a category
     const getFromTemplates = async (category: string): Promise<Exercise | null> => {
+    try {
         const categoryTemplates = templates.filter(t => t.category === category);
         const template = getRandom(categoryTemplates);
         if (!template) return null;
-        return StorageService.addExerciseFromTemplate(template);
-    };
+        const exercise = await StorageService.addExerciseFromTemplate(template);
+        clearCache();
+        return exercise;
+    } catch (error) {
+        console.error(`Failed to add template for ${category}:`, error);
+        return null;
+    }
+};
 
     const warmup = warmups.length > 0
         ? getRandom(warmups)

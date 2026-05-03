@@ -85,10 +85,10 @@ export function RoutineDialog({ open, onOpenChange }: RoutineDialogProps) {
         } catch (error) {
             console.error('Swap error:', error);
             toast({
-                title: "Error",
-                description: "Failed to swap exercise",
+                 title: "No other exercises",
+                description: `Add more ${category} exercises to your library to enable swapping.`,
                 variant: "destructive",
-            });
+});
         }
     };
 
