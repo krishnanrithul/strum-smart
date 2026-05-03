@@ -207,6 +207,21 @@ export const StorageService = {
     clearCache();
 },
 
+updateExercise: async (id: string, updates: { title: string; category: Exercise["category"]; currentBpm: number; targetBpm: number }): Promise<void> => {
+    const { error } = await supabase
+        .from("exercises")
+        .update({
+            title: updates.title,
+            category: updates.category,
+            current_bpm: updates.currentBpm,
+            target_bpm: updates.targetBpm,
+        })
+        .eq("id", id);
+
+    if (error) throw error;
+    clearCache();
+},
+
     // --- Sessions ---
     getSessions: async (): Promise<Session[]> => {
         const { data, error } = await supabase.from("sessions").select("*").order("created_at", { ascending: false });

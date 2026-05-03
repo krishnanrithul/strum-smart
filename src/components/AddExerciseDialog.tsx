@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Plus, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,32 +24,70 @@ interface AddExerciseDialogProps {
     onExerciseAdded: () => void;
     projectId?: string;
     trigger?: React.ReactNode;
+    exerciseToEdit?: Exercise;
+    open?: boolean;
+    onOpenChange?: (open: boolean) => void;
 }
 
-export function AddExerciseDialog({ onExerciseAdded, projectId, trigger }: AddExerciseDialogProps) {
-    const [open, setOpen] = useState(false);
+export function AddExerciseDialog({ 
+    onExerciseAdded, 
+    projectId, 
+    trigger, 
+    exerciseToEdit,
+    open: controlledOpen,
+    onOpenChange: controlledOnOpenChange,
+}: AddExerciseDialogProps) {
+    const [internalOpen, setInternalOpen] = useState(false);
     const [loading, setLoading] = useState(false);
     const [title, setTitle] = useState("");
     const [category, setCategory] = useState<Exercise["category"]>("Technical");
     const [bpm, setBpm] = useState("120");
+    const [targetBpm, setTargetBpm] = useState("120");
+
+    const isControlled = controlledOpen !== undefined;
+    const open = isControlled ? controlledOpen : internalOpen;
+    const setOpen = isControlled ? controlledOnOpenChange! : setInternalOpen;
+
+    const isEditing = !!exerciseToEdit;
+
+    useEffect(() => {
+        if (exerciseToEdit && open) {
+            setTitle(exerciseToEdit.title);
+            setCategory(exerciseToEdit.category);
+            setBpm(exerciseToEdit.currentBpm.toString());
+            setTargetBpm(exerciseToEdit.targetBpm.toString());
+        } else if (!open) {
+            setTitle("");
+            setCategory("Technical");
+            setBpm("120");
+            setTargetBpm("120");
+        }
+    }, [exerciseToEdit, open]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
         try {
-            await StorageService.addExercise({
-                project_id: projectId,
-                title,
-                category,
-                currentBpm: parseInt(bpm),
-                status: "New",
-            });
+            if (isEditing) {
+                await StorageService.updateExercise(exerciseToEdit.id, {
+                    title,
+                    category,
+                    currentBpm: parseInt(bpm),
+                    targetBpm: parseInt(targetBpm),
+                });
+            } else {
+                await StorageService.addExercise({
+                    project_id: projectId,
+                    title,
+                    category,
+                    currentBpm: parseInt(bpm),
+                    status: "New",
+                });
+            }
             setOpen(false);
-            setTitle("");
-            setBpm("120");
             onExerciseAdded();
         } catch (error) {
-            console.error("Failed to add exercise:", error);
+            console.error("Failed to save exercise:", error);
         } finally {
             setLoading(false);
         }
@@ -57,17 +95,21 @@ export function AddExerciseDialog({ onExerciseAdded, projectId, trigger }: AddEx
 
     return (
         <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-                {trigger || (
-                    <Button className="gap-2">
-                        <Plus className="h-4 w-4" />
-                        Add Exercise
-                    </Button>
-                )}
-            </DialogTrigger>
+            {!isControlled && (
+                <DialogTrigger asChild>
+                    {trigger || (
+                        <Button className="gap-2">
+                            <Plus className="h-4 w-4" />
+                            Add Exercise
+                        </Button>
+                    )}
+                </DialogTrigger>
+            )}
             <DialogContent className="sm:max-w-[425px] bg-card border-border">
                 <DialogHeader>
-                    <DialogTitle>{projectId ? "Add Section" : "Add New Exercise"}</DialogTitle>
+                    <DialogTitle>
+                        {isEditing ? "Edit Exercise" : projectId ? "Add Section" : "Add New Exercise"}
+                    </DialogTitle>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="grid gap-4 py-4">
                     <div className="grid gap-2">
@@ -98,7 +140,7 @@ export function AddExerciseDialog({ onExerciseAdded, projectId, trigger }: AddEx
                         </Select>
                     </div>
                     <div className="grid gap-2">
-                        <Label htmlFor="bpm">Starting BPM</Label>
+                        <Label htmlFor="bpm">{isEditing ? "Current BPM" : "Starting BPM"}</Label>
                         <Input
                             id="bpm"
                             type="number"
@@ -109,9 +151,23 @@ export function AddExerciseDialog({ onExerciseAdded, projectId, trigger }: AddEx
                             className="bg-secondary"
                         />
                     </div>
+                    {isEditing && (
+                        <div className="grid gap-2">
+                            <Label htmlFor="targetBpm">Target BPM</Label>
+                            <Input
+                                id="targetBpm"
+                                type="number"
+                                value={targetBpm}
+                                onChange={(e) => setTargetBpm(e.target.value)}
+                                required
+                                min="1"
+                                className="bg-secondary"
+                            />
+                        </div>
+                    )}
                     <DialogFooter>
                         <Button type="submit" disabled={loading}>
-                            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Add"}
+                            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : isEditing ? "Save" : "Add"}
                         </Button>
                     </DialogFooter>
                 </form>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { ArrowLeft, Search, Loader2, Music, Dumbbell, Plus, Trash2, BookOpen } from "lucide-react";
+import { ArrowLeft, Search, Loader2, Music, Dumbbell, Plus, Trash2, BookOpen, Pencil } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -30,6 +30,8 @@ const Library = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [exerciseToDelete, setExerciseToDelete] = useState<Exercise | null>(null);
+  const [exerciseToEdit, setExerciseToEdit] = useState<Exercise | null>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
   const { toast } = useToast();
 
   const loadData = async () => {
@@ -102,12 +104,19 @@ const Library = () => {
     setDeleteDialogOpen(true);
   };
 
+  const handleEditClick = (exercise: Exercise, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setExerciseToEdit(exercise);
+    setEditDialogOpen(true);
+  };
+
   const handleDeleteConfirm = async () => {
     if (!exerciseToDelete) return;
     try {
       await StorageService.deleteExercise(exerciseToDelete.id);
       toast({
-        title: "Song deleted",
+        title: "Exercise deleted",
         description: `${exerciseToDelete.title} has been removed.`,
       });
       loadData();
@@ -115,7 +124,7 @@ const Library = () => {
       console.error("Failed to delete exercise:", error);
       toast({
         title: "Error",
-        description: "Failed to delete song. Please try again.",
+        description: "Failed to delete exercise. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -150,7 +159,6 @@ const Library = () => {
     }
   };
 
-  // Check if a template has already been added to the user's library
   const isTemplateAdded = (template: ExerciseTemplate) =>
     exercises.some(e => e.title === template.title);
 
@@ -204,7 +212,6 @@ const Library = () => {
           <p className="text-sm text-muted-foreground -mt-2">
             Browse curated exercises and add them to your library.
           </p>
-
           <div className="space-y-3">
             {filteredTemplates.length === 0 ? (
               <div className="text-center p-8 border border-dashed border-border rounded-lg text-muted-foreground">
@@ -256,7 +263,6 @@ const Library = () => {
             <Music className="h-5 w-5" />
             <h2>Song Projects</h2>
           </div>
-
           {filteredProjects.length === 0 ? (
             <div className="text-center p-8 border border-dashed border-border rounded-lg text-muted-foreground">
               No song projects yet. Start one!
@@ -276,7 +282,6 @@ const Library = () => {
                         {project.status}
                       </Badge>
                     </div>
-
                     <div className="space-y-2 pl-4 border-l-2 border-border/50">
                       {projectExercises.length === 0 && (
                         <p className="text-xs text-muted-foreground italic">No sections yet.</p>
@@ -320,12 +325,11 @@ const Library = () => {
             </div>
             <AddRepertoireDialog onRepertoireAdded={loadData} />
           </div>
-
           <div className="space-y-3">
             {filteredRepertoire.map((exercise) => (
               <Card key={exercise.id} className="relative group p-4 bg-secondary border-border hover:bg-secondary/80 transition-colors">
                 <Link to={`/practice/${exercise.id}`} className="block">
-                  <div className="flex items-start justify-between gap-4 pr-10">
+                  <div className="flex items-start justify-between gap-4 pr-20">
                     <div className="flex-1 min-w-0">
                       <h3 className="font-semibold mb-1 truncate">{exercise.title}</h3>
                       <div className="flex items-center gap-2 flex-wrap mt-2">
@@ -359,6 +363,14 @@ const Library = () => {
                   </div>
                 </Link>
                 <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute top-2 right-10 h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                  onClick={(e) => handleEditClick(exercise, e)}
+                >
+                  <Pencil className="h-4 w-4" />
+                </Button>
+                <Button
                   variant="destructive"
                   size="icon"
                   className="absolute top-2 right-2 h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity z-10"
@@ -382,11 +394,10 @@ const Library = () => {
             <Dumbbell className="h-5 w-5" />
             <h2>Standalone Drills</h2>
           </div>
-
           <div className="space-y-3">
             {filteredExercises.map((exercise) => (
               <Card key={exercise.id} className="relative group p-4 bg-secondary border-border hover:bg-secondary/80 transition-colors">
-                <Link to={`/practice/${exercise.id}`} className="block pr-10">
+                <Link to={`/practice/${exercise.id}`} className="block pr-20">
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1 min-w-0">
                       <h3 className="font-semibold mb-1 truncate">{exercise.title}</h3>
@@ -403,6 +414,14 @@ const Library = () => {
                     </div>
                   </div>
                 </Link>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute top-2 right-10 h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                  onClick={(e) => handleEditClick(exercise, e)}
+                >
+                  <Pencil className="h-4 w-4" />
+                </Button>
                 <Button
                   variant="destructive"
                   size="icon"
@@ -422,10 +441,28 @@ const Library = () => {
         </section>
       </main>
 
+     {/* Edit Dialog */}
+{/* Edit Dialog */}
+<AddExerciseDialog
+  open={editDialogOpen}
+  onOpenChange={(o) => {
+    setEditDialogOpen(o);
+    if (!o) setExerciseToEdit(null);
+  }}
+  exerciseToEdit={exerciseToEdit ?? undefined}
+  onExerciseAdded={() => {
+    loadData();
+    setEditDialogOpen(false);
+    setExerciseToEdit(null);
+    toast({ title: "Exercise updated!" });
+  }}
+/>
+
+      {/* Delete Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent className="bg-card border-border">
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Song?</AlertDialogTitle>
+            <AlertDialogTitle>Delete Exercise?</AlertDialogTitle>
             <AlertDialogDescription>
               Are you sure you want to delete "{exerciseToDelete?.title}"? This action cannot be undone.
             </AlertDialogDescription>
