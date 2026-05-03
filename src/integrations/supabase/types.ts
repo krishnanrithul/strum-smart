@@ -14,6 +14,32 @@ export type Database = {
   }
   public: {
     Tables: {
+      exercise_templates: {
+    Row: {
+        id: string
+        title: string
+        category: string
+        default_bpm: number
+        description: string | null
+        diagram_url: string | null
+        tutorial_url: string | null
+    }
+    Insert: {
+        id?: string
+        title: string
+        category: string
+        default_bpm?: number
+        description?: string | null
+    }
+    Update: {
+        id?: string
+        title?: string
+        category?: string
+        default_bpm?: number
+        description?: string | null
+    }
+    Relationships: []
+    }
       exercises: {
         Row: {
           category: string

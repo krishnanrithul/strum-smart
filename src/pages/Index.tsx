@@ -1,35 +1,31 @@
 import { useState, useEffect } from "react";
-import { Home, Dumbbell, Library, TrendingUp, Sparkles } from "lucide-react";
+import { Home, Dumbbell, Library, TrendingUp, Sparkles, LogOut } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { StorageService, Exercise, Session } from "@/lib/storage";
 import { RoutineDialog } from "@/components/RoutineDialog";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Index = () => {
   const location = useLocation();
   const currentPath = location.pathname;
+  const { signOut } = useAuth();
   const [todaysStats, setTodaysStats] = useState({ duration: 0, maxBpm: 0 });
   const [recentExercises, setRecentExercises] = useState<Exercise[]>([]);
   const [streak, setStreak] = useState(0);
   const [showRoutineDialog, setShowRoutineDialog] = useState(false);
 
   useEffect(() => {
-    // Load data
     const loadData = async () => {
       const sessions = await StorageService.getSessions();
       const exercises = await StorageService.getExercises();
 
-      // Calculate today's stats
       const today = new Date().toISOString().split("T")[0];
       const todaysSessions = sessions.filter((s) => s.date.startsWith(today));
-
       const duration = todaysSessions.reduce((acc, s) => acc + s.duration, 0);
 
-      // Find max BPM from exercises updated today
-      // This is an approximation since we don't store BPM per session explicitly in the session object yet,
-      // but we can look at exercise history.
       let maxBpm = 0;
       exercises.forEach(e => {
         const todayHistory = e.history.filter(h => h.date.startsWith(today));
@@ -40,7 +36,6 @@ const Index = () => {
 
       setTodaysStats({ duration, maxBpm });
 
-      // Get "In Progress" exercises, sorted by last update
       const inProgress = exercises
         .filter((e) => e.status === "In Progress")
         .sort((a, b) => {
@@ -52,10 +47,8 @@ const Index = () => {
 
       setRecentExercises(inProgress);
 
-      // Calculate streak (simplified version)
-      // In a real app, we'd check consecutive days in sessions
       const uniqueDays = new Set(sessions.map(s => s.date.split("T")[0]));
-      setStreak(uniqueDays.size); // Just showing total active days for now as a placeholder for streak logic
+      setStreak(uniqueDays.size);
     };
 
     loadData();
@@ -63,7 +56,7 @@ const Index = () => {
 
   const navItems = [
     { path: "/", icon: Home, label: "Home" },
-    { path: "/library", icon: Library, label: "Library" }, // Changed Practice to Library for quick access
+    { path: "/library", icon: Library, label: "Library" },
     { path: "/progress", icon: TrendingUp, label: "Progress" },
   ];
 
@@ -76,10 +69,13 @@ const Index = () => {
     <div className="min-h-screen bg-background pb-24">
       {/* Header */}
       <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-10">
-        <div className="container mx-auto px-4 py-4">
+        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <h1 className="text-2xl font-bold tracking-tight">
             Fret<span className="text-primary">Gym</span>
           </h1>
+          <Button variant="ghost" size="icon" onClick={() => signOut()}>
+            <LogOut className="h-5 w-5" />
+          </Button>
         </div>
       </header>
 

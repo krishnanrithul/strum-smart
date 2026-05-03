@@ -19,3 +19,10 @@ export const ProtectedRoute = () => {
 
     return <Outlet />;
 };
+
+
+// import { Outlet } from "react-router-dom";
+
+// export const ProtectedRoute = () => {
+//     return <Outlet />;
+// };

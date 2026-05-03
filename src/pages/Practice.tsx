@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { ArrowLeft, Play, Pause, RotateCcw, Plus, Minus, Loader2 } from "lucide-react";
+import { ArrowLeft, Play, Pause, RotateCcw, Plus, Minus, Loader2, Sparkles, ChevronDown, ChevronUp } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -18,6 +18,10 @@ const Practice = () => {
   const [seconds, setSeconds] = useState(0);
   const [showCompleteDialog, setShowCompleteDialog] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [coachTips, setCoachTips] = useState<string | null>(null);
+  const [coachLoading, setCoachLoading] = useState(false);
+  const [coachExpanded, setCoachExpanded] = useState(false);
+  const [diagramExpanded, setDiagramExpanded] = useState(false);
   const metronomeRef = useRef<MetronomeEngine | null>(null);
 
   useEffect(() => {
@@ -67,7 +71,6 @@ const Practice = () => {
 
   const toggleMetronome = () => {
     if (!metronomeRef.current) return;
-
     if (isMetronomeActive) {
       metronomeRef.current.stop();
       setIsMetronomeActive(false);
@@ -90,10 +93,49 @@ const Practice = () => {
 
   const handleBpmChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = parseInt(e.target.value);
-    if (!isNaN(val) && val >= 40 && val <= 240) {
+    if (!isNaN(val)) {
       setBpm(val);
     }
   };
+
+  const handleBpmBlur = () => {
+    if (bpm < 40) setBpm(40);
+    if (bpm > 240) setBpm(240);
+  };
+
+  const fetchCoachTips = async () => {
+    if (!exercise) return;
+    setCoachLoading(true);
+    setCoachExpanded(true);
+    try {
+      const prompt = `You are a guitar coach. Give brief, practical advice for practicing "${exercise.title}" at ${bpm} BPM.
+Include:
+1. How to physically perform the exercise (finger placement, technique)
+2. 2-3 common mistakes to avoid
+3. One tip for progressing to higher tempos
+
+Keep it concise and actionable. No intro fluff, just the advice.`;
+
+      const response = await fetch("http://localhost:11434/api/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "mistral",
+          prompt,
+          stream: false,
+        }),
+      });
+
+      const data = await response.json();
+      setCoachTips(data.response);
+    } catch (error) {
+      setCoachTips("Could not connect to Ollama. Make sure it's running with OLLAMA_ORIGINS=* set.");
+    } finally {
+      setCoachLoading(false);
+    }
+  };
+
+  const hasReferenceMaterials = exercise?.songsterrUrl || exercise?.youtubeUrl || exercise?.ultimateGuitarUrl || exercise?.tutorialUrl || exercise?.diagramUrl;
 
   if (loading) {
     return (
@@ -162,6 +204,44 @@ const Practice = () => {
           </div>
         </Card>
 
+        {/* AI Coach Section */}
+        <section>
+          <h2 className="text-lg font-semibold mb-4 text-muted-foreground">AI Coach</h2>
+          <Card className="p-6 bg-secondary border-border">
+            <Button
+              className="w-full h-12 text-base"
+              variant="outline"
+              onClick={coachTips ? () => setCoachExpanded(!coachExpanded) : fetchCoachTips}
+              disabled={coachLoading}
+            >
+              {coachLoading ? (
+                <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Getting coaching tips...</>
+              ) : coachTips ? (
+                <>{coachExpanded ? <ChevronUp className="h-4 w-4 mr-2" /> : <ChevronDown className="h-4 w-4 mr-2" />} {coachExpanded ? "Hide" : "Show"} Coaching Tips</>
+              ) : (
+                <><Sparkles className="h-4 w-4 mr-2" /> Get Coaching Tips for {exercise.title}</>
+              )}
+            </Button>
+
+            {coachExpanded && coachTips && (
+              <div className="mt-4 text-sm text-foreground whitespace-pre-wrap leading-relaxed border-t border-border pt-4">
+                {coachTips}
+              </div>
+            )}
+
+            {coachExpanded && coachTips && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="mt-3 text-muted-foreground"
+                onClick={fetchCoachTips}
+              >
+                <Sparkles className="h-3 w-3 mr-1" /> Regenerate
+              </Button>
+            )}
+          </Card>
+        </section>
+
         {/* Metronome */}
         <section>
           <h2 className="text-lg font-semibold mb-4 text-muted-foreground">Metronome</h2>
@@ -173,6 +253,7 @@ const Practice = () => {
                   type="number"
                   value={bpm}
                   onChange={handleBpmChange}
+                  onBlur={handleBpmBlur}
                   className="text-6xl font-bold metric-display h-20 w-56 text-center bg-transparent border-none focus-visible:ring-0 p-0 hover:bg-card/50 focus:bg-card/50 rounded-lg transition-colors cursor-text"
                   min={40}
                   max={240}
@@ -191,37 +272,17 @@ const Practice = () => {
                 className="w-full"
               />
               <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => setBpm(Math.max(40, bpm - 5))}
-                  className="flex-1 h-12"
-                >
-                  <Minus className="h-5 w-5 mr-2" />
-                  5
+                <Button variant="outline" onClick={() => setBpm(Math.max(40, bpm - 5))} className="flex-1 h-12">
+                  <Minus className="h-5 w-5 mr-2" />5
                 </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => setBpm(Math.max(40, bpm - 1))}
-                  className="flex-1 h-12"
-                >
-                  <Minus className="h-4 w-4 mr-2" />
-                  1
+                <Button variant="outline" onClick={() => setBpm(Math.max(40, bpm - 1))} className="flex-1 h-12">
+                  <Minus className="h-4 w-4 mr-2" />1
                 </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => setBpm(Math.min(240, bpm + 1))}
-                  className="flex-1 h-12"
-                >
-                  1
-                  <Plus className="h-4 w-4 ml-2" />
+                <Button variant="outline" onClick={() => setBpm(Math.min(240, bpm + 1))} className="flex-1 h-12">
+                  1<Plus className="h-4 w-4 ml-2" />
                 </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => setBpm(Math.min(240, bpm + 5))}
-                  className="flex-1 h-12"
-                >
-                  5
-                  <Plus className="h-5 w-5 ml-2" />
+                <Button variant="outline" onClick={() => setBpm(Math.min(240, bpm + 5))} className="flex-1 h-12">
+                  5<Plus className="h-5 w-5 ml-2" />
                 </Button>
               </div>
             </div>
@@ -235,47 +296,60 @@ const Practice = () => {
           </Card>
         </section>
 
-        {/* Exercise Reference */}
+        {/* Reference Materials */}
         <section>
           <h2 className="text-lg font-semibold mb-4 text-muted-foreground">Reference Materials</h2>
           <Card className="p-6 bg-secondary border-border space-y-3">
-            {exercise.songsterrUrl && (
-              <a
-                href={exercise.songsterrUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block"
-              >
-                <Button variant="outline" className="w-full h-12 text-base">
-                  🎸 View Songsterr Tab
+
+            {/* Diagram */}
+            {exercise.diagramUrl && (
+              <div>
+                <Button
+                  variant="outline"
+                  className="w-full h-12 text-base"
+                  onClick={() => setDiagramExpanded(!diagramExpanded)}
+                >
+                  {diagramExpanded ? <ChevronUp className="h-4 w-4 mr-2" /> : <ChevronDown className="h-4 w-4 mr-2" />}
+                  {diagramExpanded ? "Hide" : "Show"} Diagram
                 </Button>
+                {diagramExpanded && (
+                  <div className="mt-3 rounded-lg overflow-hidden border border-border">
+                    <img
+                      src={exercise.diagramUrl}
+                      alt={`${exercise.title} diagram`}
+                      className="w-full object-contain bg-white"
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Tutorial */}
+            {exercise.tutorialUrl && (
+              <a href={exercise.tutorialUrl} target="_blank" rel="noopener noreferrer" className="block">
+                <Button variant="outline" className="w-full h-12 text-base">
+                  ▶️ Watch Tutorial
+                </Button>
+              </a>
+            )}
+
+            {exercise.songsterrUrl && (
+              <a href={exercise.songsterrUrl} target="_blank" rel="noopener noreferrer" className="block">
+                <Button variant="outline" className="w-full h-12 text-base">🎸 View Songsterr Tab</Button>
               </a>
             )}
             {exercise.youtubeUrl && (
-              <a
-                href={exercise.youtubeUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block"
-              >
-                <Button variant="outline" className="w-full h-12 text-base">
-                  ▶️ Watch on YouTube
-                </Button>
+              <a href={exercise.youtubeUrl} target="_blank" rel="noopener noreferrer" className="block">
+                <Button variant="outline" className="w-full h-12 text-base">▶️ Watch on YouTube</Button>
               </a>
             )}
             {exercise.ultimateGuitarUrl && (
-              <a
-                href={exercise.ultimateGuitarUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block"
-              >
-                <Button variant="outline" className="w-full h-12 text-base">
-                  📝 View Ultimate Guitar Tab
-                </Button>
+              <a href={exercise.ultimateGuitarUrl} target="_blank" rel="noopener noreferrer" className="block">
+                <Button variant="outline" className="w-full h-12 text-base">📝 View Ultimate Guitar Tab</Button>
               </a>
             )}
-            {!exercise.songsterrUrl && !exercise.youtubeUrl && !exercise.ultimateGuitarUrl && (
+
+            {!hasReferenceMaterials && (
               <div className="text-center text-muted-foreground text-sm py-4">
                 No reference materials added yet
               </div>

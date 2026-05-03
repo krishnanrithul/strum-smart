@@ -1,5 +1,13 @@
 import { supabase } from "@/integrations/supabase/client";
 
+// Simple cache
+let exerciseCache: Exercise[] | null = null;
+let templateCache: ExerciseTemplate[] | null = null;
+
+const clearCache = () => {
+    exerciseCache = null;
+    templateCache = null;
+};
 export interface Project {
     id: string;
     title: string;
@@ -10,7 +18,7 @@ export interface Project {
 
 export interface Exercise {
     id: string;
-    project_id?: string; // Link to a Song Project
+    project_id?: string;
     title: string;
     category: "Technical" | "Repertoire" | "Warmup";
     currentBpm: number;
@@ -20,16 +28,27 @@ export interface Exercise {
     songsterrUrl?: string;
     youtubeUrl?: string;
     ultimateGuitarUrl?: string;
+    tutorialUrl?: string;
+    diagramUrl?: string;
 }
 
 export interface Session {
     id: string;
     date: string;
-    duration: number; // in seconds
-    exercises: string[]; // exercise IDs
+    duration: number;
+    exercises: string[];
 }
 
-// Helper to map Supabase rows to our Interface (snake_case -> camelCase)
+export interface ExerciseTemplate {
+    id: string;
+    title: string;
+    category: "Technical" | "Repertoire" | "Warmup";
+    default_bpm: number;
+    description?: string;
+    diagram_url?: string;
+    tutorial_url?: string;
+}
+
 const mapExercise = (row: any): Exercise => ({
     id: row.id,
     project_id: row.project_id,
@@ -42,6 +61,8 @@ const mapExercise = (row: any): Exercise => ({
     songsterrUrl: row.songsterr_url,
     youtubeUrl: row.youtube_url,
     ultimateGuitarUrl: row.ultimate_guitar_url,
+    tutorialUrl: row.tutorial_url,
+    diagramUrl: row.diagram_url,
 });
 
 const mapSession = (row: any): Session => ({
@@ -79,13 +100,40 @@ export const StorageService = {
         };
     },
 
+    // --- Exercise Templates ---
+  getExerciseTemplates: async (): Promise<ExerciseTemplate[]> => {
+    if (templateCache) return templateCache;
+    const { data, error } = await supabase.from("exercise_templates").select("*").order("category");
+    if (error) throw error;
+    templateCache = (data || []).map(row => ({
+        id: row.id,
+        title: row.title,
+        category: row.category as ExerciseTemplate["category"],
+        default_bpm: row.default_bpm,
+        description: row.description ?? undefined,
+        diagram_url: row.diagram_url ?? undefined,
+        tutorial_url: row.tutorial_url ?? undefined,
+    }));
+    return templateCache;
+},
+
+   addExerciseFromTemplate: async (template: ExerciseTemplate): Promise<Exercise> => {
+    return StorageService.addExercise({
+        title: template.title,
+        category: template.category,
+        currentBpm: template.default_bpm,
+        status: "In Progress",
+        tutorialUrl: template.tutorial_url,
+        diagramUrl: template.diagram_url,
+    });
+},
     // --- Exercises ---
     getExercises: async (): Promise<Exercise[]> => {
-        console.log('Fetching exercises...');
-        const { data, error } = await supabase.from("exercises").select("*").order("created_at", { ascending: false });
-        console.log('Exercises response:', { data, error });
-        if (error) throw error;
-        return (data || []).map(mapExercise);
+    if (exerciseCache) return exerciseCache;
+    const { data, error } = await supabase.from("exercises").select("*").order("created_at", { ascending: false });
+    if (error) throw error;
+    exerciseCache = (data || []).map(mapExercise);
+    return exerciseCache;
     },
 
     getExercise: async (id: string): Promise<Exercise | null> => {
@@ -104,11 +152,13 @@ export const StorageService = {
             title: exercise.title,
             category: exercise.category,
             current_bpm: exercise.currentBpm,
-            target_bpm: exercise.currentBpm, // Default target = current
+            target_bpm: exercise.currentBpm,
             status: exercise.status,
             history: [{ date: new Date().toISOString(), bpm: exercise.currentBpm }],
             songsterr_url: exercise.songsterrUrl,
             youtube_url: exercise.youtubeUrl,
+            tutorial_url: exercise.tutorialUrl,
+            diagram_url: exercise.diagramUrl,
         };
 
         const { data, error } = await supabase
@@ -118,9 +168,9 @@ export const StorageService = {
             .single();
 
         if (error) throw error;
+        clearCache();
         return mapExercise(data);
     },
-
     updateExerciseBpm: async (id: string, newBpm: number) => {
         const exercise = await StorageService.getExercise(id);
         if (!exercise) return;
@@ -148,13 +198,14 @@ export const StorageService = {
     },
 
     deleteExercise: async (id: string): Promise<void> => {
-        const { error } = await supabase
-            .from("exercises")
-            .delete()
-            .eq("id", id);
+    const { error } = await supabase
+        .from("exercises")
+        .delete()
+        .eq("id", id);
 
-        if (error) throw error;
-    },
+    if (error) throw error;
+    clearCache();
+},
 
     // --- Sessions ---
     getSessions: async (): Promise<Session[]> => {
@@ -196,32 +247,58 @@ export const StorageService = {
     },
 
     generateRoutine: async (): Promise<{ warmup: Exercise | null; technical: Exercise | null; repertoire: Exercise | null }> => {
-        const exercises = await StorageService.getExercises();
+    const exercises = await StorageService.getExercises();
+    const templates = await StorageService.getExerciseTemplates();
 
-        const getRandom = (list: Exercise[]) =>
-            list.length > 0 ? list[Math.floor(Math.random() * list.length)] : null;
+    const getRandom = (list: any[]) =>
+        list.length > 0 ? list[Math.floor(Math.random() * list.length)] : null;
 
-        const warmups = exercises.filter(e => e.category === "Warmup");
-        const technicals = exercises.filter(e => e.category === "Technical");
-        const repertoires = exercises.filter(e => e.category === "Repertoire");
+    const warmups = exercises.filter(e => e.category === "Warmup");
+    const technicals = exercises.filter(e => e.category === "Technical");
+    const repertoires = exercises.filter(e => e.category === "Repertoire");
 
-        const activeTechnicals = technicals.filter(e => e.status === "In Progress");
-        const activeRepertoires = repertoires.filter(e => e.status === "In Progress");
+    // Fall back to templates if user has no exercises in a category
+    const getFromTemplates = async (category: string): Promise<Exercise | null> => {
+        const categoryTemplates = templates.filter(t => t.category === category);
+        const template = getRandom(categoryTemplates);
+        if (!template) return null;
+        return StorageService.addExerciseFromTemplate(template);
+    };
 
-        return {
-            warmup: getRandom(warmups),
-            technical: getRandom(activeTechnicals.length > 0 ? activeTechnicals : technicals),
-            repertoire: getRandom(activeRepertoires.length > 0 ? activeRepertoires : repertoires),
-        };
-    },
+    const warmup = warmups.length > 0
+        ? getRandom(warmups)
+        : await getFromTemplates("Warmup");
+
+    const activeTechnicals = technicals.filter(e => e.status === "In Progress");
+    const technical = technicals.length > 0
+        ? getRandom(activeTechnicals.length > 0 ? activeTechnicals : technicals)
+        : await getFromTemplates("Technical");
+
+    const activeRepertoires = repertoires.filter(e => e.status === "In Progress");
+    const repertoire = repertoires.length > 0
+        ? getRandom(activeRepertoires.length > 0 ? activeRepertoires : repertoires)
+        : await getFromTemplates("Repertoire");
+
+    return { warmup, technical, repertoire };
+},
 
     getRandomExerciseByCategory: async (category: string, excludeId?: string): Promise<Exercise | null> => {
-        const exercises = await StorageService.getExercises();
-        const filtered = exercises.filter(
-            (e) => e.category === category && e.id !== excludeId
-        );
+    const exercises = await StorageService.getExercises();
+    const filtered = exercises.filter(
+        (e) => e.category === category && e.id !== excludeId
+    );
 
-        if (filtered.length === 0) return null;
+    if (filtered.length > 0) {
         return filtered[Math.floor(Math.random() * filtered.length)];
-    },
+    }
+
+    // Fall back to templates if no user exercises available
+    const templates = await StorageService.getExerciseTemplates();
+    const categoryTemplates = templates.filter(t => t.category === category);
+    
+    if (categoryTemplates.length === 0) return null;
+    
+    const template = categoryTemplates[Math.floor(Math.random() * categoryTemplates.length)];
+    return StorageService.addExerciseFromTemplate(template);
+},
 };
