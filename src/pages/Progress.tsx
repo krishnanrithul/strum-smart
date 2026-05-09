@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { ArrowLeft, TrendingUp, Calendar, Loader2, Zap } from "lucide-react";
+import { ArrowLeft, TrendingUp, Calendar, Zap } from "lucide-react";
+import ECGLoader from "@/components/ECGLoader";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip } from "recharts";
@@ -88,7 +89,7 @@ const Progress = () => {
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <ECGLoader />
       </div>
     );
   }

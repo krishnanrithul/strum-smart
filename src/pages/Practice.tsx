@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from "react";
-import { ArrowLeft, Play, Pause, RotateCcw, Plus, Minus, Loader2, ChevronDown, ChevronUp, Zap } from "lucide-react";
+import { ArrowLeft, Play, Pause, RotateCcw, Plus, Minus, ChevronDown, ChevronUp, Zap } from "lucide-react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { StorageService, Exercise } from "@/lib/storage";
 import { SessionCompleteDialog } from "@/components/SessionCompleteDialog";
 import { MetronomeEngine } from "@/lib/audio";
+import ECGLoader from "@/components/ECGLoader";
 
 const glassCard = { border: "1px solid rgba(255,255,255,0.05)" };
 
@@ -92,14 +93,12 @@ const Practice = () => {
     setIsPlaying(false);
   };
 
-
-
   const hasReferenceMaterials = exercise?.songsterrUrl || exercise?.ultimateGuitarUrl || exercise?.tutorialUrl || exercise?.diagramUrl;
 
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <ECGLoader />
       </div>
     );
   }
@@ -273,7 +272,7 @@ const Practice = () => {
                 </div>
               )}
               {exercise.tutorialUrl && (
-                <a href={exercise.tutorialUrl} target="_blank" rel="noopener noreferrer">
+                <a href={exercise.tutorialUrl} target="_blank" rel="noopener noreferrer" className="block w-full">
                   <button className="w-full flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
                     style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
                     ▶️ Watch Tutorial
@@ -281,25 +280,15 @@ const Practice = () => {
                 </a>
               )}
               {exercise.songsterrUrl && (
-                <a href={exercise.songsterrUrl} target="_blank" rel="noopener noreferrer">
+                <a href={exercise.songsterrUrl} target="_blank" rel="noopener noreferrer" className="block w-full">
                   <button className="w-full flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
                     style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
                     🎸 View Songsterr Tab
                   </button>
                 </a>
               )}
-              <a
-                href={`https://www.youtube.com/results?search_query=${encodeURIComponent(`${exercise.title}${exercise.artist ? ` ${exercise.artist}` : ""} guitar tutorial`)}`}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <button className="w-full flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-                  style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
-                  ▶️ Search on YouTube
-                </button>
-              </a>
               {exercise.ultimateGuitarUrl && (
-                <a href={exercise.ultimateGuitarUrl} target="_blank" rel="noopener noreferrer">
+                <a href={exercise.ultimateGuitarUrl} target="_blank" rel="noopener noreferrer" className="block w-full">
                   <button className="w-full flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
                     style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
                     📝 View Ultimate Guitar Tab
@@ -307,7 +296,20 @@ const Practice = () => {
                 </a>
               )}
               {!hasReferenceMaterials && (
-                <p className="text-center text-muted-foreground text-sm py-4">No reference materials added yet</p>
+                <a
+                  href={`https://www.youtube.com/results?search_query=${encodeURIComponent(`${exercise.title}${exercise.artist ? ` ${exercise.artist}` : ""} guitar tutorial`)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block w-full"
+                >
+                  <button className="w-full flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                    style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816-.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 3.993-8 4.007z"/>
+                  </svg>
+                  Search on YouTube
+                  </button>
+                </a>
               )}
             </div>
           </section>

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { ArrowLeft, Loader2, Plus, Zap, ChevronRight, Pencil, Trash2 } from "lucide-react";
+import { ArrowLeft, Plus, Zap, ChevronRight, Pencil, Trash2 } from "lucide-react";
+import ECGLoader from "@/components/ECGLoader";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -167,7 +168,7 @@ const Library = () => {
 
   if (loading) return (
     <div className="min-h-screen bg-background flex items-center justify-center">
-      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <ECGLoader />
     </div>
   );
 
@@ -288,11 +289,12 @@ const Library = () => {
         <section className="space-y-4">
           <div className="flex items-center justify-between">
             <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">My Exercises</p>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               {myExercises.length > 0 && (
                 <button
                   onClick={() => setDeleteAllDialogOpen(true)}
-                  className="text-xs text-destructive hover:text-destructive/80 transition-colors"
+                  className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-destructive hover:bg-destructive/25 transition-colors"
+                  style={{ background: "rgba(239,68,68,0.15)", border: "1px solid rgba(239,68,68,0.3)" }}
                 >
                   Delete all
                 </button>
@@ -300,7 +302,7 @@ const Library = () => {
               <AddExerciseDialog
                 onExerciseAdded={loadData}
                 trigger={
-                  <button className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
+                  <button className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold bg-primary text-primary-foreground hover:opacity-90 transition-opacity">
                     <Plus className="h-3 w-3" /> Add
                   </button>
                 }
@@ -317,8 +319,6 @@ const Library = () => {
                 <ExerciseCard
                   key={exercise.id}
                   exercise={exercise}
-                  showCategory
-                  bpmLabel="Last BPM"
                   onEdit={handleEditClick}
                   onDelete={handleDeleteClick}
                 />

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Loader2, Zap } from "lucide-react";
+import { ArrowLeft, Zap } from "lucide-react";
+import ECGLoader from "@/components/ECGLoader";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { StorageService } from "@/lib/storage";
@@ -172,7 +173,7 @@ const Onboarding = () => {
 
             {saving ? (
               <div className="flex items-center justify-center py-16">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <ECGLoader />
               </div>
             ) : (
               <div className="grid grid-cols-2 gap-3">
