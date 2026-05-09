@@ -46,8 +46,10 @@ const Index = () => {
       setTotalSessions(sessions.length);
 
       const inProgress = exercises
-        .filter((e) => e.status === "In Progress")
+        .filter((e) => e.status === "In Progress" || e.status === "New")
         .sort((a, b) => {
+          // In Progress before New, then most recently practiced first
+          if (a.status !== b.status) return a.status === "In Progress" ? -1 : 1;
           const lastA = a.history[a.history.length - 1]?.date ?? "";
           const lastB = b.history[b.history.length - 1]?.date ?? "";
           return new Date(lastB).getTime() - new Date(lastA).getTime();
@@ -72,8 +74,8 @@ const Index = () => {
   };
 
   const getBpmProgress = (exercise: Exercise) => {
-    const current = exercise.current_bpm;
-    const target = exercise.target_bpm;
+    const current = exercise.currentBpm;
+    const target = exercise.targetBpm;
     const initial = exercise.history[0]?.bpm ?? current;
     if (target <= initial) return 0;
     return Math.min(100, Math.round(((current - initial) / (target - initial)) * 100));
@@ -143,23 +145,23 @@ const Index = () => {
           </button>
         </Link>
 
-        {/* In Progress */}
+        {/* My Exercises */}
         <section>
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-base font-semibold text-muted-foreground uppercase tracking-wider">In Progress</h2>
+            <h2 className="text-base font-semibold text-muted-foreground uppercase tracking-wider">My Exercises</h2>
             <Link to="/library" className="text-xs text-primary hover:underline">See all</Link>
           </div>
 
           {recentExercises.length === 0 ? (
             <div className="rounded-xl border border-dashed border-border p-8 text-center text-muted-foreground">
-              <p className="text-sm">No exercises in progress.</p>
+              <p className="text-sm">No exercises yet.</p>
               <p className="text-xs mt-1">Head to Library to get started.</p>
             </div>
           ) : (
             <div className="space-y-3">
               {recentExercises.map((exercise) => {
                 const history = exercise.history;
-                const lastBpm = history[history.length - 1]?.bpm ?? 0;
+                const lastBpm = history.length > 0 ? history[history.length - 1].bpm : exercise.currentBpm;
                 const prevBpm = history.length > 1 ? history[history.length - 2].bpm : lastBpm;
                 const diff = lastBpm - prevBpm;
                 const progress = getBpmProgress(exercise);

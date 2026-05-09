@@ -14,6 +14,7 @@ const Practice = () => {
   const isFree = id === "free";
   const [exercise, setExercise] = useState<Exercise | null>(null);
   const [bpm, setBpm] = useState(120);
+  const [bpmInput, setBpmInput] = useState("120");
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMetronomeActive, setIsMetronomeActive] = useState(false);
   const [seconds, setSeconds] = useState(0);
@@ -66,6 +67,7 @@ const Practice = () => {
     if (metronomeRef.current) {
       metronomeRef.current.setBpm(bpm);
     }
+    setBpmInput(String(bpm));
   }, [bpm]);
 
   const toggleMetronome = () => {
@@ -144,20 +146,18 @@ const Practice = () => {
           </div>
           <div className="flex gap-4 justify-center">
             <button
-              onClick={handleReset}
-              className="h-12 w-12 rounded-full flex items-center justify-center transition-colors"
-              style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}
-            >
-              <RotateCcw className="h-5 w-5 text-muted-foreground" />
-            </button>
-            <button
               onClick={() => setIsPlaying(!isPlaying)}
               className="h-14 w-14 rounded-full flex items-center justify-center bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
             >
               {isPlaying ? <Pause className="h-6 w-6" /> : <Play className="h-6 w-6 ml-0.5" />}
             </button>
-            {/* spacer to visually centre the play button */}
-            <div className="h-12 w-12" />
+            <button
+              onClick={handleReset}
+              className="h-14 w-14 rounded-full flex items-center justify-center transition-colors"
+              style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}
+            >
+              <RotateCcw className="h-5 w-5 text-muted-foreground" />
+            </button>
           </div>
         </div>
 
@@ -198,9 +198,21 @@ const Practice = () => {
                 </button>
               </div>
 
-              {/* BPM number */}
+              {/* BPM number — tap to edit */}
               <div className="text-center">
-                <p className="text-5xl font-bold text-foreground tabular-nums leading-none">{bpm}</p>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  value={bpmInput}
+                  onChange={(e) => setBpmInput(e.target.value)}
+                  onBlur={() => {
+                    const v = parseInt(bpmInput);
+                    const clamped = isNaN(v) ? bpm : Math.min(240, Math.max(40, v));
+                    setBpm(clamped);
+                  }}
+                  className="w-28 text-5xl font-bold text-foreground tabular-nums leading-none text-center bg-transparent border-none outline-none focus:ring-0 appearance-none"
+                />
                 <p className="text-xs text-muted-foreground mt-1 tracking-widest uppercase">BPM</p>
               </div>
 
