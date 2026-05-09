@@ -1,15 +1,17 @@
 import { useState, useEffect, useRef } from "react";
-import { ArrowLeft, Play, Pause, RotateCcw, Plus, Minus, Loader2, ChevronDown, ChevronUp } from "lucide-react";
-import { Link, useParams } from "react-router-dom";
+import { ArrowLeft, Play, Pause, RotateCcw, Plus, Minus, Loader2, ChevronDown, ChevronUp, Zap } from "lucide-react";
+import { Link, useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Slider } from "@/components/ui/slider";
-import { Input } from "@/components/ui/input";
 import { StorageService, Exercise } from "@/lib/storage";
 import { SessionCompleteDialog } from "@/components/SessionCompleteDialog";
 import { MetronomeEngine } from "@/lib/audio";
 
+const glassCard = { border: "1px solid rgba(255,255,255,0.05)" };
+
 const Practice = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
+  const isFree = id === "free";
   const [exercise, setExercise] = useState<Exercise | null>(null);
   const [bpm, setBpm] = useState(120);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -30,6 +32,7 @@ const Practice = () => {
   }, []);
 
   useEffect(() => {
+    if (isFree) { setLoading(false); return; }
     const loadExercise = async () => {
       if (id) {
         setLoading(true);
@@ -87,17 +90,6 @@ const Practice = () => {
     setIsPlaying(false);
   };
 
-  const handleBpmChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = parseInt(e.target.value);
-    if (!isNaN(val)) {
-      setBpm(val);
-    }
-  };
-
-  const handleBpmBlur = () => {
-    if (bpm < 40) setBpm(40);
-    if (bpm > 240) setBpm(240);
-  };
 
 
   const hasReferenceMaterials = exercise?.songsterrUrl || exercise?.ultimateGuitarUrl || exercise?.tutorialUrl || exercise?.diagramUrl;
@@ -110,7 +102,7 @@ const Practice = () => {
     );
   }
 
-  if (!exercise) {
+  if (!exercise && !isFree) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
@@ -124,188 +116,215 @@ const Practice = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-24">
+    <div className="min-h-screen bg-background pb-10">
       {/* Header */}
       <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-10">
-        <div className="container mx-auto px-4 py-4 flex items-center gap-4">
-          <Link to="/library">
-            <Button variant="ghost" size="icon">
-              <ArrowLeft className="h-6 w-6" />
-            </Button>
-          </Link>
-          <div>
-            <h1 className="text-xl font-bold">Practice Session</h1>
-            <p className="text-sm text-muted-foreground">{exercise.title}</p>
-          </div>
+        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+          <button onClick={() => navigate(-1)} className="text-muted-foreground hover:text-foreground transition-colors">
+            <ArrowLeft className="h-5 w-5" />
+          </button>
+          <span className="text-xs font-semibold tracking-widest uppercase text-foreground">Practice Session</span>
+          <Zap className="h-4 w-4 text-primary" />
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="container mx-auto px-4 py-6 space-y-8">
-        {/* Timer Display */}
-        <div className="rounded-2xl bg-card p-8" style={{ border: "1px solid rgba(255,255,255,0.05)" }}>
-          <div className="text-center">
-            <div className="text-sm text-muted-foreground mb-2">Session Time</div>
-            <div className="text-7xl font-bold text-foreground mb-6">
-              {formatTime(seconds)}
-            </div>
-            <div className="flex gap-3 justify-center">
-              <Button
-                size="lg"
-                onClick={() => setIsPlaying(!isPlaying)}
-                className="h-16 w-16 rounded-full"
-              >
-                {isPlaying ? <Pause className="h-8 w-8" /> : <Play className="h-8 w-8 ml-1" />}
-              </Button>
-              <Button
-                size="lg"
-                variant="secondary"
-                onClick={handleReset}
-                className="h-16 w-16 rounded-full"
-              >
-                <RotateCcw className="h-6 w-6" />
-              </Button>
-            </div>
+      <main className="container mx-auto px-4 py-6 space-y-6">
+
+        {/* Timer Card */}
+        <div
+          className="rounded-2xl p-8 text-center"
+          style={{
+            background: "radial-gradient(circle at top right, rgba(34,197,94,0.12) 0%, transparent 60%), hsl(var(--card))",
+            ...glassCard,
+          }}
+        >
+          <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground mb-3">Session Time</p>
+          <div className="text-7xl font-bold text-foreground mb-8 tabular-nums">
+            {formatTime(seconds)}
+          </div>
+          <div className="flex gap-4 justify-center">
+            <button
+              onClick={handleReset}
+              className="h-12 w-12 rounded-full flex items-center justify-center transition-colors"
+              style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}
+            >
+              <RotateCcw className="h-5 w-5 text-muted-foreground" />
+            </button>
+            <button
+              onClick={() => setIsPlaying(!isPlaying)}
+              className="h-14 w-14 rounded-full flex items-center justify-center bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
+            >
+              {isPlaying ? <Pause className="h-6 w-6" /> : <Play className="h-6 w-6 ml-0.5" />}
+            </button>
+            {/* spacer to visually centre the play button */}
+            <div className="h-12 w-12" />
           </div>
         </div>
 
+        {/* Exercise Context */}
+        {!isFree && exercise && (
+          <div className="rounded-2xl bg-card px-5 py-4" style={glassCard}>
+            <p className="text-base font-semibold text-foreground">{exercise.title}</p>
+            {exercise.target_bpm > 0 && (
+              <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground mt-1">
+                Target: {exercise.target_bpm} BPM
+              </p>
+            )}
+          </div>
+        )}
+
         {/* Metronome */}
         <section>
-          <h2 className="text-lg font-semibold mb-4 text-muted-foreground">Metronome</h2>
-          <div className="rounded-2xl bg-card p-6 space-y-6" style={{ border: "1px solid rgba(255,255,255,0.05)" }}>
-            <div className="text-center">
-              <div className="text-sm text-muted-foreground mb-2">Tempo</div>
-              <div className="flex items-center justify-center gap-2">
-                <Input
-                  type="number"
-                  value={bpm}
-                  onChange={handleBpmChange}
-                  onBlur={handleBpmBlur}
-                  className="text-6xl font-bold metric-display h-20 w-56 text-center bg-transparent border-none focus-visible:ring-0 p-0 hover:bg-card/50 focus:bg-card/50 rounded-lg transition-colors cursor-text"
-                  min={40}
-                  max={240}
-                />
-              </div>
-              <div className="text-sm text-muted-foreground mt-1">BPM</div>
-            </div>
+          <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground mb-3">Metronome</p>
+          <div className="rounded-2xl bg-card p-6 space-y-6" style={glassCard}>
 
-            <div className="space-y-4">
-              <Slider
-                value={[bpm]}
-                onValueChange={(value) => setBpm(value[0])}
-                min={40}
-                max={240}
-                step={1}
-                className="w-full"
-              />
+            {/* BPM display with flanking controls */}
+            <div className="flex items-center justify-between gap-4">
+              {/* Left pair: −5, −1 */}
               <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setBpm(Math.max(40, bpm - 5))} className="flex-1 h-12">
-                  <Minus className="h-5 w-5 mr-2" />5
-                </Button>
-                <Button variant="outline" onClick={() => setBpm(Math.max(40, bpm - 1))} className="flex-1 h-12">
-                  <Minus className="h-4 w-4 mr-2" />1
-                </Button>
-                <Button variant="outline" onClick={() => setBpm(Math.min(240, bpm + 1))} className="flex-1 h-12">
-                  1<Plus className="h-4 w-4 ml-2" />
-                </Button>
-                <Button variant="outline" onClick={() => setBpm(Math.min(240, bpm + 5))} className="flex-1 h-12">
-                  5<Plus className="h-5 w-5 ml-2" />
-                </Button>
+                <button
+                  onClick={() => setBpm(Math.max(40, bpm - 5))}
+                  className="h-10 w-10 rounded-xl flex items-center justify-center text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
+                  style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}
+                >
+                  −5
+                </button>
+                <button
+                  onClick={() => setBpm(Math.max(40, bpm - 1))}
+                  className="h-10 w-10 rounded-xl flex items-center justify-center text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
+                  style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}
+                >
+                  −1
+                </button>
+              </div>
+
+              {/* BPM number */}
+              <div className="text-center">
+                <p className="text-5xl font-bold text-foreground tabular-nums leading-none">{bpm}</p>
+                <p className="text-xs text-muted-foreground mt-1 tracking-widest uppercase">BPM</p>
+              </div>
+
+              {/* Right pair: +1, +5 */}
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setBpm(Math.min(240, bpm + 1))}
+                  className="h-10 w-10 rounded-xl flex items-center justify-center text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
+                  style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}
+                >
+                  +1
+                </button>
+                <button
+                  onClick={() => setBpm(Math.min(240, bpm + 5))}
+                  className="h-10 w-10 rounded-xl flex items-center justify-center text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
+                  style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}
+                >
+                  +5
+                </button>
               </div>
             </div>
 
-            <Button
-              className={`w-full h-14 text-lg font-semibold ${isMetronomeActive ? "bg-red-500 hover:bg-red-600" : ""}`}
+            {/* Metronome toggle */}
+            <button
               onClick={toggleMetronome}
+              className="w-full h-12 rounded-xl font-semibold text-sm transition-colors"
+              style={
+                isMetronomeActive
+                  ? { background: "rgba(239,68,68,0.15)", border: "1px solid rgba(239,68,68,0.3)", color: "rgb(239,68,68)" }
+                  : { background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "hsl(var(--foreground))" }
+              }
             >
               {isMetronomeActive ? "Stop Metronome" : "Start Metronome"}
-            </Button>
+            </button>
           </div>
         </section>
 
         {/* Reference Materials */}
-        <section>
-          <h2 className="text-lg font-semibold mb-4 text-muted-foreground">Reference Materials</h2>
-          <div className="rounded-2xl bg-card p-6 space-y-3" style={{ border: "1px solid rgba(255,255,255,0.05)" }}>
-
-            {/* Diagram */}
-            {exercise.diagramUrl && (
-              <div>
-                <Button
-                  variant="outline"
-                  className="w-full h-12 text-base"
-                  onClick={() => setDiagramExpanded(!diagramExpanded)}
-                >
-                  {diagramExpanded ? <ChevronUp className="h-4 w-4 mr-2" /> : <ChevronDown className="h-4 w-4 mr-2" />}
-                  {diagramExpanded ? "Hide" : "Show"} Diagram
-                </Button>
-                {diagramExpanded && (
-                  <div className="mt-3 rounded-lg overflow-hidden border border-border">
-                    <img
-                      src={exercise.diagramUrl}
-                      alt={`${exercise.title} diagram`}
-                      className="w-full object-contain bg-white"
-                    />
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Tutorial */}
-            {exercise.tutorialUrl && (
-              <a href={exercise.tutorialUrl} target="_blank" rel="noopener noreferrer" className="block">
-                <Button variant="outline" className="w-full h-12 text-base">
-                  ▶️ Watch Tutorial
-                </Button>
+        {!isFree && exercise && (
+          <section>
+            <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground mb-3">Reference Materials</p>
+            <div className="rounded-2xl bg-card p-5 space-y-3" style={glassCard}>
+              {exercise.diagramUrl && (
+                <div>
+                  <button
+                    className="w-full flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                    style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}
+                    onClick={() => setDiagramExpanded(!diagramExpanded)}
+                  >
+                    {diagramExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                    {diagramExpanded ? "Hide" : "Show"} Diagram
+                  </button>
+                  {diagramExpanded && (
+                    <div className="mt-3 rounded-lg overflow-hidden border border-border">
+                      <img src={exercise.diagramUrl} alt={`${exercise.title} diagram`} className="w-full object-contain bg-white" />
+                    </div>
+                  )}
+                </div>
+              )}
+              {exercise.tutorialUrl && (
+                <a href={exercise.tutorialUrl} target="_blank" rel="noopener noreferrer">
+                  <button className="w-full flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                    style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                    ▶️ Watch Tutorial
+                  </button>
+                </a>
+              )}
+              {exercise.songsterrUrl && (
+                <a href={exercise.songsterrUrl} target="_blank" rel="noopener noreferrer">
+                  <button className="w-full flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                    style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                    🎸 View Songsterr Tab
+                  </button>
+                </a>
+              )}
+              <a
+                href={`https://www.youtube.com/results?search_query=${encodeURIComponent(`${exercise.title}${exercise.artist ? ` ${exercise.artist}` : ""} guitar tutorial`)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <button className="w-full flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                  style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                  ▶️ Search on YouTube
+                </button>
               </a>
-            )}
+              {exercise.ultimateGuitarUrl && (
+                <a href={exercise.ultimateGuitarUrl} target="_blank" rel="noopener noreferrer">
+                  <button className="w-full flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                    style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                    📝 View Ultimate Guitar Tab
+                  </button>
+                </a>
+              )}
+              {!hasReferenceMaterials && (
+                <p className="text-center text-muted-foreground text-sm py-4">No reference materials added yet</p>
+              )}
+            </div>
+          </section>
+        )}
 
-            {exercise.songsterrUrl && (
-              <a href={exercise.songsterrUrl} target="_blank" rel="noopener noreferrer" className="block">
-                <Button variant="outline" className="w-full h-12 text-base">🎸 View Songsterr Tab</Button>
-              </a>
-            )}
-            <a
-              href={`https://www.youtube.com/results?search_query=${encodeURIComponent(`${exercise.title}${exercise.artist ? ` ${exercise.artist}` : ""} guitar tutorial`)}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="block"
-            >
-              <Button variant="outline" className="w-full h-12 text-base">▶️ Search on YouTube</Button>
-            </a>
-            {exercise.ultimateGuitarUrl && (
-              <a href={exercise.ultimateGuitarUrl} target="_blank" rel="noopener noreferrer" className="block">
-                <Button variant="outline" className="w-full h-12 text-base">📝 View Ultimate Guitar Tab</Button>
-              </a>
-            )}
-
-            {!hasReferenceMaterials && (
-              <div className="text-center text-muted-foreground text-sm py-4">
-                No reference materials added yet
-              </div>
-            )}
-          </div>
-        </section>
-
-        {/* Finish Session */}
-        <Button
-          className="w-full h-16 text-lg font-semibold"
-          size="lg"
+        {/* Complete Session */}
+        <button
+          className="w-full flex items-center justify-between px-5 py-4 rounded-xl bg-primary text-primary-foreground font-semibold text-base hover:opacity-90 transition-opacity"
           onClick={() => {
             setIsPlaying(false);
-            setShowCompleteDialog(true);
+            if (isFree) { navigate("/"); } else { setShowCompleteDialog(true); }
           }}
         >
-          Complete Session
-        </Button>
+          <div className="flex items-center gap-2">
+            <Zap className="h-5 w-5" />
+            Complete Session
+          </div>
+        </button>
+
       </main>
 
-      <SessionCompleteDialog
-        open={showCompleteDialog}
-        onOpenChange={setShowCompleteDialog}
-        exercise={exercise}
-        durationSeconds={seconds}
-      />
+      {exercise && (
+        <SessionCompleteDialog
+          open={showCompleteDialog}
+          onOpenChange={setShowCompleteDialog}
+          exercise={exercise}
+          durationSeconds={seconds}
+        />
+      )}
     </div>
   );
 };

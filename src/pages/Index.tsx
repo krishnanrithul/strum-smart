@@ -133,7 +133,7 @@ const Index = () => {
         </section>
 
         {/* CTA */}
-        <Link to="/library">
+        <Link to="/practice/free">
           <button className="w-full flex items-center justify-between px-5 py-4 rounded-xl bg-primary text-primary-foreground font-semibold text-base hover:opacity-90 transition-opacity">
             <div className="flex items-center gap-2">
               <Zap className="h-5 w-5" />

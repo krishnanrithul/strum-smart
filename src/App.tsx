@@ -12,6 +12,7 @@ import Progress from "./pages/Progress";
 import Login from "./pages/Login";
 import TeacherDashboard from "./pages/TeacherDashboard";
 import SongPractice from "./pages/SongPractice";
+import Onboarding from "./pages/Onboarding";
 
 const queryClient = new QueryClient();
 
@@ -25,8 +26,9 @@ const App = () => (
           <Routes>
             <Route path="/auth" element={<Login />} />
             <Route path="/login" element={<Login />} />
+            <Route path="/onboarding" element={<Onboarding />} />
             <Route path="/teacher/dashboard" element={<TeacherDashboard />} />
-            
+
             <Route element={<ProtectedRoute />}>
               <Route path="/" element={<Index />} />
               <Route path="/practice/:id" element={<Practice />} />
