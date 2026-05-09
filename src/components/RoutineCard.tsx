@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Routine } from "@/data/routines";
 
 type Props = {
@@ -5,13 +6,44 @@ type Props = {
   onClick: () => void;
 };
 
-export const RoutineCard = ({ routine, onClick }: Props) => (
-  <button
-    onClick={onClick}
-    className={`w-full text-left rounded-xl border ${routine.accent} p-4 hover:opacity-90 transition-opacity`}
-  >
-    <p className={`font-semibold text-sm ${routine.labelColor}`}>{routine.name}</p>
-    <p className="text-xs text-muted-foreground mt-1">{routine.description}</p>
-    <p className="text-xs text-muted-foreground mt-2">{routine.exercises.length} exercises</p>
-  </button>
-);
+export const RoutineCard = ({ routine, onClick }: Props) => {
+  const [hovered, setHovered] = useState(false);
+
+  return (
+    <button
+      onClick={onClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      className="w-full text-left p-4 rounded-xl relative overflow-hidden transition-all duration-300"
+      style={{
+        background: hovered
+          ? `linear-gradient(135deg, ${routine.glowColor} 0%, rgba(255,255,255,0.03) 100%)`
+          : "rgba(255,255,255,0.03)",
+        border: `1px solid ${hovered ? routine.glowColor.replace("0.18", "0.4") : "rgba(255,255,255,0.06)"}`,
+        transform: hovered ? "translateY(-2px)" : "translateY(0)",
+        boxShadow: hovered ? `0 8px 24px ${routine.glowColor}` : "none",
+        backdropFilter: "blur(12px)",
+      }}
+    >
+      {/* Shimmer line across the top on hover */}
+      <div
+        className="absolute top-0 left-0 right-0 h-px transition-opacity duration-300"
+        style={{
+          background: `linear-gradient(90deg, transparent, ${routine.glowColor.replace("0.18", "0.6")}, transparent)`,
+          opacity: hovered ? 1 : 0,
+        }}
+      />
+
+      <div className="relative z-10">
+        <p className="text-sm font-semibold text-foreground">{routine.name}</p>
+        <p className="text-xs text-muted-foreground mt-1 leading-snug">{routine.description}</p>
+        <p
+          className="text-xs mt-3 transition-colors duration-300"
+          style={{ color: hovered ? routine.glowColor.replace("0.18", "0.7") : "rgba(255,255,255,0.2)" }}
+        >
+          {routine.exercises.length} exercises
+        </p>
+      </div>
+    </button>
+  );
+};

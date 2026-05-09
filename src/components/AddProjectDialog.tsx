@@ -1,52 +1,74 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { StorageService } from "@/lib/storage";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { StorageService, Project } from "@/lib/storage";
 import { Loader2, Plus } from "lucide-react";
 
 interface AddProjectDialogProps {
     onProjectAdded: () => void;
+    projectToEdit?: Project;
+    open?: boolean;
+    onOpenChange?: (open: boolean) => void;
 }
 
-export function AddProjectDialog({ onProjectAdded }: AddProjectDialogProps) {
-    const [open, setOpen] = useState(false);
+export function AddProjectDialog({ onProjectAdded, projectToEdit, open: controlledOpen, onOpenChange }: AddProjectDialogProps) {
+    const [internalOpen, setInternalOpen] = useState(false);
     const [loading, setLoading] = useState(false);
     const [title, setTitle] = useState("");
     const [artist, setArtist] = useState("");
+    const [status, setStatus] = useState<Project["status"]>("In Progress");
+
+    const isControlled = controlledOpen !== undefined;
+    const open = isControlled ? controlledOpen : internalOpen;
+    const setOpen = isControlled ? (onOpenChange ?? (() => {})) : setInternalOpen;
+    const isEditing = !!projectToEdit;
+
+    useEffect(() => {
+        if (projectToEdit) {
+            setTitle(projectToEdit.title);
+            setArtist(projectToEdit.artist || "");
+            setStatus(projectToEdit.status);
+        } else {
+            setTitle("");
+            setArtist("");
+            setStatus("In Progress");
+        }
+    }, [projectToEdit, open]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
         try {
-            await StorageService.addProject({
-                title,
-                artist: artist || undefined,
-                status: "In Progress",
-            });
+            if (isEditing && projectToEdit) {
+                await StorageService.updateProject(projectToEdit.id, { title, artist: artist || undefined, status });
+            } else {
+                await StorageService.addProject({ title, artist: artist || undefined, status });
+            }
             setOpen(false);
-            setTitle("");
-            setArtist("");
             onProjectAdded();
         } catch (error) {
-            console.error("Failed to add project:", error);
-            alert("Failed to create project. Please try again.");
+            console.error("Failed to save project:", error);
+            alert("Failed to save project. Please try again.");
         } finally {
             setLoading(false);
         }
     };
 
+    const trigger = !isControlled ? (
+        <Button className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground">
+            <Plus className="h-4 w-4" /> New Song
+        </Button>
+    ) : null;
+
     return (
         <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-                <Button className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground">
-                    <Plus className="h-4 w-4" /> New Song
-                </Button>
-            </DialogTrigger>
+            {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
             <DialogContent className="bg-card border-border">
                 <DialogHeader>
-                    <DialogTitle>Start a New Song Project</DialogTitle>
+                    <DialogTitle>{isEditing ? "Edit Song Project" : "Start a New Song Project"}</DialogTitle>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-4 mt-4">
                     <div className="space-y-2">
@@ -70,8 +92,24 @@ export function AddProjectDialog({ onProjectAdded }: AddProjectDialogProps) {
                             className="bg-secondary"
                         />
                     </div>
+                    {isEditing && (
+                        <div className="space-y-2">
+                            <Label>Status</Label>
+                            <Select value={status} onValueChange={(v) => setStatus(v as Project["status"])}>
+                                <SelectTrigger className="bg-secondary">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="New">New</SelectItem>
+                                    <SelectItem value="In Progress">In Progress</SelectItem>
+                                    <SelectItem value="Maintenance">Maintenance</SelectItem>
+                                    <SelectItem value="Mastered">Mastered</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    )}
                     <Button type="submit" className="w-full" disabled={loading}>
-                        {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Create Project"}
+                        {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : isEditing ? "Save Changes" : "Create Project"}
                     </Button>
                 </form>
             </DialogContent>

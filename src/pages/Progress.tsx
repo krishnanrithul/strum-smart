@@ -1,11 +1,19 @@
 import { useState, useEffect } from "react";
-import { ArrowLeft, TrendingUp, Calendar, Loader2 } from "lucide-react";
+import { ArrowLeft, TrendingUp, Calendar, Loader2, Zap } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip } from "recharts";
 import { StorageService, Exercise, Session } from "@/lib/storage";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
+const glassCard = {
+  border: "1px solid rgba(255,255,255,0.05)",
+};
+
+const glassCardWithGlow = {
+  border: "1px solid rgba(255,255,255,0.05)",
+  background: "radial-gradient(circle at top right, rgba(34,197,94,0.12) 0%, transparent 60%), hsl(var(--card))",
+};
 
 const Progress = () => {
   const [exercises, setExercises] = useState<Exercise[]>([]);
@@ -37,25 +45,21 @@ const Progress = () => {
 
   const selectedExercise = exercises.find(e => e.id === selectedExerciseId);
 
-  // Build chart data from exercise history
   const chartData = selectedExercise?.history.map(h => ({
     date: new Date(h.date).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
     bpm: h.bpm,
   })) || [];
 
-  // Calculate BPM gain
   const bpmGain = chartData.length >= 2
     ? chartData[chartData.length - 1].bpm - chartData[0].bpm
     : 0;
 
-  // Calculate this week's practice time
   const oneWeekAgo = new Date();
   oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
   const thisWeekSessions = sessions.filter(s => new Date(s.date) >= oneWeekAgo);
   const thisWeekSeconds = thisWeekSessions.reduce((acc, s) => acc + s.duration, 0);
   const thisWeekHours = (thisWeekSeconds / 3600).toFixed(1);
 
-  // Calculate streak (consecutive days)
   const calculateStreak = () => {
     if (sessions.length === 0) return 0;
     const uniqueDays = [...new Set(sessions.map(s => s.date.split("T")[0]))].sort().reverse();
@@ -76,16 +80,7 @@ const Progress = () => {
   };
   const streak = calculateStreak();
 
-  // Build practice calendar (last 35 days)
-  const calendarDays = Array.from({ length: 35 }, (_, i) => {
-    const d = new Date();
-    d.setDate(d.getDate() - (34 - i));
-    const dateStr = d.toISOString().split("T")[0];
-    const sessionCount = sessions.filter(s => s.date.startsWith(dateStr)).length;
-    return { date: dateStr, count: sessionCount };
-  });
 
-  // BPM chart Y axis domain
   const bpms = chartData.map(d => d.bpm);
   const minBpm = bpms.length > 0 ? Math.max(0, Math.min(...bpms) - 10) : 0;
   const maxBpm = bpms.length > 0 ? Math.max(...bpms) + 10 : 200;
@@ -100,49 +95,52 @@ const Progress = () => {
 
   return (
     <div className="min-h-screen bg-background pb-24">
+
       {/* Header */}
-      <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-10">
-        <div className="container mx-auto px-4 py-4 flex items-center gap-4">
+      <header className="sticky top-0 z-10 border-b border-border bg-background/80 backdrop-blur-sm">
+        <div className="container mx-auto px-4 py-4 flex items-center gap-3">
           <Link to="/">
-            <Button variant="ghost" size="icon">
-              <ArrowLeft className="h-6 w-6" />
+            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
+              <ArrowLeft className="h-5 w-5" />
             </Button>
           </Link>
-          <h1 className="text-xl font-bold">Progress Analytics</h1>
+          <div className="flex items-center gap-2">
+            <Zap className="h-4 w-4 text-primary" />
+            <h1 className="text-xs font-semibold tracking-widest uppercase text-foreground">Progress</h1>
+          </div>
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="container mx-auto px-4 py-6 space-y-6">
+      <main className="container mx-auto px-4 py-6 space-y-8">
 
-        {/* Stats Overview */}
+        {/* Stat cards */}
         <div className="grid grid-cols-2 gap-4">
-          <Card className="p-4 bg-secondary border-border">
-            <div className="flex items-center gap-2 text-muted-foreground mb-2">
-              <TrendingUp className="h-4 w-4" />
-              <span className="text-sm">This Week</span>
-            </div>
-            <div className="text-3xl font-bold metric-display">{thisWeekHours}h</div>
-            <div className="text-sm text-muted-foreground mt-1">{thisWeekSessions.length} sessions</div>
-          </Card>
-          <Card className="p-4 bg-secondary border-border">
-            <div className="flex items-center gap-2 text-muted-foreground mb-2">
-              <Calendar className="h-4 w-4" />
-              <span className="text-sm">Streak</span>
-            </div>
-            <div className="text-3xl font-bold metric-display">{streak} days</div>
-            <div className="text-sm text-muted-foreground mt-1">
+
+          <div className="rounded-2xl p-5" style={glassCardWithGlow}>
+            <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground flex items-center gap-1.5">
+              <TrendingUp className="h-3 w-3" /> This Week
+            </p>
+            <p className="text-4xl font-bold text-foreground leading-none mt-3">{thisWeekHours}h</p>
+            <p className="text-sm text-muted-foreground mt-2">{thisWeekSessions.length} sessions</p>
+          </div>
+
+          <div className="rounded-2xl p-5" style={glassCardWithGlow}>
+            <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground flex items-center gap-1.5">
+              <Calendar className="h-3 w-3" /> Streak
+            </p>
+            <p className="text-4xl font-bold text-foreground leading-none mt-3">{streak} days</p>
+            <p className="text-sm text-muted-foreground mt-2">
               {streak > 0 ? "Keep it up!" : "Practice today!"}
-            </div>
-          </Card>
+            </p>
+          </div>
         </div>
 
-        {/* BPM Progress Chart */}
-        <section>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-muted-foreground">BPM Progress</h2>
+        {/* BPM Progress */}
+        <section className="space-y-4">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">BPM Progress</p>
             <Select value={selectedExerciseId} onValueChange={setSelectedExerciseId}>
-              <SelectTrigger className="w-44 h-9 bg-secondary border-border text-sm">
+              <SelectTrigger className="w-44 h-9 bg-card text-sm" style={glassCard}>
                 <SelectValue placeholder="Select exercise" />
               </SelectTrigger>
               <SelectContent>
@@ -153,132 +151,58 @@ const Progress = () => {
             </Select>
           </div>
 
-          <Card className="p-6 bg-secondary border-border">
+          <div className="rounded-2xl bg-card p-6" style={glassCard}>
             {chartData.length < 2 ? (
-              <div className="h-64 flex items-center justify-center text-muted-foreground text-sm">
-                Complete at least 2 sessions of this exercise to see progress.
+              <div className="flex flex-col items-center justify-center gap-4 py-12 text-center">
+                <p className="text-sm text-muted-foreground">No sessions yet. Head to Library to start practicing.</p>
+                <Link to="/library">
+                  <button className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-primary-foreground font-semibold text-sm hover:opacity-90 transition-opacity">
+                    <Zap className="h-4 w-4" />
+                    Go to Library
+                  </button>
+                </Link>
               </div>
             ) : (
               <>
                 <div className="h-64">
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={chartData}>
-                      <XAxis
-                        dataKey="date"
-                        stroke="hsl(var(--muted-foreground))"
-                        fontSize={11}
-                        tickLine={false}
-                        axisLine={false}
-                      />
-                      <YAxis
-                        stroke="hsl(var(--muted-foreground))"
-                        fontSize={11}
-                        tickLine={false}
-                        axisLine={false}
-                        domain={[minBpm, maxBpm]}
-                      />
+                      <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} />
+                      <YAxis stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} domain={[minBpm, maxBpm]} />
                       <Tooltip
                         contentStyle={{
                           backgroundColor: "hsl(var(--card))",
-                          border: "1px solid hsl(var(--border))",
-                          borderRadius: "0.5rem",
+                          border: "1px solid rgba(255,255,255,0.05)",
+                          borderRadius: "0.75rem",
                         }}
                         formatter={(value) => [`${value} BPM`, "Speed"]}
                       />
-                      <Line
-                        type="monotone"
-                        dataKey="bpm"
-                        stroke="hsl(var(--primary))"
-                        strokeWidth={3}
-                        dot={{ fill: "hsl(var(--primary))", r: 4 }}
-                      />
+                      <Line type="monotone" dataKey="bpm" stroke="hsl(var(--primary))" strokeWidth={3} dot={{ fill: "hsl(var(--primary))", r: 4 }} />
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
-                <div className="mt-4 grid grid-cols-3 gap-4 text-center border-t border-border pt-4">
+                <div className="mt-4 grid grid-cols-3 gap-4 text-center border-t border-white/5 pt-4">
                   <div>
-                    <div className="text-sm text-muted-foreground">Start</div>
-                    <div className="text-xl font-bold metric-display">{chartData[0].bpm}</div>
+                    <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">Start</p>
+                    <p className="text-2xl font-bold text-foreground mt-1">{chartData[0].bpm}</p>
                   </div>
                   <div>
-                    <div className="text-sm text-muted-foreground">Total Gain</div>
-                    <div className={`text-xl font-bold ${bpmGain >= 0 ? "text-primary" : "text-destructive"}`}>
-                      {bpmGain >= 0 ? "+" : ""}{bpmGain} BPM
-                    </div>
+                    <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">Gain</p>
+                    <p className={`text-2xl font-bold mt-1 ${bpmGain >= 0 ? "text-primary" : "text-destructive"}`}>
+                      {bpmGain >= 0 ? "+" : ""}{bpmGain}
+                    </p>
                   </div>
                   <div>
-                    <div className="text-sm text-muted-foreground">Current</div>
-                    <div className="text-xl font-bold metric-display">{chartData[chartData.length - 1].bpm}</div>
+                    <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">Now</p>
+                    <p className="text-2xl font-bold text-foreground mt-1">{chartData[chartData.length - 1].bpm}</p>
                   </div>
                 </div>
               </>
             )}
-          </Card>
+          </div>
         </section>
 
-        {/* Practice Calendar */}
-        <section>
-          <h2 className="text-lg font-semibold mb-4 text-muted-foreground">Practice Calendar</h2>
-          <Card className="p-6 bg-secondary border-border">
-            <div className="grid grid-cols-7 gap-2">
-              {calendarDays.map((day, i) => (
-                <div
-                  key={i}
-                  title={day.date}
-                  className={`aspect-square rounded ${
-                    day.count === 0
-                      ? "bg-muted/30"
-                      : day.count === 1
-                      ? "bg-primary/40"
-                      : "bg-primary/80"
-                  }`}
-                />
-              ))}
-            </div>
-            <div className="mt-4 flex items-center justify-between text-sm text-muted-foreground">
-              <span>Last 5 weeks</span>
-              <div className="flex items-center gap-2">
-                <span>Less</span>
-                <div className="flex gap-1">
-                  <div className="w-3 h-3 bg-muted/30 rounded-sm" />
-                  <div className="w-3 h-3 bg-primary/40 rounded-sm" />
-                  <div className="w-3 h-3 bg-primary/80 rounded-sm" />
-                </div>
-                <span>More</span>
-              </div>
-            </div>
-          </Card>
-        </section>
 
-        {/* Insights */}
-        <section>
-          <h2 className="text-lg font-semibold mb-4 text-muted-foreground">Insights</h2>
-          {exercises.length === 0 ? (
-            <Card className="p-6 bg-secondary border-border text-center text-muted-foreground text-sm">
-              Add exercises and complete sessions to see insights.
-            </Card>
-          ) : (
-            <Card className="p-6 bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
-              <div className="text-2xl mb-2">🎯</div>
-              <h3 className="font-semibold mb-2">
-                {streak > 3 ? "You're on fire!" : streak > 0 ? "Keep it up!" : "Time to practice!"}
-              </h3>
-              <p className="text-sm text-muted-foreground">
-                {selectedExercise && bpmGain > 0
-                  ? `Your ${selectedExercise.title} speed has improved by ${bpmGain} BPM. `
-                  : ""}
-                {streak > 0
-                  ? `You've practiced ${streak} day${streak > 1 ? "s" : ""} in a row.`
-                  : "Start a session today to build your streak."}
-                {selectedExercise && selectedExercise.currentBpm < selectedExercise.targetBpm
-                  ? ` ${selectedExercise.targetBpm - selectedExercise.currentBpm} BPM to go until your target!`
-                  : selectedExercise && selectedExercise.currentBpm >= selectedExercise.targetBpm
-                  ? " You've hit your target BPM — time to set a new challenge!"
-                  : ""}
-              </p>
-            </Card>
-          )}
-        </section>
       </main>
     </div>
   );

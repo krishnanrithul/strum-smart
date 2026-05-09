@@ -1,8 +1,7 @@
 import { useState, useEffect, useRef } from "react";
-import { ArrowLeft, Play, Pause, RotateCcw, Plus, Minus, Loader2, Sparkles, ChevronDown, ChevronUp } from "lucide-react";
+import { ArrowLeft, Play, Pause, RotateCcw, Plus, Minus, Loader2, ChevronDown, ChevronUp } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
 import { Input } from "@/components/ui/input";
 import { StorageService, Exercise } from "@/lib/storage";
@@ -18,9 +17,6 @@ const Practice = () => {
   const [seconds, setSeconds] = useState(0);
   const [showCompleteDialog, setShowCompleteDialog] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [coachTips, setCoachTips] = useState<string | null>(null);
-  const [coachLoading, setCoachLoading] = useState(false);
-  const [coachExpanded, setCoachExpanded] = useState(false);
   const [diagramExpanded, setDiagramExpanded] = useState(false);
   const metronomeRef = useRef<MetronomeEngine | null>(null);
 
@@ -103,39 +99,8 @@ const Practice = () => {
     if (bpm > 240) setBpm(240);
   };
 
-  const fetchCoachTips = async () => {
-    if (!exercise) return;
-    setCoachLoading(true);
-    setCoachExpanded(true);
-    try {
-      const prompt = `You are a guitar coach. Give brief, practical advice for practicing "${exercise.title}" at ${bpm} BPM.
-Include:
-1. How to physically perform the exercise (finger placement, technique)
-2. 2-3 common mistakes to avoid
-3. One tip for progressing to higher tempos
 
-Keep it concise and actionable. No intro fluff, just the advice.`;
-
-      const response = await fetch("http://localhost:11434/api/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "mistral",
-          prompt,
-          stream: false,
-        }),
-      });
-
-      const data = await response.json();
-      setCoachTips(data.response);
-    } catch (error) {
-      setCoachTips("Could not connect to Ollama. Make sure it's running with OLLAMA_ORIGINS=* set.");
-    } finally {
-      setCoachLoading(false);
-    }
-  };
-
-  const hasReferenceMaterials = exercise?.songsterrUrl || exercise?.youtubeUrl || exercise?.ultimateGuitarUrl || exercise?.tutorialUrl || exercise?.diagramUrl;
+  const hasReferenceMaterials = exercise?.songsterrUrl || exercise?.ultimateGuitarUrl || exercise?.tutorialUrl || exercise?.diagramUrl;
 
   if (loading) {
     return (
@@ -178,10 +143,10 @@ Keep it concise and actionable. No intro fluff, just the advice.`;
       {/* Main Content */}
       <main className="container mx-auto px-4 py-6 space-y-8">
         {/* Timer Display */}
-        <Card className="p-8 bg-gradient-to-br from-card to-secondary border-border">
+        <div className="rounded-2xl bg-card p-8" style={{ border: "1px solid rgba(255,255,255,0.05)" }}>
           <div className="text-center">
             <div className="text-sm text-muted-foreground mb-2">Session Time</div>
-            <div className="text-7xl font-bold metric-display neon-glow mb-6">
+            <div className="text-7xl font-bold text-foreground mb-6">
               {formatTime(seconds)}
             </div>
             <div className="flex gap-3 justify-center">
@@ -202,50 +167,12 @@ Keep it concise and actionable. No intro fluff, just the advice.`;
               </Button>
             </div>
           </div>
-        </Card>
-
-        {/* AI Coach Section */}
-        <section>
-          <h2 className="text-lg font-semibold mb-4 text-muted-foreground">AI Coach</h2>
-          <Card className="p-6 bg-secondary border-border">
-            <Button
-              className="w-full h-12 text-base"
-              variant="outline"
-              onClick={coachTips ? () => setCoachExpanded(!coachExpanded) : fetchCoachTips}
-              disabled={coachLoading}
-            >
-              {coachLoading ? (
-                <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Getting coaching tips...</>
-              ) : coachTips ? (
-                <>{coachExpanded ? <ChevronUp className="h-4 w-4 mr-2" /> : <ChevronDown className="h-4 w-4 mr-2" />} {coachExpanded ? "Hide" : "Show"} Coaching Tips</>
-              ) : (
-                <><Sparkles className="h-4 w-4 mr-2" /> Get Coaching Tips for {exercise.title}</>
-              )}
-            </Button>
-
-            {coachExpanded && coachTips && (
-              <div className="mt-4 text-sm text-foreground whitespace-pre-wrap leading-relaxed border-t border-border pt-4">
-                {coachTips}
-              </div>
-            )}
-
-            {coachExpanded && coachTips && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="mt-3 text-muted-foreground"
-                onClick={fetchCoachTips}
-              >
-                <Sparkles className="h-3 w-3 mr-1" /> Regenerate
-              </Button>
-            )}
-          </Card>
-        </section>
+        </div>
 
         {/* Metronome */}
         <section>
           <h2 className="text-lg font-semibold mb-4 text-muted-foreground">Metronome</h2>
-          <Card className="p-6 bg-secondary border-border space-y-6">
+          <div className="rounded-2xl bg-card p-6 space-y-6" style={{ border: "1px solid rgba(255,255,255,0.05)" }}>
             <div className="text-center">
               <div className="text-sm text-muted-foreground mb-2">Tempo</div>
               <div className="flex items-center justify-center gap-2">
@@ -293,13 +220,13 @@ Keep it concise and actionable. No intro fluff, just the advice.`;
             >
               {isMetronomeActive ? "Stop Metronome" : "Start Metronome"}
             </Button>
-          </Card>
+          </div>
         </section>
 
         {/* Reference Materials */}
         <section>
           <h2 className="text-lg font-semibold mb-4 text-muted-foreground">Reference Materials</h2>
-          <Card className="p-6 bg-secondary border-border space-y-3">
+          <div className="rounded-2xl bg-card p-6 space-y-3" style={{ border: "1px solid rgba(255,255,255,0.05)" }}>
 
             {/* Diagram */}
             {exercise.diagramUrl && (
@@ -338,11 +265,14 @@ Keep it concise and actionable. No intro fluff, just the advice.`;
                 <Button variant="outline" className="w-full h-12 text-base">🎸 View Songsterr Tab</Button>
               </a>
             )}
-            {exercise.youtubeUrl && (
-              <a href={exercise.youtubeUrl} target="_blank" rel="noopener noreferrer" className="block">
-                <Button variant="outline" className="w-full h-12 text-base">▶️ Watch on YouTube</Button>
-              </a>
-            )}
+            <a
+              href={`https://www.youtube.com/results?search_query=${encodeURIComponent(`${exercise.title}${exercise.artist ? ` ${exercise.artist}` : ""} guitar tutorial`)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block"
+            >
+              <Button variant="outline" className="w-full h-12 text-base">▶️ Search on YouTube</Button>
+            </a>
             {exercise.ultimateGuitarUrl && (
               <a href={exercise.ultimateGuitarUrl} target="_blank" rel="noopener noreferrer" className="block">
                 <Button variant="outline" className="w-full h-12 text-base">📝 View Ultimate Guitar Tab</Button>
@@ -354,7 +284,7 @@ Keep it concise and actionable. No intro fluff, just the advice.`;
                 No reference materials added yet
               </div>
             )}
-          </Card>
+          </div>
         </section>
 
         {/* Finish Session */}

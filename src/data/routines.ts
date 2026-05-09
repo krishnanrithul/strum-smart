@@ -4,6 +4,7 @@ export type Routine = {
   description: string;
   accent: string;
   labelColor: string;
+  glowColor: string;
   exercises: { title: string; category: string; bpm: number }[];
 };
 
@@ -14,6 +15,7 @@ export const ROUTINES: Routine[] = [
     description: "Fingerstyle independence and control",
     accent: "border-emerald-500/40 bg-emerald-500/10",
     labelColor: "text-emerald-400",
+    glowColor: "rgba(52, 211, 153, 0.18)",
     exercises: [
       { title: "Thumb Independence", category: "Warmup", bpm: 60 },
       { title: "PIMA Pattern", category: "Technical", bpm: 50 },
@@ -26,6 +28,7 @@ export const ROUTINES: Routine[] = [
     description: "Blues scale, bends and feel",
     accent: "border-blue-500/40 bg-blue-500/10",
     labelColor: "text-blue-400",
+    glowColor: "rgba(96, 165, 250, 0.18)",
     exercises: [
       { title: "Blues Scale Warmup", category: "Warmup", bpm: 60 },
       { title: "String Bending", category: "Technical", bpm: 70 },
@@ -39,6 +42,7 @@ export const ROUTINES: Routine[] = [
     description: "Downstrokes, palm muting and power",
     accent: "border-red-500/40 bg-red-500/10",
     labelColor: "text-red-400",
+    glowColor: "rgba(248, 113, 113, 0.18)",
     exercises: [
       { title: "Chromatic Warmup", category: "Warmup", bpm: 80 },
       { title: "Downstroke Drill", category: "Technical", bpm: 100 },
@@ -52,6 +56,7 @@ export const ROUTINES: Routine[] = [
     description: "Power chords, riffs and rhythm",
     accent: "border-orange-500/40 bg-orange-500/10",
     labelColor: "text-orange-400",
+    glowColor: "rgba(251, 146, 60, 0.18)",
     exercises: [
       { title: "Power Chord Warmup", category: "Warmup", bpm: 70 },
       { title: "Pentatonic Scale", category: "Technical", bpm: 80 },
@@ -64,6 +69,7 @@ export const ROUTINES: Routine[] = [
     description: "Precision, posture and technique",
     accent: "border-purple-500/40 bg-purple-500/10",
     labelColor: "text-purple-400",
+    glowColor: "rgba(192, 132, 252, 0.18)",
     exercises: [
       { title: "Right Hand Arpeggio", category: "Warmup", bpm: 50 },
       { title: "Left Hand Scales", category: "Technical", bpm: 60 },
@@ -76,6 +82,7 @@ export const ROUTINES: Routine[] = [
     description: "Chord voicings and improvisation",
     accent: "border-yellow-500/40 bg-yellow-500/10",
     labelColor: "text-yellow-400",
+    glowColor: "rgba(250, 204, 21, 0.18)",
     exercises: [
       { title: "Jazz Chord Warmup", category: "Warmup", bpm: 60 },
       { title: "Dorian Mode Scale", category: "Technical", bpm: 70 },
@@ -88,6 +95,7 @@ export const ROUTINES: Routine[] = [
     description: "Groove, timing and patterns",
     accent: "border-pink-500/40 bg-pink-500/10",
     labelColor: "text-pink-400",
+    glowColor: "rgba(244, 114, 182, 0.18)",
     exercises: [
       { title: "Metronome Strumming", category: "Warmup", bpm: 70 },
       { title: "Syncopated Strumming", category: "Technical", bpm: 80 },
@@ -100,6 +108,7 @@ export const ROUTINES: Routine[] = [
     description: "Build speed, accuracy and dexterity",
     accent: "border-cyan-500/40 bg-cyan-500/10",
     labelColor: "text-cyan-400",
+    glowColor: "rgba(34, 211, 238, 0.18)",
     exercises: [
       { title: "Spider Walk", category: "Warmup", bpm: 60 },
       { title: "Alternate Picking", category: "Technical", bpm: 100 },

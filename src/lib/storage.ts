@@ -83,6 +83,25 @@ export const StorageService = {
         }));
     },
 
+    getProject: async (id: string): Promise<Project | null> => {
+        const { data, error } = await supabase.from("projects").select("*").eq("id", id).single();
+        if (error) return null;
+        return { ...data, status: data.status as Project['status'] };
+    },
+
+    deleteProject: async (id: string): Promise<void> => {
+        const { error } = await supabase.from("projects").delete().eq("id", id);
+        if (error) throw error;
+    },
+
+    updateProject: async (id: string, updates: { title: string; artist?: string; status: Project['status'] }): Promise<void> => {
+        const { error } = await supabase
+            .from("projects")
+            .update({ title: updates.title, artist: updates.artist || null, status: updates.status })
+            .eq("id", id);
+        if (error) throw error;
+    },
+
     addProject: async (project: Omit<Project, "id" | "created_at">): Promise<Project> => {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) throw new Error("User not logged in");

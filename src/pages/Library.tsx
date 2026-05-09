@@ -1,9 +1,7 @@
 import { useState, useEffect } from "react";
-import { ArrowLeft, Search, Loader2, Music, Dumbbell, Plus, Zap } from "lucide-react";
-import { Link } from "react-router-dom";
+import { ArrowLeft, Loader2, Plus, Zap, ChevronRight, Pencil, Trash2 } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { StorageService, Exercise, Project } from "@/lib/storage";
@@ -21,7 +19,6 @@ const Library = () => {
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState("");
   const [selectedRoutine, setSelectedRoutine] = useState<typeof ROUTINES[0] | null>(null);
   const [addingRoutineId, setAddingRoutineId] = useState<string | null>(null);
   const [buildModalOpen, setBuildModalOpen] = useState(false);
@@ -30,7 +27,12 @@ const Library = () => {
   const [exerciseToDelete, setExerciseToDelete] = useState<Exercise | null>(null);
   const [exerciseToEdit, setExerciseToEdit] = useState<Exercise | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [projectToDelete, setProjectToDelete] = useState<Project | null>(null);
+  const [projectToEdit, setProjectToEdit] = useState<Project | null>(null);
+  const [deleteProjectDialogOpen, setDeleteProjectDialogOpen] = useState(false);
+  const [editProjectDialogOpen, setEditProjectDialogOpen] = useState(false);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const loadData = async () => {
     setLoading(true);
@@ -50,13 +52,7 @@ const Library = () => {
 
   useEffect(() => { loadData(); }, []);
 
-  const myExercises = exercises.filter(e =>
-    !e.project_id && e.title.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  const filteredProjects = projects.filter(p =>
-    p.title.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const myExercises = exercises.filter(e => !e.project_id);
 
   const handleAddRoutine = async (routine: typeof ROUTINES[0]) => {
     setAddingRoutineId(routine.id);
@@ -83,24 +79,14 @@ const Library = () => {
   const handleBuildOwn = async (selectedExercises: any[], selectedSongs: Array<{ title: string; artist: string }>) => {
     try {
       for (const ex of selectedExercises) {
-        await StorageService.addExercise({
-          title: ex.title,
-          category: ex.category,
-          currentBpm: ex.default_bpm,
-          status: "New",
-        });
+        await StorageService.addExercise({ title: ex.title, category: ex.category, currentBpm: ex.default_bpm, status: "New" });
       }
       for (const song of selectedSongs) {
-        await StorageService.addExercise({
-          title: song.title,
-          category: "Repertoire",
-          currentBpm: 60,
-          status: "New",
-        });
+        await StorageService.addExercise({ title: song.title, category: "Repertoire", currentBpm: 60, status: "New" });
       }
       toast({
         title: "Added!",
-        description: `${selectedExercises.length} exercise${selectedExercises.length !== 1 ? "s" : ""} + ${selectedSongs.length} song${selectedSongs.length !== 1 ? "s" : ""} added to your library.`,
+        description: `${selectedExercises.length} exercise${selectedExercises.length !== 1 ? "s" : ""} + ${selectedSongs.length} song${selectedSongs.length !== 1 ? "s" : ""} added.`,
       });
       loadData();
     } catch {
@@ -151,6 +137,34 @@ const Library = () => {
     }
   };
 
+  const handleDeleteProjectClick = (project: Project, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setProjectToDelete(project);
+    setDeleteProjectDialogOpen(true);
+  };
+
+  const handleEditProjectClick = (project: Project, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setProjectToEdit(project);
+    setEditProjectDialogOpen(true);
+  };
+
+  const handleDeleteProjectConfirm = async () => {
+    if (!projectToDelete) return;
+    try {
+      await StorageService.deleteProject(projectToDelete.id);
+      toast({ title: "Song project deleted", description: `${projectToDelete.title} has been removed.` });
+      loadData();
+    } catch {
+      toast({ title: "Error", description: "Failed to delete.", variant: "destructive" });
+    } finally {
+      setDeleteProjectDialogOpen(false);
+      setProjectToDelete(null);
+    }
+  };
+
+  const routinesAdded = ROUTINES.filter(r => isRoutineAdded(r)).length;
+
   if (loading) return (
     <div className="min-h-screen bg-background flex items-center justify-center">
       <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -159,90 +173,113 @@ const Library = () => {
 
   return (
     <div className="min-h-screen bg-background pb-24">
-      <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-10">
-        <div className="container mx-auto px-4 py-4 flex items-center gap-4">
-          <Link to="/"><Button variant="ghost" size="icon"><ArrowLeft className="h-6 w-6" /></Button></Link>
-          <h1 className="text-xl font-bold">Library</h1>
+
+      {/* Header */}
+      <header className="sticky top-0 z-10 border-b border-border bg-background/80 backdrop-blur-sm">
+        <div className="container mx-auto px-4 py-4 flex items-center gap-3">
+          <Link to="/">
+            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+          </Link>
+          <div className="flex items-center gap-2">
+            <Zap className="h-4 w-4 text-primary" />
+            <h1 className="text-xs font-semibold tracking-widest uppercase text-foreground">Library</h1>
+          </div>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-6 space-y-8">
-        {/* Search */}
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-          <Input placeholder="Search..." className="pl-10 h-12 bg-secondary border-border"
-            value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+      <main className="container mx-auto px-4 py-6 space-y-10">
+      
+      {/* Stats card */}
+        <div className="rounded-2xl p-5 space-y-4" style={{ border: "1px solid rgba(255,255,255,0.05)", background: "radial-gradient(circle at top right, rgba(34,197,94,0.12) 0%, transparent 60%), hsl(var(--card))" }}>
+          <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">My Library</p>
+          <div className="flex items-end gap-2">
+            <span className="text-4xl font-bold text-foreground leading-none">{myExercises.length}</span>
+            <span className="text-sm text-muted-foreground mb-1">exercise{myExercises.length !== 1 ? "s" : ""}</span>
+          </div>
+          <div className="border-t border-white/5 pt-4 grid grid-cols-3 gap-4">
+            <div>
+              <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">Routines Added</p>
+              <p className="text-xl font-bold text-foreground mt-1">{routinesAdded}</p>
+            </div>
+            <div>
+              <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">Song Projects</p>
+              <p className="text-xl font-bold text-foreground mt-1">{projects.length}</p>
+            </div>
+            <div>
+              <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">Total Available Routines</p>
+              <p className="text-xl font-bold text-foreground mt-1">{ROUTINES.length}</p>
+            </div>
+          </div>
         </div>
 
         {/* Routines */}
+        <section className="space-y-4"></section>
+
+        {/* Routines */}
         <section className="space-y-4">
-          <div className="flex items-center gap-2">
-            <Zap className="h-5 w-5 text-primary" />
-            <h2 className="text-lg font-semibold text-primary">Routines</h2>
-          </div>
+          <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">Routines</p>
           <div className="grid grid-cols-4 gap-3">
             {ROUTINES.map(routine => (
               <RoutineCard key={routine.id} routine={routine} onClick={() => setSelectedRoutine(routine)} />
             ))}
           </div>
-          <p className="text-sm text-muted-foreground">
-            Don't see your style?{" "}
-            <button onClick={() => setBuildModalOpen(true)} className="text-primary hover:underline">
-              Build your own
-            </button>
-            {" "}or{" "}
-            <AddExerciseDialog
-              onExerciseAdded={loadData}
-              trigger={<button className="text-primary hover:underline">create from scratch</button>}
-            />
-          </p>
+
+          {/* Build your own CTA — matches "Start Practice" style */}
+          <button
+            onClick={() => setBuildModalOpen(true)}
+            className="w-full flex items-center justify-between px-5 py-4 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+          >
+            <div className="flex items-center gap-3">
+              <Zap className="h-4 w-4" />
+              <span className="text-base font-medium">Build your own</span>
+            </div>
+            <ChevronRight className="h-4 w-4 opacity-70" />
+          </button>
         </section>
 
         {/* Song Projects */}
         <section className="space-y-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-lg font-semibold text-primary">
-              <Music className="h-5 w-5" /><h2>Song Projects</h2>
-            </div>
+            <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">Song Projects</p>
             <AddProjectDialog onProjectAdded={loadData} />
           </div>
-          {filteredProjects.length === 0 ? (
-            <div className="text-center p-8 border border-dashed border-border rounded-lg text-muted-foreground">No song projects yet. Start one!</div>
+          {projects.length === 0 ? (
+            <div className="text-center py-10 border border-dashed border-border rounded-xl text-sm text-muted-foreground">
+              No song projects yet. Start one!
+            </div>
           ) : (
-            <div className="grid gap-4">
-              {filteredProjects.map(project => {
-                const projectExercises = exercises.filter(e => e.project_id === project.id);
-                return (
-                  <Card key={project.id} className="p-4 bg-secondary/50 border-border">
-                    <div className="flex justify-between items-start mb-4">
-                      <div>
-                        <h3 className="text-lg font-bold">{project.title}</h3>
-                        {project.artist && <p className="text-sm text-muted-foreground">{project.artist}</p>}
-                      </div>
-                      <Badge variant="outline" className={getStatusColor(project.status)}>{project.status}</Badge>
-                    </div>
-                    <div className="space-y-2 pl-4 border-l-2 border-border/50">
-                      {projectExercises.length === 0 && <p className="text-xs text-muted-foreground italic">No sections yet.</p>}
-                      {projectExercises.map(ex => (
-                        <Link key={ex.id} to={`/practice/${ex.id}`} className="block">
-                          <div className="flex justify-between items-center p-2 hover:bg-background/50 rounded transition-colors cursor-pointer group">
-                            <span className="text-sm font-medium group-hover:text-primary transition-colors">{ex.title}</span>
-                            <div className="flex items-center gap-3">
-                              <Badge variant="secondary" className="text-[10px] h-5">{ex.status}</Badge>
-                              <span className="text-xs font-mono text-muted-foreground">{ex.currentBpm} BPM</span>
-                            </div>
-                          </div>
-                        </Link>
-                      ))}
-                      <div className="pt-2">
-                        <AddExerciseDialog onExerciseAdded={loadData} projectId={project.id}
-                          trigger={<Button variant="ghost" size="sm" className="h-8 text-xs text-muted-foreground hover:text-primary"><Plus className="h-3 w-3 mr-1" /> Add Section</Button>}
-                        />
-                      </div>
-                    </div>
-                  </Card>
-                );
-              })}
+            <div className="space-y-3">
+              {projects.map(project => (
+                <div
+                  key={project.id}
+                  className="rounded-2xl bg-card p-4 flex items-center justify-between cursor-pointer hover:bg-card/80 transition-colors"
+                  style={{ border: "1px solid rgba(255,255,255,0.05)" }}
+                  onClick={() => navigate(`/song/${project.id}`)}
+                >
+                  <div className="min-w-0 flex-1">
+                    <h3 className="text-sm font-semibold text-foreground truncate">{project.title}</h3>
+                    {project.artist && <p className="text-xs text-muted-foreground mt-0.5">{project.artist}</p>}
+                  </div>
+                  <div className="flex items-center gap-2 ml-3 shrink-0">
+                    <Badge variant="outline" className={getStatusColor(project.status)}>{project.status}</Badge>
+                    <button
+                      onClick={(e) => handleEditProjectClick(project, e)}
+                      className="text-muted-foreground hover:text-foreground transition-colors p-1"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={(e) => handleDeleteProjectClick(project, e)}
+                      className="text-muted-foreground hover:text-destructive transition-colors p-1"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                    <ChevronRight className="h-4 w-4 text-muted-foreground/40" />
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </section>
@@ -250,29 +287,43 @@ const Library = () => {
         {/* My Exercises */}
         <section className="space-y-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-lg font-semibold text-primary">
-              <Dumbbell className="h-5 w-5" /><h2>My Exercises</h2>
-            </div>
-            <div className="flex items-center gap-2">
+            <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">My Exercises</p>
+            <div className="flex items-center gap-3">
               {myExercises.length > 0 && (
-                <Button variant="ghost" size="sm"
-                  className="text-xs text-destructive hover:text-destructive"
-                  onClick={() => setDeleteAllDialogOpen(true)}>
+                <button
+                  onClick={() => setDeleteAllDialogOpen(true)}
+                  className="text-xs text-destructive hover:text-destructive/80 transition-colors"
+                >
                   Delete all
-                </Button>
+                </button>
               )}
               <AddExerciseDialog
                 onExerciseAdded={loadData}
-                trigger={<Button variant="ghost" size="sm" className="text-xs text-muted-foreground hover:text-primary"><Plus className="h-3 w-3 mr-1" /> Add</Button>}
+                trigger={
+                  <button className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
+                    <Plus className="h-3 w-3" /> Add
+                  </button>
+                }
               />
             </div>
           </div>
           <div className="space-y-3">
-            {myExercises.length === 0
-              ? <div className="text-center p-8 border border-dashed border-border rounded-lg text-muted-foreground">No exercises yet. Add a routine or build your own above.</div>
-              : myExercises.map(exercise => (
-                <ExerciseCard key={exercise.id} exercise={exercise} showCategory bpmLabel="Last BPM" onEdit={handleEditClick} onDelete={handleDeleteClick} />
-              ))}
+            {myExercises.length === 0 ? (
+              <div className="text-center py-10 border border-dashed border-border rounded-xl text-sm text-muted-foreground">
+                No exercises yet. Add a routine or build your own above.
+              </div>
+            ) : (
+              myExercises.map(exercise => (
+                <ExerciseCard
+                  key={exercise.id}
+                  exercise={exercise}
+                  showCategory
+                  bpmLabel="Last BPM"
+                  onEdit={handleEditClick}
+                  onDelete={handleDeleteClick}
+                />
+              ))
+            )}
           </div>
         </section>
       </main>
@@ -298,7 +349,6 @@ const Library = () => {
         onExerciseAdded={() => { loadData(); setEditDialogOpen(false); setExerciseToEdit(null); toast({ title: "Exercise updated!" }); }}
       />
 
-      {/* Delete Single Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent className="bg-card border-border">
           <AlertDialogHeader>
@@ -312,7 +362,6 @@ const Library = () => {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Delete All Dialog */}
       <AlertDialog open={deleteAllDialogOpen} onOpenChange={setDeleteAllDialogOpen}>
         <AlertDialogContent className="bg-card border-border">
           <AlertDialogHeader>
@@ -325,6 +374,26 @@ const Library = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AlertDialog open={deleteProjectDialogOpen} onOpenChange={setDeleteProjectDialogOpen}>
+        <AlertDialogContent className="bg-card border-border">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Song Project?</AlertDialogTitle>
+            <AlertDialogDescription>Are you sure you want to delete "{projectToDelete?.title}"? This cannot be undone.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteProjectConfirm} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AddProjectDialog
+        open={editProjectDialogOpen}
+        onOpenChange={(o) => { setEditProjectDialogOpen(o); if (!o) setProjectToEdit(null); }}
+        projectToEdit={projectToEdit ?? undefined}
+        onProjectAdded={() => { loadData(); setEditProjectDialogOpen(false); setProjectToEdit(null); toast({ title: "Project updated!" }); }}
+      />
     </div>
   );
 };
