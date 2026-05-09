@@ -10,6 +10,7 @@ import Practice from "./pages/Practice";
 import Library from "./pages/Library";
 import Progress from "./pages/Progress";
 import Login from "./pages/Login";
+import TeacherDashboard from "./pages/TeacherDashboard";
 
 const queryClient = new QueryClient();
 
@@ -23,7 +24,8 @@ const App = () => (
           <Routes>
             <Route path="/auth" element={<Login />} />
             <Route path="/login" element={<Login />} />
-
+            <Route path="/teacher/dashboard" element={<TeacherDashboard />} />
+            
             <Route element={<ProtectedRoute />}>
               <Route path="/" element={<Index />} />
               <Route path="/practice/:id" element={<Practice />} />
