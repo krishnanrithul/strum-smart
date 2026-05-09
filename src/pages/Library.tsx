@@ -1,34 +1,32 @@
 import { useState, useEffect } from "react";
-import { ArrowLeft, Search, Loader2, Music, Dumbbell, Plus, Trash2, BookOpen, Pencil } from "lucide-react";
+import { ArrowLeft, Search, Loader2, Music, Dumbbell, Plus, Zap } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { StorageService, Exercise, Project, ExerciseTemplate } from "@/lib/storage";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { StorageService, Exercise, Project } from "@/lib/storage";
 import { AddExerciseDialog } from "@/components/AddExerciseDialog";
 import { AddProjectDialog } from "@/components/AddProjectDialog";
-import { AddRepertoireDialog } from "@/components/AddRepertoireDialog";
+import { ExerciseCard } from "@/components/ExerciseCard";
+import { RoutineCard } from "@/components/RoutineCard";
+import { RoutineModal } from "@/components/RoutineModal";
+import { BuildYourOwnModal } from "@/components/BuildYourOwnModal";
+import { ROUTINES } from "@/data/routines";
+import { getStatusColor } from "@/lib/badges";
 import { useToast } from "@/hooks/use-toast";
 
 const Library = () => {
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
-  const [templates, setTemplates] = useState<ExerciseTemplate[]>([]);
   const [loading, setLoading] = useState(true);
-  const [addingTemplateId, setAddingTemplateId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedRoutine, setSelectedRoutine] = useState<typeof ROUTINES[0] | null>(null);
+  const [addingRoutineId, setAddingRoutineId] = useState<string | null>(null);
+  const [buildModalOpen, setBuildModalOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteAllDialogOpen, setDeleteAllDialogOpen] = useState(false);
   const [exerciseToDelete, setExerciseToDelete] = useState<Exercise | null>(null);
   const [exerciseToEdit, setExerciseToEdit] = useState<Exercise | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -37,14 +35,12 @@ const Library = () => {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [fetchedExercises, fetchedProjects, fetchedTemplates] = await Promise.all([
+      const [fetchedExercises, fetchedProjects] = await Promise.all([
         StorageService.getExercises(),
         StorageService.getProjects(),
-        StorageService.getExerciseTemplates(),
       ]);
       setExercises(fetchedExercises);
       setProjects(fetchedProjects);
-      setTemplates(fetchedTemplates);
     } catch (error) {
       console.error("Failed to load library data:", error);
     } finally {
@@ -52,61 +48,91 @@ const Library = () => {
     }
   };
 
-  useEffect(() => {
-    loadData();
-  }, []);
+  useEffect(() => { loadData(); }, []);
 
-  const filteredExercises = exercises.filter((exercise) =>
-    !exercise.project_id &&
-    exercise.category !== "Repertoire" &&
-    exercise.title.toLowerCase().includes(searchQuery.toLowerCase())
+  const myExercises = exercises.filter(e =>
+    !e.project_id && e.title.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const filteredRepertoire = exercises.filter((exercise) =>
-    !exercise.project_id &&
-    exercise.category === "Repertoire" &&
-    exercise.title.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredProjects = projects.filter(p =>
+    p.title.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const filteredProjects = projects.filter((project) =>
-    project.title.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  const filteredTemplates = templates.filter((template) =>
-    template.title.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  const handleAddTemplate = async (template: ExerciseTemplate) => {
-    setAddingTemplateId(template.id);
+  const handleAddRoutine = async (routine: typeof ROUTINES[0]) => {
+    setAddingRoutineId(routine.id);
     try {
-      await StorageService.addExerciseFromTemplate(template);
-      toast({
-        title: "Exercise added!",
-        description: `${template.title} has been added to your library.`,
-      });
+      for (const ex of routine.exercises) {
+        await StorageService.addExercise({
+          title: ex.title,
+          category: ex.category,
+          currentBpm: ex.bpm,
+          status: "New",
+        });
+      }
+      toast({ title: `${routine.name} routine added!`, description: `${routine.exercises.length} exercises added.` });
+      setSelectedRoutine(null);
       loadData();
     } catch (error) {
-      console.error("Failed to add template:", error);
-      toast({
-        title: "Error",
-        description: "Failed to add exercise. Please try again.",
-        variant: "destructive",
-      });
+      console.error(error);
+      toast({ title: "Error", description: "Failed to add routine.", variant: "destructive" });
     } finally {
-      setAddingTemplateId(null);
+      setAddingRoutineId(null);
     }
   };
 
+  const handleBuildOwn = async (selectedExercises: any[], selectedSongs: Array<{ title: string; artist: string }>) => {
+    try {
+      for (const ex of selectedExercises) {
+        await StorageService.addExercise({
+          title: ex.title,
+          category: ex.category,
+          currentBpm: ex.default_bpm,
+          status: "New",
+        });
+      }
+      for (const song of selectedSongs) {
+        await StorageService.addExercise({
+          title: song.title,
+          category: "Repertoire",
+          currentBpm: 60,
+          status: "New",
+        });
+      }
+      toast({
+        title: "Added!",
+        description: `${selectedExercises.length} exercise${selectedExercises.length !== 1 ? "s" : ""} + ${selectedSongs.length} song${selectedSongs.length !== 1 ? "s" : ""} added to your library.`,
+      });
+      loadData();
+    } catch {
+      toast({ title: "Error", description: "Failed to add items.", variant: "destructive" });
+    }
+  };
+
+  const handleDeleteAll = async () => {
+    try {
+      for (const exercise of myExercises) {
+        await StorageService.deleteExercise(exercise.id);
+      }
+      toast({ title: "All exercises deleted" });
+      loadData();
+    } catch {
+      toast({ title: "Error", description: "Failed to delete all.", variant: "destructive" });
+    } finally {
+      setDeleteAllDialogOpen(false);
+    }
+  };
+
+  const isRoutineAdded = (routine: typeof ROUTINES[0]) =>
+    routine.exercises.every(ex => exercises.some(e => e.title === ex.title));
+
   const handleDeleteClick = (exercise: Exercise, e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
+    e.preventDefault(); e.stopPropagation();
     setExerciseToDelete(exercise);
     setDeleteDialogOpen(true);
   };
 
   const handleEditClick = (exercise: Exercise, e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
+    e.preventDefault(); e.stopPropagation();
     setExerciseToEdit(exercise);
     setEditDialogOpen(true);
   };
@@ -115,161 +141,76 @@ const Library = () => {
     if (!exerciseToDelete) return;
     try {
       await StorageService.deleteExercise(exerciseToDelete.id);
-      toast({
-        title: "Exercise deleted",
-        description: `${exerciseToDelete.title} has been removed.`,
-      });
+      toast({ title: "Exercise deleted", description: `${exerciseToDelete.title} has been removed.` });
       loadData();
-    } catch (error) {
-      console.error("Failed to delete exercise:", error);
-      toast({
-        title: "Error",
-        description: "Failed to delete exercise. Please try again.",
-        variant: "destructive",
-      });
+    } catch {
+      toast({ title: "Error", description: "Failed to delete.", variant: "destructive" });
     } finally {
       setDeleteDialogOpen(false);
       setExerciseToDelete(null);
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "Mastered":
-        return "bg-primary/20 text-primary border-primary/40";
-      case "In Progress":
-        return "bg-blue-500/20 text-blue-400 border-blue-500/40";
-      case "New":
-        return "bg-muted text-muted-foreground border-border";
-      default:
-        return "bg-muted text-muted-foreground border-border";
-    }
-  };
-
-  const getCategoryColor = (category: string) => {
-    switch (category) {
-      case "Technical":
-        return "bg-blue-500/20 text-blue-400 border-blue-500/40";
-      case "Warmup":
-        return "bg-orange-500/20 text-orange-400 border-orange-500/40";
-      case "Repertoire":
-        return "bg-purple-500/20 text-purple-400 border-purple-500/40";
-      default:
-        return "bg-muted text-muted-foreground border-border";
-    }
-  };
-
-  const isTemplateAdded = (template: ExerciseTemplate) =>
-    exercises.some(e => e.title === template.title);
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
+  if (loading) return (
+    <div className="min-h-screen bg-background flex items-center justify-center">
+      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-background pb-24">
-      {/* Header */}
       <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-10">
         <div className="container mx-auto px-4 py-4 flex items-center gap-4">
-          <Link to="/">
-            <Button variant="ghost" size="icon">
-              <ArrowLeft className="h-6 w-6" />
-            </Button>
-          </Link>
-          <h1 className="text-xl font-bold">Exercise Library</h1>
+          <Link to="/"><Button variant="ghost" size="icon"><ArrowLeft className="h-6 w-6" /></Button></Link>
+          <h1 className="text-xl font-bold">Library</h1>
         </div>
       </header>
 
-      {/* Main Content */}
       <main className="container mx-auto px-4 py-6 space-y-8">
-        {/* Search & Actions */}
-        <div className="flex flex-col sm:flex-row gap-3">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-            <Input
-              placeholder="Search..."
-              className="pl-10 h-12 bg-secondary border-border"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
-          <div className="flex gap-2">
-            <AddProjectDialog onProjectAdded={loadData} />
-            <AddExerciseDialog onExerciseAdded={loadData} />
-          </div>
+        {/* Search */}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+          <Input placeholder="Search..." className="pl-10 h-12 bg-secondary border-border"
+            value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
         </div>
 
-        {/* Exercise Templates Section */}
+        {/* Routines */}
         <section className="space-y-4">
-          <div className="flex items-center gap-2 text-lg font-semibold text-primary">
-            <BookOpen className="h-5 w-5" />
-            <h2>Exercise Templates</h2>
+          <div className="flex items-center gap-2">
+            <Zap className="h-5 w-5 text-primary" />
+            <h2 className="text-lg font-semibold text-primary">Routines</h2>
           </div>
-          <p className="text-sm text-muted-foreground -mt-2">
-            Browse curated exercises and add them to your library.
+          <div className="grid grid-cols-4 gap-3">
+            {ROUTINES.map(routine => (
+              <RoutineCard key={routine.id} routine={routine} onClick={() => setSelectedRoutine(routine)} />
+            ))}
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Don't see your style?{" "}
+            <button onClick={() => setBuildModalOpen(true)} className="text-primary hover:underline">
+              Build your own
+            </button>
+            {" "}or{" "}
+            <AddExerciseDialog
+              onExerciseAdded={loadData}
+              trigger={<button className="text-primary hover:underline">create from scratch</button>}
+            />
           </p>
-          <div className="space-y-3">
-            {filteredTemplates.length === 0 ? (
-              <div className="text-center p-8 border border-dashed border-border rounded-lg text-muted-foreground">
-                No templates found.
-              </div>
-            ) : (
-              filteredTemplates.map((template) => {
-                const alreadyAdded = isTemplateAdded(template);
-                return (
-                  <Card key={template.id} className="p-4 bg-secondary/50 border-border">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold mb-1">{template.title}</h3>
-                        {template.description && (
-                          <p className="text-sm text-muted-foreground mb-2">{template.description}</p>
-                        )}
-                        <div className="flex items-center gap-2">
-                          <Badge variant="outline" className={`text-xs ${getCategoryColor(template.category)}`}>
-                            {template.category}
-                          </Badge>
-                          <span className="text-xs text-muted-foreground">{template.default_bpm} BPM</span>
-                        </div>
-                      </div>
-                      <Button
-                        size="sm"
-                        variant={alreadyAdded ? "secondary" : "default"}
-                        disabled={alreadyAdded || addingTemplateId === template.id}
-                        onClick={() => handleAddTemplate(template)}
-                      >
-                        {addingTemplateId === template.id ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : alreadyAdded ? (
-                          "Added"
-                        ) : (
-                          <><Plus className="h-4 w-4 mr-1" /> Add</>
-                        )}
-                      </Button>
-                    </div>
-                  </Card>
-                );
-              })
-            )}
-          </div>
         </section>
 
-        {/* Song Projects Section */}
+        {/* Song Projects */}
         <section className="space-y-4">
-          <div className="flex items-center gap-2 text-lg font-semibold text-primary">
-            <Music className="h-5 w-5" />
-            <h2>Song Projects</h2>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-lg font-semibold text-primary">
+              <Music className="h-5 w-5" /><h2>Song Projects</h2>
+            </div>
+            <AddProjectDialog onProjectAdded={loadData} />
           </div>
           {filteredProjects.length === 0 ? (
-            <div className="text-center p-8 border border-dashed border-border rounded-lg text-muted-foreground">
-              No song projects yet. Start one!
-            </div>
+            <div className="text-center p-8 border border-dashed border-border rounded-lg text-muted-foreground">No song projects yet. Start one!</div>
           ) : (
             <div className="grid gap-4">
-              {filteredProjects.map((project) => {
+              {filteredProjects.map(project => {
                 const projectExercises = exercises.filter(e => e.project_id === project.id);
                 return (
                   <Card key={project.id} className="p-4 bg-secondary/50 border-border">
@@ -278,14 +219,10 @@ const Library = () => {
                         <h3 className="text-lg font-bold">{project.title}</h3>
                         {project.artist && <p className="text-sm text-muted-foreground">{project.artist}</p>}
                       </div>
-                      <Badge variant="outline" className={getStatusColor(project.status)}>
-                        {project.status}
-                      </Badge>
+                      <Badge variant="outline" className={getStatusColor(project.status)}>{project.status}</Badge>
                     </div>
                     <div className="space-y-2 pl-4 border-l-2 border-border/50">
-                      {projectExercises.length === 0 && (
-                        <p className="text-xs text-muted-foreground italic">No sections yet.</p>
-                      )}
+                      {projectExercises.length === 0 && <p className="text-xs text-muted-foreground italic">No sections yet.</p>}
                       {projectExercises.map(ex => (
                         <Link key={ex.id} to={`/practice/${ex.id}`} className="block">
                           <div className="flex justify-between items-center p-2 hover:bg-background/50 rounded transition-colors cursor-pointer group">
@@ -298,14 +235,8 @@ const Library = () => {
                         </Link>
                       ))}
                       <div className="pt-2">
-                        <AddExerciseDialog
-                          onExerciseAdded={loadData}
-                          projectId={project.id}
-                          trigger={
-                            <Button variant="ghost" size="sm" className="h-8 text-xs text-muted-foreground hover:text-primary">
-                              <Plus className="h-3 w-3 mr-1" /> Add Section
-                            </Button>
-                          }
+                        <AddExerciseDialog onExerciseAdded={loadData} projectId={project.id}
+                          trigger={<Button variant="ghost" size="sm" className="h-8 text-xs text-muted-foreground hover:text-primary"><Plus className="h-3 w-3 mr-1" /> Add Section</Button>}
                         />
                       </div>
                     </div>
@@ -316,165 +247,81 @@ const Library = () => {
           )}
         </section>
 
-        {/* Repertoire Section */}
+        {/* My Exercises */}
         <section className="space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-lg font-semibold text-primary">
-              <Music className="h-5 w-5" />
-              <h2>Repertoire Songs</h2>
+              <Dumbbell className="h-5 w-5" /><h2>My Exercises</h2>
             </div>
-            <AddRepertoireDialog onRepertoireAdded={loadData} />
+            <div className="flex items-center gap-2">
+              {myExercises.length > 0 && (
+                <Button variant="ghost" size="sm"
+                  className="text-xs text-destructive hover:text-destructive"
+                  onClick={() => setDeleteAllDialogOpen(true)}>
+                  Delete all
+                </Button>
+              )}
+              <AddExerciseDialog
+                onExerciseAdded={loadData}
+                trigger={<Button variant="ghost" size="sm" className="text-xs text-muted-foreground hover:text-primary"><Plus className="h-3 w-3 mr-1" /> Add</Button>}
+              />
+            </div>
           </div>
           <div className="space-y-3">
-            {filteredRepertoire.map((exercise) => (
-              <Card key={exercise.id} className="relative group p-4 bg-secondary border-border hover:bg-secondary/80 transition-colors">
-                <Link to={`/practice/${exercise.id}`} className="block">
-                  <div className="flex items-start justify-between gap-4 pr-20">
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold mb-1 truncate">{exercise.title}</h3>
-                      <div className="flex items-center gap-2 flex-wrap mt-2">
-                        <Badge variant="outline" className={`text-xs ${getStatusColor(exercise.status)}`}>
-                          {exercise.status}
-                        </Badge>
-                        {exercise.songsterrUrl && (
-                          <a href={exercise.songsterrUrl} target="_blank" rel="noopener noreferrer"
-                            onClick={(e) => e.stopPropagation()} className="text-xs text-primary hover:underline">
-                            🎸 Tab
-                          </a>
-                        )}
-                        {exercise.youtubeUrl && (
-                          <a href={exercise.youtubeUrl} target="_blank" rel="noopener noreferrer"
-                            onClick={(e) => e.stopPropagation()} className="text-xs text-primary hover:underline">
-                            ▶️ Video
-                          </a>
-                        )}
-                        {exercise.ultimateGuitarUrl && (
-                          <a href={exercise.ultimateGuitarUrl} target="_blank" rel="noopener noreferrer"
-                            onClick={(e) => e.stopPropagation()} className="text-xs text-primary hover:underline">
-                            📝 UG Tab
-                          </a>
-                        )}
-                      </div>
-                    </div>
-                    <div className="text-right flex-shrink-0">
-                      <div className="text-sm text-muted-foreground">Current BPM</div>
-                      <div className="text-2xl font-bold metric-display">{exercise.currentBpm}</div>
-                    </div>
-                  </div>
-                </Link>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="absolute top-2 right-10 h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity z-10"
-                  onClick={(e) => handleEditClick(exercise, e)}
-                >
-                  <Pencil className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="destructive"
-                  size="icon"
-                  className="absolute top-2 right-2 h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity z-10"
-                  onClick={(e) => handleDeleteClick(exercise, e)}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </Card>
-            ))}
-            {filteredRepertoire.length === 0 && (
-              <div className="text-center p-8 border border-dashed border-border rounded-lg text-muted-foreground">
-                No repertoire songs yet. Add one to get started!
-              </div>
-            )}
-          </div>
-        </section>
-
-        {/* Standalone Exercises Section */}
-        <section className="space-y-4">
-          <div className="flex items-center gap-2 text-lg font-semibold text-primary">
-            <Dumbbell className="h-5 w-5" />
-            <h2>Standalone Drills</h2>
-          </div>
-          <div className="space-y-3">
-            {filteredExercises.map((exercise) => (
-              <Card key={exercise.id} className="relative group p-4 bg-secondary border-border hover:bg-secondary/80 transition-colors">
-                <Link to={`/practice/${exercise.id}`} className="block pr-20">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold mb-1 truncate">{exercise.title}</h3>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <Badge variant="outline" className="text-xs">{exercise.category}</Badge>
-                        <Badge variant="outline" className={`text-xs ${getStatusColor(exercise.status)}`}>
-                          {exercise.status}
-                        </Badge>
-                      </div>
-                    </div>
-                    <div className="text-right flex-shrink-0">
-                      <div className="text-sm text-muted-foreground">Last BPM</div>
-                      <div className="text-2xl font-bold metric-display">{exercise.currentBpm}</div>
-                    </div>
-                  </div>
-                </Link>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="absolute top-2 right-10 h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity z-10"
-                  onClick={(e) => handleEditClick(exercise, e)}
-                >
-                  <Pencil className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="destructive"
-                  size="icon"
-                  className="absolute top-2 right-2 h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity z-10"
-                  onClick={(e) => handleDeleteClick(exercise, e)}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </Card>
-            ))}
-            {filteredExercises.length === 0 && (
-              <div className="text-center p-8 border border-dashed border-border rounded-lg text-muted-foreground">
-                No standalone exercises found.
-              </div>
-            )}
+            {myExercises.length === 0
+              ? <div className="text-center p-8 border border-dashed border-border rounded-lg text-muted-foreground">No exercises yet. Add a routine or build your own above.</div>
+              : myExercises.map(exercise => (
+                <ExerciseCard key={exercise.id} exercise={exercise} showCategory bpmLabel="Last BPM" onEdit={handleEditClick} onDelete={handleDeleteClick} />
+              ))}
           </div>
         </section>
       </main>
 
-     {/* Edit Dialog */}
-{/* Edit Dialog */}
-<AddExerciseDialog
-  open={editDialogOpen}
-  onOpenChange={(o) => {
-    setEditDialogOpen(o);
-    if (!o) setExerciseToEdit(null);
-  }}
-  exerciseToEdit={exerciseToEdit ?? undefined}
-  onExerciseAdded={() => {
-    loadData();
-    setEditDialogOpen(false);
-    setExerciseToEdit(null);
-    toast({ title: "Exercise updated!" });
-  }}
-/>
+      <RoutineModal
+        routine={selectedRoutine}
+        isAdding={addingRoutineId === selectedRoutine?.id}
+        alreadyAdded={selectedRoutine ? isRoutineAdded(selectedRoutine) : false}
+        onClose={() => setSelectedRoutine(null)}
+        onAdd={() => selectedRoutine && handleAddRoutine(selectedRoutine)}
+      />
 
-      {/* Delete Dialog */}
+      <BuildYourOwnModal
+        open={buildModalOpen}
+        onClose={() => setBuildModalOpen(false)}
+        onAdd={handleBuildOwn}
+      />
+
+      <AddExerciseDialog
+        open={editDialogOpen}
+        onOpenChange={(o) => { setEditDialogOpen(o); if (!o) setExerciseToEdit(null); }}
+        exerciseToEdit={exerciseToEdit ?? undefined}
+        onExerciseAdded={() => { loadData(); setEditDialogOpen(false); setExerciseToEdit(null); toast({ title: "Exercise updated!" }); }}
+      />
+
+      {/* Delete Single Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent className="bg-card border-border">
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Exercise?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete "{exerciseToDelete?.title}"? This action cannot be undone.
-            </AlertDialogDescription>
+            <AlertDialogDescription>Are you sure you want to delete "{exerciseToDelete?.title}"? This cannot be undone.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDeleteConfirm}
-              className="bg-destructive hover:bg-destructive/90"
-            >
-              Delete
-            </AlertDialogAction>
+            <AlertDialogAction onClick={handleDeleteConfirm} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete All Dialog */}
+      <AlertDialog open={deleteAllDialogOpen} onOpenChange={setDeleteAllDialogOpen}>
+        <AlertDialogContent className="bg-card border-border">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete All Exercises?</AlertDialogTitle>
+            <AlertDialogDescription>This will delete all {myExercises.length} exercises. This cannot be undone.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteAll} className="bg-destructive hover:bg-destructive/90">Delete All</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
