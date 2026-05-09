@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { ArrowLeft, Plus, Zap, ChevronRight, Pencil, Trash2 } from "lucide-react";
-import ECGLoader from "@/components/ECGLoader";
+import WaveformLoader from "@/components/WaveformLoader";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -168,7 +168,7 @@ const Library = () => {
 
   if (loading) return (
     <div className="min-h-screen bg-background flex items-center justify-center">
-      <ECGLoader />
+      <WaveformLoader />
     </div>
   );
 

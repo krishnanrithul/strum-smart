@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { StorageService, Exercise } from "@/lib/storage";
 import { SessionCompleteDialog } from "@/components/SessionCompleteDialog";
 import { MetronomeEngine } from "@/lib/audio";
-import ECGLoader from "@/components/ECGLoader";
+import WaveformLoader from "@/components/WaveformLoader";
 
 const glassCard = { border: "1px solid rgba(255,255,255,0.05)" };
 
@@ -98,7 +98,7 @@ const Practice = () => {
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <ECGLoader />
+        <WaveformLoader />
       </div>
     );
   }

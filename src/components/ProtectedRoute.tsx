@@ -1,6 +1,6 @@
 import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import ECGLoader from "@/components/ECGLoader";
+import WaveformLoader from "@/components/WaveformLoader";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -36,7 +36,7 @@ export const ProtectedRoute = () => {
     if (loading || profileLoading) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-background">
-                <ECGLoader />
+                <WaveformLoader />
             </div>
         );
     }
