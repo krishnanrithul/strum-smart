@@ -4,10 +4,13 @@ import { supabase } from "@/integrations/supabase/client";
 let exerciseCache: Exercise[] | null = null;
 let templateCache: ExerciseTemplate[] | null = null;
 let cachedUserId: string | null = null;
+let cacheTimestamp: number | null = null;
+const CACHE_TTL = 30000; // 30 seconds
 
 const clearCache = () => {
     exerciseCache = null;
     templateCache = null;
+    cacheTimestamp = null;
 };
 
 const ensureUserCache = (userId: string) => {
@@ -38,6 +41,7 @@ export interface Exercise {
     ultimateGuitarUrl?: string;
     tutorialUrl?: string;
     diagramUrl?: string;
+    is_assigned?: boolean;
 }
 
 export interface Session {
@@ -70,6 +74,7 @@ const mapExercise = (row: any): Exercise => ({
     ultimateGuitarUrl: row.ultimate_guitar_url,
     tutorialUrl: row.tutorial_url,
     diagramUrl: row.diagram_url,
+    is_assigned: row.is_assigned ?? false,
 });
 
 const mapSession = (row: any): Session => ({
@@ -160,10 +165,12 @@ export const StorageService = {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return [];
         ensureUserCache(user.id);
-        if (exerciseCache) return exerciseCache;
+        const now = Date.now();
+        if (exerciseCache && cacheTimestamp && (now - cacheTimestamp) < CACHE_TTL) return exerciseCache;
         const { data, error } = await supabase.from("exercises").select("*").eq("user_id", user.id).order("created_at", { ascending: false });
         if (error) throw error;
         exerciseCache = (data || []).map(mapExercise);
+        cacheTimestamp = Date.now();
         return exerciseCache;
     },
 

@@ -30,6 +30,30 @@ const StudentDetail = () => {
   const [peakBpm, setPeakBpm] = useState(0);
   const [exercises, setExercises] = useState<any[]>([]);
   const [recentSessions, setRecentSessions] = useState<any[]>([]);
+  const [editingTargetId, setEditingTargetId] = useState<string | null>(null);
+  const [editingTargetValue, setEditingTargetValue] = useState("");
+
+  const loadExercises = async () => {
+    if (!id) return;
+    const { data } = await supabase
+      .from("exercises")
+      .select("id, title, category, current_bpm, target_bpm, history, is_assigned")
+      .eq("user_id", id);
+    const exs = data || [];
+    setExercises(exs);
+    const peak = exs.reduce((max: number, e: any) => {
+      const bpms = (e.history || []).map((h: any) => h.bpm);
+      return bpms.length ? Math.max(max, ...bpms) : max;
+    }, 0);
+    setPeakBpm(peak);
+  };
+
+  const handleUpdateTarget = async (exerciseId: string) => {
+    const newTarget = Math.min(240, Math.max(40, parseInt(editingTargetValue) || 80));
+    await supabase.from("exercises").update({ target_bpm: newTarget }).eq("id", exerciseId);
+    setEditingTargetId(null);
+    loadExercises();
+  };
 
   useEffect(() => {
     if (!id) return;
@@ -40,28 +64,19 @@ const StudentDetail = () => {
         const [
           { data: profile },
           { data: sessionRows },
-          { data: exerciseRows },
         ] = await Promise.all([
           (supabase as any).from("profiles").select("full_name").eq("id", id).single(),
           supabase.from("sessions").select("duration, date, created_at").eq("user_id", id).order("created_at", { ascending: false }),
-          supabase.from("exercises").select("id, title, category, current_bpm, history").eq("user_id", id),
         ]);
 
         setStudentName(profile?.full_name ?? "Student");
 
         const rows = sessionRows || [];
         setTotalSessions(rows.length);
-        setTotalMinutes(formatMins(rows.reduce((acc, r) => acc + (r.duration || 0), 0)));
+        setTotalMinutes(formatMins(rows.reduce((acc: number, r: any) => acc + (r.duration || 0), 0)));
         setRecentSessions(rows.slice(0, 5));
 
-        const exs = exerciseRows || [];
-        setExercises(exs);
-
-        const peak = exs.reduce((max, e) => {
-          const bpms = (e.history || []).map((h: any) => h.bpm);
-          return bpms.length ? Math.max(max, ...bpms) : max;
-        }, 0);
-        setPeakBpm(peak);
+        await loadExercises();
       } finally {
         setLoading(false);
       }
@@ -110,19 +125,101 @@ const StudentDetail = () => {
               No exercises yet.
             </div>
           ) : (
-            <div className="rounded-2xl bg-card divide-y divide-white/5" style={glassCard}>
-              {exercises.map((ex) => (
-                <div key={ex.id} className="flex items-center justify-between px-5 py-4">
-                  <div>
-                    <p className="text-sm font-semibold text-foreground">{ex.title}</p>
-                    <p className="text-xs uppercase tracking-widest text-muted-foreground mt-0.5">{ex.category}</p>
+            <div className="space-y-3">
+              {exercises.map((ex) => {
+                const startBpm = ex.history?.[0]?.bpm ?? ex.current_bpm;
+                const fillPct = ex.target_bpm > 0
+                  ? Math.min(100, Math.round((ex.current_bpm / ex.target_bpm) * 100))
+                  : 0;
+                const isEditing = editingTargetId === ex.id;
+
+                return (
+                  <div key={ex.id} className="rounded-2xl bg-card p-5 space-y-3" style={glassCard}>
+                    {/* Top row */}
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <p className="text-base font-semibold text-foreground">{ex.title}</p>
+                        <p className="text-xs uppercase text-muted-foreground mt-0.5">{ex.category}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xl font-bold text-foreground">{ex.current_bpm}</p>
+                        <p className="text-xs text-muted-foreground">BPM</p>
+                      </div>
+                    </div>
+
+                    {/* Progress bar + metadata */}
+                    {ex.target_bpm > 0 && (
+                      <div className="space-y-2">
+                        <div
+                          className="w-full rounded-full overflow-hidden"
+                          style={{ height: "3px", background: "rgba(255,255,255,0.08)" }}
+                        >
+                          <div
+                            className="h-full bg-primary rounded-full transition-all duration-500"
+                            style={{ width: `${fillPct}%` }}
+                          />
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-muted-foreground">START: {startBpm} BPM</span>
+                          {ex.is_assigned && (
+                            <span className="text-xs text-primary">From Teacher</span>
+                          )}
+                          {isEditing ? (
+                            <span className="flex items-center gap-1">
+                              <input
+                                type="text"
+                                inputMode="numeric"
+                                value={editingTargetValue}
+                                onChange={(e) => setEditingTargetValue(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") handleUpdateTarget(ex.id);
+                                  if (e.key === "Escape") setEditingTargetId(null);
+                                }}
+                                className="w-12 text-xs text-right bg-transparent border-b border-white/20 outline-none focus:border-primary text-foreground"
+                                autoFocus
+                              />
+                              <span className="text-xs text-muted-foreground">BPM</span>
+                              <button
+                                onClick={() => handleUpdateTarget(ex.id)}
+                                className="text-primary text-xs ml-1"
+                              >
+                                ✓
+                              </button>
+                            </span>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">TARGET: {ex.target_bpm} BPM</span>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Update target button */}
+                    {!isEditing && (
+                      <div className="flex justify-end">
+                        <button
+                          onClick={() => { setEditingTargetId(ex.id); setEditingTargetValue(String(ex.target_bpm)); }}
+                          className="text-xs font-semibold uppercase tracking-widest px-3 py-1 rounded-lg transition-colors"
+                          style={{
+                            background: "rgba(255,255,255,0.05)",
+                            border: "1px solid rgba(255,255,255,0.08)",
+                            color: "hsl(var(--muted-foreground))",
+                          }}
+                          onMouseEnter={e => {
+                            e.currentTarget.style.border = "1px solid rgba(255,255,255,0.15)";
+                            e.currentTarget.style.color = "hsl(var(--foreground))";
+                          }}
+                          onMouseLeave={e => {
+                            e.currentTarget.style.border = "1px solid rgba(255,255,255,0.08)";
+                            e.currentTarget.style.color = "hsl(var(--muted-foreground))";
+                          }}
+                        >
+                          Update Target
+                        </button>
+                      </div>
+                    )}
                   </div>
-                  <div className="text-right">
-                    <p className="text-xl font-bold text-foreground">{ex.current_bpm}</p>
-                    <p className="text-xs text-muted-foreground">BPM</p>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </section>

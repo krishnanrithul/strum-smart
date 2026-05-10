@@ -195,7 +195,15 @@ const Index = () => {
                       <div className="flex items-start justify-between mb-3">
                         <div>
                           <h3 className="font-semibold text-sm">{exercise.title}</h3>
-                          <p className="text-xs text-muted-foreground mt-0.5">{exercise.category}</p>
+                          <div className="flex items-center gap-1 mt-0.5">
+                            <span className="text-xs text-muted-foreground">{exercise.category}</span>
+                            {exercise.is_assigned && (
+                              <>
+                                <span className="text-xs text-muted-foreground"> · </span>
+                                <span className="text-xs font-semibold uppercase tracking-wide text-primary">From Teacher</span>
+                              </>
+                            )}
+                          </div>
                         </div>
                         <div className="text-right">
                           <p className="text-lg font-black text-primary">{lastBpm}</p>
