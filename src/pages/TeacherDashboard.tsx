@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { UserPlus } from "lucide-react";
+import { Copy, Check, RefreshCw } from "lucide-react";
 import AppHeader from "@/components/AppHeader";
 import { useNavigate } from "react-router-dom";
 import WaveformLoader from "@/components/WaveformLoader";
+import { createInviteCode } from "@/hooks/useInviteCode";
 
 type Student = {
   id: string;
@@ -19,6 +20,27 @@ const TeacherDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const navigate = useNavigate();
+  const [inviteCode, setInviteCode] = useState<string | null>(null);
+  const [codeLoading, setCodeLoading] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const handleGenerateCode = async () => {
+    if (!session) return;
+    setCodeLoading(true);
+    try {
+      const code = await createInviteCode(session.user.id);
+      setInviteCode(code);
+    } finally {
+      setCodeLoading(false);
+    }
+  };
+
+  const handleCopy = async () => {
+    if (!inviteCode) return;
+    await navigator.clipboard.writeText(inviteCode);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   const HOVER_COLOR = "rgba(52, 211, 153, 0.18)";
 
@@ -87,10 +109,58 @@ const TeacherDashboard = () => {
               {students.length} {students.length === 1 ? "student" : "students"}
             </p>
           </div>
-          <button className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold bg-primary text-primary-foreground hover:opacity-90 transition-opacity">
-            <UserPlus className="h-3 w-3" />
-            Add Student
-          </button>
+        </div>
+
+        {/* Invite code card */}
+        <div
+          className="rounded-2xl p-5 space-y-4"
+          style={{
+            background: "radial-gradient(circle at top right, rgba(34,197,94,0.08) 0%, transparent 60%), hsl(var(--card))",
+            border: "1px solid rgba(255,255,255,0.05)",
+          }}
+        >
+          <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">
+            Student Invite Code
+          </p>
+          {inviteCode ? (
+            <div className="flex items-center gap-3">
+              <div
+                className="flex-1 flex items-center justify-center rounded-xl py-4"
+                style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}
+              >
+                <span className="text-2xl font-mono font-semibold tracking-[0.3em] text-foreground">
+                  {inviteCode}
+                </span>
+              </div>
+              <div className="flex flex-col gap-2">
+                <button
+                  onClick={handleCopy}
+                  className="p-3 rounded-xl text-muted-foreground hover:text-foreground transition-colors"
+                  style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}
+                >
+                  {copied ? <Check size={16} className="text-primary" /> : <Copy size={16} />}
+                </button>
+                <button
+                  onClick={handleGenerateCode}
+                  className="p-3 rounded-xl text-muted-foreground hover:text-foreground transition-colors"
+                  style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}
+                >
+                  <RefreshCw size={16} />
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              onClick={handleGenerateCode}
+              disabled={codeLoading}
+              className="w-full py-3 rounded-xl bg-primary text-primary-foreground text-sm font-medium transition-opacity disabled:opacity-50"
+            >
+              {codeLoading ? "Generating…" : "Generate Invite Code"}
+            </button>
+          )}
+          <p className="text-xs text-muted-foreground">
+            Single use — share with your student during their setup.
+          </p>
         </div>
 
         {/* Student list */}

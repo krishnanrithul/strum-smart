@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { StorageService } from "@/lib/storage";
 import { ROUTINES } from "@/data/routines";
+import { redeemInviteCode } from "@/hooks/useInviteCode";
 
 const LEVELS = [
   { id: "beginner",     label: "Beginner",     description: "Just starting out" },
@@ -15,6 +16,12 @@ const LEVELS = [
 ];
 
 const HOVER_COLOR = "rgba(52, 211, 153, 0.18)";
+
+const TRANSFORMS: Record<number, string> = {
+  1: "translateX(0%)",
+  2: "translateX(-33.333%)",
+  3: "translateX(-66.666%)",
+};
 
 const Wordmark = () => (
   <div className="flex items-center gap-2">
@@ -26,12 +33,17 @@ const Wordmark = () => (
 const Onboarding = () => {
   const navigate = useNavigate();
   const { session } = useAuth();
-  const [step, setStep] = useState<1 | 2>(1);
+  const [step, setStep] = useState<1 | 2 | 3>(1);
   const [level, setLevel] = useState<string | null>(null);
   const [selectedLevel, setSelectedLevel] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [hoveredLevel, setHoveredLevel] = useState<string | null>(null);
   const [hoveredGenre, setHoveredGenre] = useState<string | null>(null);
+
+  // Step 3 state
+  const [code, setCode] = useState("");
+  const [codeLoading, setCodeLoading] = useState(false);
+  const [codeError, setCodeError] = useState<string | null>(null);
 
   const handleLevelSelect = (id: string) => {
     setSelectedLevel(id);
@@ -39,58 +51,74 @@ const Onboarding = () => {
     setTimeout(() => setStep(2), 180);
   };
 
- const handleGenreSelect = async (routineId: string) => {
-  if (saving || !session) return;
-  setSaving(true);
-  try {
-    // Write to auth metadata — always authorized, no RLS concerns
-    const { error } = await supabase.auth.updateUser({
-      data: { onboarded: true, level, genre: routineId },
-    });
+  const handleGenreSelect = async (routineId: string) => {
+    if (saving || !session) return;
+    setSaving(true);
+    try {
+      const { error } = await supabase.auth.updateUser({
+        data: { onboarded: true, level, genre: routineId },
+      });
+      if (error) {
+        console.error("[Onboarding] auth updateUser error:", error);
+        setSaving(false);
+        return;
+      }
 
-    if (error) {
-      console.error("[Onboarding] auth updateUser error:", error);
-      setSaving(false);
-      return;
-    }
+      await (supabase as any)
+        .from("profiles")
+        .update({ level, genre: routineId, onboarded: true })
+        .eq("id", session.user.id);
 
-    // Best-effort: sync to profiles table (may fail silently if RLS blocks it)
-    await (supabase as any)
-      .from("profiles")
-      .update({ level, genre: routineId, onboarded: true })
-      .eq("id", session.user.id);
-
-    const routine = ROUTINES.find(r => r.id === routineId);
-    if (routine) {
-      for (const ex of routine.exercises) {
-        try {
-          await StorageService.addExercise({
-            title: ex.title,
-            category: ex.category as "Technical" | "Repertoire" | "Warmup",
-            currentBpm: ex.bpm,
-            status: "New",
-          });
-        } catch (exErr) {
-          console.error("Exercise add failed:", exErr);
+      const routine = ROUTINES.find(r => r.id === routineId);
+      if (routine) {
+        for (const ex of routine.exercises) {
+          try {
+            await StorageService.addExercise({
+              title: ex.title,
+              category: ex.category as "Technical" | "Repertoire" | "Warmup",
+              currentBpm: ex.bpm,
+              status: "New",
+            });
+          } catch (exErr) {
+            console.error("Exercise add failed:", exErr);
+          }
         }
       }
-    }
 
+      // Slide to teacher code step instead of navigating away
+      setSaving(false);
+      setStep(3);
+    } catch (err) {
+      console.error("❌ Onboarding catch block:", err);
+      setSaving(false);
+    }
+  };
+
+  const handleCodeSubmit = async () => {
+    if (!session || code.length < 6) return;
+    setCodeLoading(true);
+    setCodeError(null);
+    try {
+      await redeemInviteCode(code, session.user.id);
+      window.location.href = "/";
+    } catch (e: any) {
+      setCodeError("That code didn't work — double-check with your teacher.");
+      setCodeLoading(false);
+    }
+  };
+
+  const handleSkip = () => {
     window.location.href = "/";
-  } catch (err) {
-    console.error("❌ Onboarding catch block:", err);
-    setSaving(false);
-  }
-};
+  };
 
   return (
     <div className="min-h-screen bg-background" style={{ overflow: "hidden" }}>
       <div
         className="flex"
         style={{
-          width: "200%",
+          width: "300%",
           minHeight: "100vh",
-          transform: step === 1 ? "translateX(0)" : "translateX(-50%)",
+          transform: TRANSFORMS[step],
           transition: "transform 0.35s cubic-bezier(0.32, 0.72, 0, 1)",
         }}
       >
@@ -98,12 +126,10 @@ const Onboarding = () => {
         {/* ── Screen 1: Level ── */}
         <div
           className="flex flex-col items-center justify-center px-6 py-16"
-          style={{ width: "50%", minHeight: "100vh" }}
+          style={{ width: "33.333%", minHeight: "100vh" }}
         >
           <div className="w-full max-w-xs space-y-10">
-
             <Wordmark />
-
             <div className="space-y-1.5">
               <h1 className="text-2xl font-bold text-foreground leading-snug">
                 Let's build your practice plan
@@ -112,7 +138,6 @@ const Onboarding = () => {
                 What's your level?
               </p>
             </div>
-
             <div className="space-y-3">
               {LEVELS.map(lv => {
                 const active = selectedLevel === lv.id || hoveredLevel === lv.id;
@@ -151,11 +176,9 @@ const Onboarding = () => {
         {/* ── Screen 2: Genre ── */}
         <div
           className="flex flex-col px-6 py-16"
-          style={{ width: "50%", minHeight: "100vh" }}
+          style={{ width: "33.333%", minHeight: "100vh" }}
         >
           <div className="w-full max-w-sm mx-auto space-y-10">
-
-            {/* Top row: back arrow + wordmark */}
             <div className="flex items-center justify-between">
               <button
                 onClick={() => setStep(1)}
@@ -165,10 +188,8 @@ const Onboarding = () => {
                 <span className="text-sm">Back</span>
               </button>
               <Wordmark />
-              {/* Spacer keeps wordmark visually centred */}
               <div className="w-14" />
             </div>
-
             <div className="space-y-1.5">
               <h1 className="text-2xl font-bold text-foreground leading-snug">
                 What do you want to work on?
@@ -177,7 +198,6 @@ const Onboarding = () => {
                 Pick a style
               </p>
             </div>
-
             {saving ? (
               <div className="flex items-center justify-center py-16">
                 <WaveformLoader />
@@ -218,6 +238,64 @@ const Onboarding = () => {
                 })}
               </div>
             )}
+          </div>
+        </div>
+
+        {/* ── Screen 3: Teacher Code ── */}
+        <div
+          className="flex flex-col items-center justify-center px-6 py-16"
+          style={{ width: "33.333%", minHeight: "100vh" }}
+        >
+          <div className="w-full max-w-xs space-y-10">
+            <Wordmark />
+
+            <div className="space-y-1.5">
+              <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">
+                Optional
+              </p>
+              <h1 className="text-2xl font-bold text-foreground leading-snug">
+                Got a teacher code?
+              </h1>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                Enter the 6-character code from your teacher to link your accounts.
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              <input
+                type="text"
+                value={code}
+                onChange={e => {
+                  setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6));
+                  setCodeError(null);
+                }}
+                placeholder="A3KR72"
+                className="w-full rounded-2xl px-4 py-4 text-center text-2xl font-mono
+                           tracking-[0.3em] text-foreground bg-transparent
+                           placeholder:text-muted-foreground/30 focus:outline-none"
+                style={{ border: "1px solid rgba(255,255,255,0.06)" }}
+              />
+
+              {codeError && (
+                <p className="text-xs text-destructive text-center">{codeError}</p>
+              )}
+
+              <button
+                onClick={handleCodeSubmit}
+                disabled={codeLoading || code.length < 6}
+                className="w-full py-3.5 rounded-2xl bg-primary text-primary-foreground
+                           text-sm font-medium transition-opacity disabled:opacity-40"
+              >
+                {codeLoading ? "Linking…" : "Link to Teacher"}
+              </button>
+
+              <button
+                onClick={handleSkip}
+                className="w-full py-3 text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Skip for now
+              </button>
+            </div>
           </div>
         </div>
 

@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { StorageService, Exercise } from "@/lib/storage";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { redeemInviteCode } from "@/hooks/useInviteCode";
 
 const Index = () => {
   const location = useLocation();
@@ -20,6 +21,11 @@ const Index = () => {
   const [totalSessions, setTotalSessions] = useState(0);
   const [recentExercises, setRecentExercises] = useState<Exercise[]>([]);
   const [clearConfirm, setClearConfirm] = useState(false);
+  const [teacherId, setTeacherId] = useState<string | null | undefined>(undefined);
+  const [bannerExpanded, setBannerExpanded] = useState(false);
+  const [inviteInput, setInviteInput] = useState("");
+  const [codeError, setCodeError] = useState("");
+  const [codeSubmitting, setCodeSubmitting] = useState(false);
 
   useEffect(() => {
     if (!session) {
@@ -30,13 +36,19 @@ const Index = () => {
     const loadData = async () => {
       setStatsLoading(true);
       try {
-        const [{ data: sessionRows }, exercises] = await Promise.all([
+        const [{ data: sessionRows }, exercises, { data: profile }] = await Promise.all([
           supabase
             .from("sessions")
             .select("duration, date")
             .eq("user_id", session.user.id),
           StorageService.getExercises(),
+          (supabase as any)
+            .from("profiles")
+            .select("teacher_id")
+            .eq("id", session.user.id)
+            .single(),
         ]);
+        setTeacherId(profile?.teacher_id ?? null);
 
         const rows = sessionRows || [];
         const today = new Date().toISOString().split("T")[0];
@@ -72,6 +84,20 @@ const Index = () => {
 
     loadData();
   }, [session]);
+
+  const handleLinkToTeacher = async () => {
+    if (!session || inviteInput.length !== 6) return;
+    setCodeSubmitting(true);
+    setCodeError("");
+    try {
+      await redeemInviteCode(inviteInput.trim(), session.user.id);
+      setTeacherId("linked");
+    } catch {
+      setCodeError("That code didn't work — check with your teacher.");
+    } finally {
+      setCodeSubmitting(false);
+    }
+  };
 
   const handleClearAll = async () => {
     if (!clearConfirm) { setClearConfirm(true); return; }
@@ -149,6 +175,49 @@ const Index = () => {
             <ChevronRight className="h-5 w-5 opacity-70" />
           </button>
         </Link>
+
+        {/* Teacher link banner */}
+        {teacherId === null && (
+          <div
+            className="rounded-2xl p-4"
+            style={{ border: "1px solid rgba(255,255,255,0.06)", background: "rgba(255,255,255,0.03)" }}
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-muted-foreground">Have a teacher?</span>
+              {!bannerExpanded && (
+                <button
+                  onClick={() => setBannerExpanded(true)}
+                  className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:opacity-90 transition-opacity"
+                >
+                  Enter Code
+                </button>
+              )}
+            </div>
+            {bannerExpanded && (
+              <div className="mt-3 space-y-3">
+                <input
+                  type="text"
+                  value={inviteInput}
+                  onChange={(e) => setInviteInput(e.target.value.toUpperCase().slice(0, 6))}
+                  placeholder="XXXXXX"
+                  maxLength={6}
+                  className="w-full text-center text-2xl font-mono font-semibold tracking-[0.3em] rounded-xl py-3 bg-transparent outline-none focus:ring-1 focus:ring-primary transition-colors text-foreground"
+                  style={{ border: "1px solid rgba(255,255,255,0.1)" }}
+                />
+                {codeError && (
+                  <p className="text-xs text-destructive">{codeError}</p>
+                )}
+                <button
+                  onClick={handleLinkToTeacher}
+                  disabled={codeSubmitting || inviteInput.length !== 6}
+                  className="w-full py-3 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
+                >
+                  {codeSubmitting ? "Linking…" : "Link to Teacher"}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* My Exercises */}
         <section>

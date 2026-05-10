@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -8,6 +9,7 @@ import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 export default function Login() {
+    const [name, setName] = useState("");
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [loading, setLoading] = useState(false);
@@ -27,24 +29,27 @@ export default function Login() {
         setLoading(true);
 
         try {
-            const { error } = isSignUp 
-                ? await signUp(email, password)
-                : await signIn(email, password);
-
-            if (error) {
-                toast({
-                    title: "Error",
-                    description: error.message,
-                    variant: "destructive",
-                });
+            if (isSignUp) {
+                const { data, error } = await signUp(email, password, name.trim() || undefined);
+                if (error) {
+                    toast({ title: "Error", description: error.message, variant: "destructive" });
+                } else {
+                    if (data?.user && name.trim()) {
+                        await (supabase as any)
+                            .from("profiles")
+                            .upsert({ id: data.user.id, full_name: name.trim() }, { onConflict: "id" });
+                    }
+                    toast({ title: "Account created!", description: "You can now start your practice journey." });
+                    navigate("/");
+                }
             } else {
-                toast({
-                    title: isSignUp ? "Account created!" : "Welcome back!",
-                    description: isSignUp 
-                        ? "You can now start your practice journey."
-                        : "Let's get to work.",
-                });
-                navigate("/");
+                const { error } = await signIn(email, password);
+                if (error) {
+                    toast({ title: "Error", description: error.message, variant: "destructive" });
+                } else {
+                    toast({ title: "Welcome back!", description: "Let's get to work." });
+                    navigate("/");
+                }
             }
         } catch (err: any) {
             toast({
@@ -90,6 +95,17 @@ export default function Login() {
                 </div>
 
                 <form onSubmit={handleAuth} className="space-y-4">
+                    {isSignUp && (
+                        <div className="space-y-2">
+                            <Input
+                                type="text"
+                                placeholder="Your name"
+                                value={name}
+                                onChange={(e) => setName(e.target.value)}
+                                className="bg-secondary"
+                            />
+                        </div>
+                    )}
                     <div className="space-y-2">
                         <Input
                             type="email"

@@ -198,20 +198,7 @@ const StudentDetail = () => {
                       <div className="flex justify-end">
                         <button
                           onClick={() => { setEditingTargetId(ex.id); setEditingTargetValue(String(ex.target_bpm)); }}
-                          className="text-xs font-semibold uppercase tracking-widest px-3 py-1 rounded-lg transition-colors"
-                          style={{
-                            background: "rgba(255,255,255,0.05)",
-                            border: "1px solid rgba(255,255,255,0.08)",
-                            color: "hsl(var(--muted-foreground))",
-                          }}
-                          onMouseEnter={e => {
-                            e.currentTarget.style.border = "1px solid rgba(255,255,255,0.15)";
-                            e.currentTarget.style.color = "hsl(var(--foreground))";
-                          }}
-                          onMouseLeave={e => {
-                            e.currentTarget.style.border = "1px solid rgba(255,255,255,0.08)";
-                            e.currentTarget.style.color = "hsl(var(--muted-foreground))";
-                          }}
+                          className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
                         >
                           Update Target
                         </button>

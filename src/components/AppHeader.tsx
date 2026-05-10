@@ -40,37 +40,33 @@ const AppHeader = ({ title, showBack = false, onBack }: AppHeaderProps) => {
 
   return (
     <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-10">
-      <div className="container mx-auto px-4 py-4 grid grid-cols-[1fr_auto_1fr] items-center gap-4">
+      <div className="container mx-auto px-4 py-4 flex items-center justify-between">
         {/* Left */}
-        <div>
-          {showBack && (
+        {showBack ? (
+          <div className="flex items-center gap-3">
             <button
               onClick={handleBack}
               className="text-muted-foreground hover:text-foreground transition-colors"
             >
               <ArrowLeft className="h-5 w-5" />
             </button>
-          )}
-        </div>
-
-        {/* Center */}
-        <div className="flex items-center gap-2">
-          {title ? (
-            <span className="text-xs font-semibold tracking-widest uppercase text-foreground">
-              {title}
-            </span>
-          ) : (
-            <>
-              <MiniLogo />
-              <span className="text-sm font-semibold tracking-widest text-foreground">
-                Fret<span className="text-primary">Gym</span>
+            {title && (
+              <span className="text-xs font-semibold tracking-widest uppercase text-foreground">
+                {title}
               </span>
-            </>
-          )}
-        </div>
+            )}
+          </div>
+        ) : (
+          <div className="flex items-center gap-2">
+            <MiniLogo />
+            <span className="text-sm font-semibold tracking-widest text-foreground">
+              Fret<span className="text-primary">Gym</span>
+            </span>
+          </div>
+        )}
 
         {/* Right */}
-        <div className="flex items-center gap-2 justify-end">
+        <div className="flex items-center gap-2">
           <Button variant="ghost" size="icon" onClick={() => setIsDark(!isDark)}>
             {isDark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
           </Button>
