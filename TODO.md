@@ -10,6 +10,8 @@
 - [x] Last active spec (pull from sessions table)
 
 ## 🔨 Features (in order)
+- [ ] Add same hover and styling to My Exercises in Home Page
+- [ ] Add the logo next to Library
 - [ ] Verify teacher notes show in Practice screen
 - [ ] Verify practice time displays correctly in StudentDetail
 - [ ] Verify last active pulls from sessions table
