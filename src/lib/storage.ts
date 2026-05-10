@@ -1,12 +1,20 @@
 import { supabase } from "@/integrations/supabase/client";
 
-// Simple cache
+// Simple cache — keyed by user so switching accounts never leaks data
 let exerciseCache: Exercise[] | null = null;
 let templateCache: ExerciseTemplate[] | null = null;
+let cachedUserId: string | null = null;
 
 const clearCache = () => {
     exerciseCache = null;
     templateCache = null;
+};
+
+const ensureUserCache = (userId: string) => {
+    if (userId !== cachedUserId) {
+        clearCache();
+        cachedUserId = userId;
+    }
 };
 export interface Project {
     id: string;
@@ -33,12 +41,11 @@ export interface Exercise {
 }
 
 export interface Session {
-    id: string;
-    date: string;
-    duration: number;
-    exercises: string[];
+  id: string;
+  date: string;
+  duration: number;
+  exercises: string[];
 }
-
 export interface ExerciseTemplate {
     id: string;
     title: string;
@@ -66,16 +73,18 @@ const mapExercise = (row: any): Exercise => ({
 });
 
 const mapSession = (row: any): Session => ({
-    id: row.id,
-    date: row.date,
-    duration: row.duration,
-    exercises: row.exercises || [],
+  id: row.id,
+  date: row.date,
+  duration: row.duration,
+  exercises: row.exercises || [],
 });
 
 export const StorageService = {
     // --- Projects ---
     getProjects: async (): Promise<Project[]> => {
-        const { data, error } = await supabase.from("projects").select("*").order("created_at", { ascending: false });
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return [];
+        const { data, error } = await supabase.from("projects").select("*").eq("user_id", user.id).order("created_at", { ascending: false });
         if (error) throw error;
         return (data || []).map(row => ({
             ...row,
@@ -148,11 +157,14 @@ export const StorageService = {
 },
     // --- Exercises ---
     getExercises: async (): Promise<Exercise[]> => {
-    if (exerciseCache) return exerciseCache;
-    const { data, error } = await supabase.from("exercises").select("*").order("created_at", { ascending: false });
-    if (error) throw error;
-    exerciseCache = (data || []).map(mapExercise);
-    return exerciseCache;
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return [];
+        ensureUserCache(user.id);
+        if (exerciseCache) return exerciseCache;
+        const { data, error } = await supabase.from("exercises").select("*").eq("user_id", user.id).order("created_at", { ascending: false });
+        if (error) throw error;
+        exerciseCache = (data || []).map(mapExercise);
+        return exerciseCache;
     },
 
     getExercise: async (id: string): Promise<Exercise | null> => {
@@ -243,7 +255,9 @@ updateExercise: async (id: string, updates: { title: string; category: Exercise[
 
     // --- Sessions ---
     getSessions: async (): Promise<Session[]> => {
-        const { data, error } = await supabase.from("sessions").select("*").order("created_at", { ascending: false });
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return [];
+        const { data, error } = await supabase.from("sessions").select("*").eq("user_id", user.id).order("created_at", { ascending: false });
         if (error) throw error;
         return (data || []).map(mapSession);
     },

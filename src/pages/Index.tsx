@@ -1,19 +1,25 @@
 import { useState, useEffect } from "react";
-import { Library, TrendingUp, LogOut, Sun, Moon, Zap, ChevronRight, Home } from "lucide-react";
-import { Link, useLocation } from "react-router-dom";
+import { Library, TrendingUp, LogOut, Sun, Moon, ChevronRight, Home } from "lucide-react";
+import MiniLogo from "@/components/MiniLogo";
+import WaveformLoader from "@/components/WaveformLoader";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { StorageService, Exercise } from "@/lib/storage";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 
 const Index = () => {
   const location = useLocation();
   const currentPath = location.pathname;
-  const { signOut } = useAuth();
+  const { signOut, session } = useAuth();
+  const navigate = useNavigate();
   const [isDark, setIsDark] = useState(true);
-  const [todaysStats, setTodaysStats] = useState({ duration: 0, maxBpm: 0 });
-  const [recentExercises, setRecentExercises] = useState<Exercise[]>([]);
+  const [statsLoading, setStatsLoading] = useState(true);
+  const [todayPeakBpm, setTodayPeakBpm] = useState(0);
+  const [totalMinutes, setTotalMinutes] = useState(0);
   const [totalSessions, setTotalSessions] = useState(0);
+  const [recentExercises, setRecentExercises] = useState<Exercise[]>([]);
 
   const toggleTheme = () => {
     const html = document.documentElement;
@@ -26,52 +32,62 @@ const Index = () => {
   };
 
   useEffect(() => {
+    if (!session) {
+      setStatsLoading(false);
+      return;
+    }
+
     const loadData = async () => {
-      const sessions = await StorageService.getSessions();
-      const exercises = await StorageService.getExercises();
+      setStatsLoading(true);
+      try {
+        const [{ data: sessionRows }, exercises] = await Promise.all([
+          supabase
+            .from("sessions")
+            .select("duration, date")
+            .eq("user_id", session.user.id),
+          StorageService.getExercises(),
+        ]);
 
-      const today = new Date().toISOString().split("T")[0];
-      const todaysSessions = sessions.filter((s) => s.date.startsWith(today));
-      const duration = todaysSessions.reduce((acc, s) => acc + s.duration, 0);
+        const rows = sessionRows || [];
+        const today = new Date().toISOString().split("T")[0];
 
-      let maxBpm = 0;
-      exercises.forEach((e) => {
-        const todayHistory = e.history.filter((h) => h.date.startsWith(today));
-        todayHistory.forEach((h) => {
-          if (h.bpm > maxBpm) maxBpm = h.bpm;
-        });
-      });
+        const peakToday = exercises.reduce((max, e) => {
+          const todayBpms = e.history
+            .filter((h) => h.date.startsWith(today))
+            .map((h) => h.bpm);
+          return todayBpms.length ? Math.max(max, ...todayBpms) : max;
+        }, 0);
 
-      setTodaysStats({ duration, maxBpm });
-      setTotalSessions(sessions.length);
+        const totalSecs = rows.reduce((acc, r) => acc + (r.duration || 0), 0);
 
-      const inProgress = exercises
-        .filter((e) => e.status === "In Progress" || e.status === "New")
-        .sort((a, b) => {
-          // In Progress before New, then most recently practiced first
-          if (a.status !== b.status) return a.status === "In Progress" ? -1 : 1;
-          const lastA = a.history[a.history.length - 1]?.date ?? "";
-          const lastB = b.history[b.history.length - 1]?.date ?? "";
-          return new Date(lastB).getTime() - new Date(lastA).getTime();
-        })
-        .slice(0, 5);
+        setTodayPeakBpm(peakToday);
+        setTotalMinutes(Math.floor(totalSecs / 60));
+        setTotalSessions(rows.length);
 
-      setRecentExercises(inProgress);
+        const inProgress = exercises
+          .filter((e) => e.status === "In Progress" || e.status === "New")
+          .sort((a, b) => {
+            if (a.status !== b.status) return a.status === "In Progress" ? -1 : 1;
+            const lastA = a.history[a.history.length - 1]?.date ?? "";
+            const lastB = b.history[b.history.length - 1]?.date ?? "";
+            return new Date(lastB).getTime() - new Date(lastA).getTime();
+          })
+          .slice(0, 5);
+
+        setRecentExercises(inProgress);
+      } finally {
+        setStatsLoading(false);
+      }
     };
 
     loadData();
-  }, []);
+  }, [session]);
 
   const navItems = [
     { path: "/", icon: Home, label: "Home" },
     { path: "/library", icon: Library, label: "Library" },
     { path: "/progress", icon: TrendingUp, label: "Progress" },
   ];
-
-  const formatDuration = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    return mins > 0 ? `${mins}m` : "0m";
-  };
 
   const getBpmProgress = (exercise: Exercise) => {
     const current = exercise.currentBpm;
@@ -104,33 +120,39 @@ const Index = () => {
 
         {/* Hero stat — Today's Max BPM */}
         <section className="relative overflow-hidden rounded-2xl bg-card border border-border p-6">
-          {/* Background glow */}
           <div className="absolute -top-10 -right-10 w-48 h-48 rounded-full bg-primary/10 blur-3xl pointer-events-none" />
           <div className="relative">
             <p className="text-sm font-medium text-muted-foreground uppercase tracking-widest mb-1">Today's Peak</p>
-            <div className="flex items-end gap-3">
-              <span
-                className="text-8xl font-black text-primary leading-none"
-                style={{ textShadow: "0 0 40px hsl(var(--primary) / 0.4)" }}
-              >
-                {todaysStats.maxBpm > 0 ? todaysStats.maxBpm : "—"}
-              </span>
-              {todaysStats.maxBpm > 0 && (
-                <span className="text-2xl font-semibold text-muted-foreground mb-3">BPM</span>
-              )}
-            </div>
-            {/* Sub stats */}
-            <div className="flex items-center gap-6 mt-4 pt-4 border-t border-border">
-              <div>
-                <p className="text-xs text-muted-foreground uppercase tracking-wider">Practice Time</p>
-                <p className="text-xl font-bold mt-0.5">{formatDuration(todaysStats.duration)}</p>
+            {statsLoading ? (
+              <div className="flex items-center py-4">
+                <WaveformLoader />
               </div>
-              <div className="w-px h-8 bg-border" />
-              <div>
-                <p className="text-xs text-muted-foreground uppercase tracking-wider">Total Sessions</p>
-                <p className="text-xl font-bold mt-0.5">{totalSessions}</p>
-              </div>
-            </div>
+            ) : (
+              <>
+                <div className="flex items-end gap-3">
+                  <span
+                    className="text-8xl font-black text-primary leading-none"
+                    style={{ textShadow: "0 0 40px hsl(var(--primary) / 0.4)" }}
+                  >
+                    {todayPeakBpm > 0 ? todayPeakBpm : "—"}
+                  </span>
+                  {todayPeakBpm > 0 && (
+                    <span className="text-2xl font-semibold text-muted-foreground mb-3">BPM</span>
+                  )}
+                </div>
+                <div className="flex items-center gap-6 mt-4 pt-4 border-t border-border">
+                  <div>
+                    <p className="text-xs text-muted-foreground uppercase tracking-wider">Practice Time</p>
+                    <p className="text-xl font-bold mt-0.5">{totalMinutes}m</p>
+                  </div>
+                  <div className="w-px h-8 bg-border" />
+                  <div>
+                    <p className="text-xs text-muted-foreground uppercase tracking-wider">Total Sessions</p>
+                    <p className="text-xl font-bold mt-0.5">{totalSessions}</p>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </section>
 
@@ -138,7 +160,7 @@ const Index = () => {
         <Link to="/practice/free">
           <button className="w-full flex items-center justify-between px-5 py-4 rounded-xl bg-primary text-primary-foreground font-semibold text-base hover:opacity-90 transition-opacity">
             <div className="flex items-center gap-2">
-              <Zap className="h-5 w-5" />
+              <MiniLogo color="#0a0a0a" />
               Start Practice
             </div>
             <ChevronRight className="h-5 w-5 opacity-70" />
@@ -149,7 +171,12 @@ const Index = () => {
         <section>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-base font-semibold text-muted-foreground uppercase tracking-wider">My Exercises</h2>
-            <Link to="/library" className="text-xs text-primary hover:underline">See all</Link>
+            <button
+              onClick={() => navigate("/library")}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:opacity-90 transition-opacity"
+            >
+              See All
+            </button>
           </div>
 
           {recentExercises.length === 0 ? (
@@ -195,7 +222,7 @@ const Index = () => {
                           {diff < 0 && (
                             <span className="text-xs font-semibold text-destructive">{diff}</span>
                           )}
-                          <span className="text-xs text-muted-foreground">→ {exercise.target_bpm}</span>
+                          <span className="text-xs text-muted-foreground">→ {exercise.targetBpm}</span>
                         </div>
                       </div>
                     </div>

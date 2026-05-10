@@ -31,29 +31,38 @@ export function SessionCompleteDialog({
     const [suggestion, setSuggestion] = useState<{ newBpm: number; reason: string } | null>(null);
     const navigate = useNavigate();
 
+    const [saving, setSaving] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        setSaving(true);
+        setError(null);
         const newBpm = parseInt(bpm);
 
-        // Save session
-        await StorageService.saveSession({
-            date: new Date().toISOString(),
-            duration: durationSeconds,
-            exercises: [exercise.id],
-        });
+        try {
+            await StorageService.saveSession({
+                date: new Date().toISOString(),
+                duration: durationSeconds,
+                exercises: [exercise.id],
+            });
 
-        // Update exercise BPM if changed
-        if (newBpm !== exercise.currentBpm) {
-            await StorageService.updateExerciseBpm(exercise.id, newBpm);
-        }
+            if (newBpm !== exercise.currentBpm) {
+                await StorageService.updateExerciseBpm(exercise.id, newBpm);
+            }
 
-        // Check for progressive overload
-        const overload = await StorageService.checkProgressiveOverload(exercise.id);
-        if (overload) {
-            setSuggestion(overload);
-        } else {
-            onOpenChange(false);
-            navigate("/library");
+            const overload = await StorageService.checkProgressiveOverload(exercise.id);
+            if (overload) {
+                setSuggestion(overload);
+            } else {
+                onOpenChange(false);
+                navigate("/");
+            }
+        } catch (err: any) {
+            console.error("Save Progress failed:", err);
+            setError(err?.message || "Failed to save. Please try again.");
+        } finally {
+            setSaving(false);
         }
     };
 
@@ -61,13 +70,13 @@ export function SessionCompleteDialog({
         if (suggestion) {
             await StorageService.updateTargetBpm(exercise.id, suggestion.newBpm);
             onOpenChange(false);
-            navigate("/library");
+            navigate("/");
         }
     };
 
     const handleDismissSuggestion = () => {
         onOpenChange(false);
-        navigate("/library");
+        navigate("/");
     };
 
     const bpmDiff = parseInt(bpm) - exercise.currentBpm;
@@ -133,8 +142,14 @@ export function SessionCompleteDialog({
                         </div>
                     )}
 
+                    {error && (
+                        <p className="text-sm text-destructive text-center">{error}</p>
+                    )}
+
                     <DialogFooter>
-                        <Button type="submit" className="w-full">Save Progress</Button>
+                        <Button type="submit" className="w-full" disabled={saving}>
+                            {saving ? "Saving…" : "Save Progress"}
+                        </Button>
                     </DialogFooter>
                 </form>
             </DialogContent>

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { ArrowLeft, TrendingUp, Calendar, Zap } from "lucide-react";
+import { ArrowLeft, TrendingUp, Calendar } from "lucide-react";
+import MiniLogo from "@/components/MiniLogo";
 import WaveformLoader from "@/components/WaveformLoader";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -106,7 +107,7 @@ const Progress = () => {
             </Button>
           </Link>
           <div className="flex items-center gap-2">
-            <Zap className="h-4 w-4 text-primary" />
+            <MiniLogo />
             <h1 className="text-xs font-semibold tracking-widest uppercase text-foreground">Progress</h1>
           </div>
         </div>
@@ -158,7 +159,7 @@ const Progress = () => {
                 <p className="text-sm text-muted-foreground">No sessions yet. Head to Library to start practicing.</p>
                 <Link to="/library">
                   <button className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-primary-foreground font-semibold text-sm hover:opacity-90 transition-opacity">
-                    <Zap className="h-4 w-4" />
+                    <MiniLogo color="#0a0a0a" />
                     Go to Library
                   </button>
                 </Link>

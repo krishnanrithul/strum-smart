@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Zap } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
+import MiniLogo from "@/components/MiniLogo";
 import WaveformLoader from "@/components/WaveformLoader";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -13,16 +14,11 @@ const LEVELS = [
   { id: "advanced",     label: "Advanced",     description: "Serious player, need structure" },
 ];
 
-const GREEN_RGB = "34,197,94";
-
-function extractRgb(glowColor: string): string {
-  const match = glowColor.match(/rgba\((\d+,\s*\d+,\s*\d+)/);
-  return match ? match[1] : "255,255,255";
-}
+const HOVER_COLOR = "rgba(52, 211, 153, 0.18)";
 
 const Wordmark = () => (
   <div className="flex items-center gap-2">
-    <Zap className="h-4 w-4 text-primary" />
+    <MiniLogo />
     <span className="text-xs font-semibold tracking-widest text-foreground">FRETGYM</span>
   </div>
 );
@@ -34,6 +30,8 @@ const Onboarding = () => {
   const [level, setLevel] = useState<string | null>(null);
   const [selectedLevel, setSelectedLevel] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [hoveredLevel, setHoveredLevel] = useState<string | null>(null);
+  const [hoveredGenre, setHoveredGenre] = useState<string | null>(null);
 
   const handleLevelSelect = (id: string) => {
     setSelectedLevel(id);
@@ -117,21 +115,30 @@ const Onboarding = () => {
 
             <div className="space-y-3">
               {LEVELS.map(lv => {
-                const isSelected = selectedLevel === lv.id;
+                const active = selectedLevel === lv.id || hoveredLevel === lv.id;
                 return (
                   <button
                     key={lv.id}
                     onClick={() => handleLevelSelect(lv.id)}
-                    className="w-full rounded-2xl bg-card p-5 text-left transition-all duration-200 active:scale-[0.98]"
+                    onMouseEnter={() => setHoveredLevel(lv.id)}
+                    onMouseLeave={() => setHoveredLevel(null)}
+                    className="w-full rounded-2xl p-5 text-left transition-all duration-300 relative overflow-hidden active:scale-[0.98]"
                     style={{
-                      border: isSelected
-                        ? `1px solid rgba(${GREEN_RGB}, 0.4)`
-                        : "1px solid rgba(255,255,255,0.05)",
-                      background: isSelected
-                        ? `radial-gradient(circle at top right, rgba(${GREEN_RGB}, 0.12) 0%, transparent 60%), hsl(var(--card))`
-                        : "hsl(var(--card))",
+                      background: active
+                        ? `linear-gradient(135deg, ${HOVER_COLOR} 0%, rgba(255,255,255,0.03) 100%)`
+                        : "rgba(255,255,255,0.03)",
+                      border: `1px solid ${active ? "rgba(52, 211, 153, 0.4)" : "rgba(255,255,255,0.06)"}`,
+                      transform: active ? "translateY(-2px)" : "translateY(0)",
+                      boxShadow: active ? `0 8px 24px ${HOVER_COLOR}` : "none",
                     }}
                   >
+                    <div
+                      className="absolute top-0 left-0 right-0 h-px transition-opacity duration-300"
+                      style={{
+                        background: "linear-gradient(90deg, transparent, rgba(52, 211, 153, 0.6), transparent)",
+                        opacity: active ? 1 : 0,
+                      }}
+                    />
                     <p className="font-semibold text-foreground">{lv.label}</p>
                     <p className="text-xs text-muted-foreground mt-0.5">{lv.description}</p>
                   </button>
@@ -178,26 +185,30 @@ const Onboarding = () => {
             ) : (
               <div className="grid grid-cols-2 gap-3">
                 {ROUTINES.map(routine => {
-                  const rgb = extractRgb(routine.glowColor);
+                  const active = hoveredGenre === routine.id;
                   return (
                     <button
                       key={routine.id}
                       onClick={() => handleGenreSelect(routine.id)}
-                      className="rounded-2xl bg-card p-4 text-left transition-all duration-200 active:scale-[0.97]"
-                      style={{ border: "1px solid rgba(255,255,255,0.05)" }}
-                      onMouseEnter={e => {
-                        const el = e.currentTarget;
-                        el.style.border = `1px solid rgba(${rgb}, 0.4)`;
-                        el.style.background = `radial-gradient(circle at top right, rgba(${rgb}, 0.12) 0%, transparent 60%), hsl(var(--card))`;
-                        el.style.boxShadow = `0 0 18px 3px rgba(${rgb}, 0.15)`;
-                      }}
-                      onMouseLeave={e => {
-                        const el = e.currentTarget;
-                        el.style.border = "1px solid rgba(255,255,255,0.05)";
-                        el.style.background = "hsl(var(--card))";
-                        el.style.boxShadow = "";
+                      onMouseEnter={() => setHoveredGenre(routine.id)}
+                      onMouseLeave={() => setHoveredGenre(null)}
+                      className="rounded-2xl p-4 text-left transition-all duration-300 relative overflow-hidden active:scale-[0.97]"
+                      style={{
+                        background: active
+                          ? `linear-gradient(135deg, ${HOVER_COLOR} 0%, rgba(255,255,255,0.03) 100%)`
+                          : "rgba(255,255,255,0.03)",
+                        border: `1px solid ${active ? "rgba(52, 211, 153, 0.4)" : "rgba(255,255,255,0.06)"}`,
+                        transform: active ? "translateY(-2px)" : "translateY(0)",
+                        boxShadow: active ? `0 8px 24px ${HOVER_COLOR}` : "none",
                       }}
                     >
+                      <div
+                        className="absolute top-0 left-0 right-0 h-px transition-opacity duration-300"
+                        style={{
+                          background: "linear-gradient(90deg, transparent, rgba(52, 211, 153, 0.6), transparent)",
+                          opacity: active ? 1 : 0,
+                        }}
+                      />
                       <p className="font-semibold text-sm text-foreground">{routine.name}</p>
                       <p className="text-[11px] text-muted-foreground mt-0.5 leading-tight">
                         {routine.description}

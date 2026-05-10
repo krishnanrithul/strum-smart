@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
-import { ArrowLeft, Play, Pause, RotateCcw, Plus, Minus, ChevronDown, ChevronUp, Zap } from "lucide-react";
+import { ArrowLeft, Play, Pause, RotateCcw, ChevronDown, ChevronUp } from "lucide-react";
+import MiniLogo from "@/components/MiniLogo";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { StorageService, Exercise } from "@/lib/storage";
@@ -125,7 +126,7 @@ const Practice = () => {
             <ArrowLeft className="h-5 w-5" />
           </button>
           <span className="text-xs font-semibold tracking-widest uppercase text-foreground">Practice Session</span>
-          <Zap className="h-4 w-4 text-primary" />
+          <MiniLogo />
         </div>
       </header>
 
@@ -164,9 +165,9 @@ const Practice = () => {
         {!isFree && exercise && (
           <div className="rounded-2xl bg-card px-5 py-4" style={glassCard}>
             <p className="text-base font-semibold text-foreground">{exercise.title}</p>
-            {exercise.target_bpm > 0 && (
+            {exercise.targetBpm > 0 && (
               <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground mt-1">
-                Target: {exercise.target_bpm} BPM
+                Target: {exercise.targetBpm} BPM
               </p>
             )}
           </div>
@@ -297,7 +298,7 @@ const Practice = () => {
               )}
               {!hasReferenceMaterials && (
                 <a
-                  href={`https://www.youtube.com/results?search_query=${encodeURIComponent(`${exercise.title}${exercise.artist ? ` ${exercise.artist}` : ""} guitar tutorial`)}`}
+                  href={`https://www.youtube.com/results?search_query=${encodeURIComponent(`${exercise.title} guitar tutorial`)}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="block w-full"
@@ -324,7 +325,7 @@ const Practice = () => {
           }}
         >
           <div className="flex items-center gap-2">
-            <Zap className="h-5 w-5" />
+            <MiniLogo color="#0a0a0a" />
             Complete Session
           </div>
         </button>

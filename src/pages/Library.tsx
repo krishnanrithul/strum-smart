@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { ArrowLeft, Plus, Zap, ChevronRight, Pencil, Trash2 } from "lucide-react";
+import { ArrowLeft, Plus, ChevronRight, Pencil, Trash2 } from "lucide-react";
+import MiniLogo from "@/components/MiniLogo";
 import WaveformLoader from "@/components/WaveformLoader";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -184,7 +185,7 @@ const Library = () => {
             </Button>
           </Link>
           <div className="flex items-center gap-2">
-            <Zap className="h-4 w-4 text-primary" />
+            <MiniLogo />
             <h1 className="text-xs font-semibold tracking-widest uppercase text-foreground">Library</h1>
           </div>
         </div>
@@ -233,7 +234,7 @@ const Library = () => {
             className="w-full flex items-center justify-between px-5 py-4 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
           >
             <div className="flex items-center gap-3">
-              <Zap className="h-4 w-4" />
+              <MiniLogo color="#0a0a0a" />
               <span className="text-base font-medium">Build your own</span>
             </div>
             <ChevronRight className="h-4 w-4 opacity-70" />
