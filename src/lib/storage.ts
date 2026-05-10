@@ -42,6 +42,7 @@ export interface Exercise {
     tutorialUrl?: string;
     diagramUrl?: string;
     is_assigned?: boolean;
+    teacherNotes?: string;
 }
 
 export interface Session {
@@ -75,6 +76,7 @@ const mapExercise = (row: any): Exercise => ({
     tutorialUrl: row.tutorial_url,
     diagramUrl: row.diagram_url,
     is_assigned: row.is_assigned ?? false,
+    teacherNotes: row.teacher_notes ?? undefined,
 });
 
 const mapSession = (row: any): Session => ({

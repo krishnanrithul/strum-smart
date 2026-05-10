@@ -165,6 +165,17 @@ const Practice = () => {
           </div>
         )}
 
+        {/* Teacher Note */}
+        {!isFree && exercise?.teacherNotes && (
+          <div className="rounded-2xl bg-card p-5 flex gap-3" style={glassCard}>
+            <span className="text-lg leading-none mt-0.5">📌</span>
+            <div>
+              <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground mb-1">Teacher Note</p>
+              <p className="text-sm text-foreground">{exercise.teacherNotes}</p>
+            </div>
+          </div>
+        )}
+
         {/* Metronome */}
         <section>
           <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground mb-3">Metronome</p>

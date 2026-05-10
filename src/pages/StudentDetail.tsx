@@ -15,6 +15,13 @@ const glassCardGlow = {
 
 const formatMins = (secs: number) => Math.floor(secs / 60);
 
+const formatDuration = (mins: number) => {
+  if (mins < 60) return `${mins}m`;
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return m === 0 ? `${h}h` : `${h}h ${m}m`;
+};
+
 const formatDate = (iso: string) =>
   new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 
@@ -108,7 +115,7 @@ const StudentDetail = () => {
             </div>
             <div>
               <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">Practice</p>
-              <p className="text-3xl font-bold text-foreground mt-1">{totalMinutes}m</p>
+              <p className="text-3xl font-bold text-foreground mt-1">{formatDuration(totalMinutes)}</p>
             </div>
             <div>
               <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">Peak BPM</p>

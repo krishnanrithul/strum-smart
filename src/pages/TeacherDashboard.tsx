@@ -57,16 +57,23 @@ const TeacherDashboard = () => {
 
       const enriched = await Promise.all(
         profiles.map(async (student: { id: string; full_name: string | null }) => {
-          const { data: exercises } = await supabase
-            .from("exercises")
-            .select("created_at")
-            .eq("user_id", student.id)
-            .order("created_at", { ascending: false });
+          const [{ data: sessions }, { data: exercises }] = await Promise.all([
+            supabase
+              .from("sessions")
+              .select("created_at")
+              .eq("user_id", student.id)
+              .order("created_at", { ascending: false })
+              .limit(1),
+            supabase
+              .from("exercises")
+              .select("id")
+              .eq("user_id", student.id),
+          ]);
 
           return {
             id: student.id,
             full_name: student.full_name,
-            last_practice: exercises?.[0]?.created_at ?? null,
+            last_practice: sessions?.[0]?.created_at ?? null,
             exercise_count: exercises?.length ?? 0,
           };
         })

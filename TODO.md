@@ -1,7 +1,6 @@
 # FretGym TODO
 
 ## 🐛 Bugs
-- [ ] Unnamed Student — test fresh signup with name, confirm `full_name` saves to Supabase
 - [ ] Verify existing-user teacher code banner works end-to-end
 
 ## 🔨 Features (in order)
