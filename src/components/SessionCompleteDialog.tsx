@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
     Dialog,
@@ -8,8 +8,6 @@ import {
     DialogTitle,
     DialogFooter,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { StorageService, Exercise } from "@/lib/storage";
 import { useNavigate } from "react-router-dom";
 import { TrendingUp } from "lucide-react";
@@ -19,6 +17,7 @@ interface SessionCompleteDialogProps {
     onOpenChange: (open: boolean) => void;
     exercise: Exercise;
     durationSeconds: number;
+    sessionBpm?: number;
 }
 
 export function SessionCompleteDialog({
@@ -26,13 +25,20 @@ export function SessionCompleteDialog({
     onOpenChange,
     exercise,
     durationSeconds,
+    sessionBpm,
 }: SessionCompleteDialogProps) {
-    const [bpm, setBpm] = useState(exercise.currentBpm.toString());
+    const [bpm, setBpm] = useState((sessionBpm ?? exercise.currentBpm).toString());
     const [suggestion, setSuggestion] = useState<{ newBpm: number; reason: string } | null>(null);
     const navigate = useNavigate();
 
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (open) {
+            setBpm((sessionBpm ?? exercise.currentBpm).toString());
+        }
+    }, [open, sessionBpm]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -47,9 +53,7 @@ export function SessionCompleteDialog({
                 exercises: [exercise.id],
             });
 
-            if (newBpm !== exercise.currentBpm) {
-                await StorageService.updateExerciseBpm(exercise.id, newBpm);
-            }
+            await StorageService.updateExerciseBpm(exercise.id, newBpm);
 
             const overload = await StorageService.checkProgressiveOverload(exercise.id);
             if (overload) {
@@ -125,22 +129,28 @@ export function SessionCompleteDialog({
                         </div>
                     </div>
 
-                    <div className="grid gap-2">
-                        <Label htmlFor="bpm">Max Clean BPM Achieved</Label>
-                        <Input
-                            id="bpm"
-                            type="number"
-                            value={bpm}
-                            onChange={(e) => setBpm(e.target.value)}
-                            required
-                        />
-                    </div>
-
-                    {bpmDiff !== 0 && (
-                        <div className={`text-center font-bold ${bpmDiff > 0 ? "text-green-500" : "text-red-500"}`}>
-                            {bpmDiff > 0 ? "+" : ""}{bpmDiff} BPM from last time
+                    <div className="flex items-center justify-between px-1">
+                        <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">Session BPM</p>
+                        <div className="flex items-center gap-2">
+                            {bpmDiff !== 0 && (
+                                <span className={`text-xs font-semibold ${bpmDiff > 0 ? "text-primary" : "text-destructive"}`}>
+                                    {bpmDiff > 0 ? "+" : ""}{bpmDiff}
+                                </span>
+                            )}
+                            <input
+                                type="text"
+                                inputMode="numeric"
+                                value={bpm}
+                                onChange={(e) => setBpm(e.target.value)}
+                                onBlur={(e) => {
+                                    const v = parseInt(e.target.value);
+                                    setBpm(String(isNaN(v) ? parseInt(bpm) : Math.min(240, Math.max(40, v))));
+                                }}
+                                className="w-16 text-xl font-bold text-foreground text-right bg-transparent border-b border-white/20 outline-none focus:border-primary transition-colors"
+                            />
+                            <span className="text-sm text-muted-foreground">BPM</span>
                         </div>
-                    )}
+                    </div>
 
                     {error && (
                         <p className="text-sm text-destructive text-center">{error}</p>

@@ -338,6 +338,7 @@ const Practice = () => {
           onOpenChange={setShowCompleteDialog}
           exercise={exercise}
           durationSeconds={seconds}
+          sessionBpm={bpm}
         />
       )}
     </div>

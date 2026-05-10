@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Loader2, UserPlus, Dumbbell, Clock, LogOut, Sun, Moon } from "lucide-react";
+import { UserPlus, LogOut, Sun, Moon } from "lucide-react";
+import MiniLogo from "@/components/MiniLogo";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import WaveformLoader from "@/components/WaveformLoader";
 
 type Student = {
   id: string;
@@ -16,19 +18,21 @@ const TeacherDashboard = () => {
   const { session } = useAuth();
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
   const navigate = useNavigate();
   const [isDark, setIsDark] = useState(true);
 
-const toggleTheme = () => {
-  const html = document.documentElement;
-  if (isDark) {
-    html.classList.add("light");
-  } else {
-    html.classList.remove("light");
-  }
-  setIsDark(!isDark);
-};
-  
+  const HOVER_COLOR = "rgba(52, 211, 153, 0.18)";
+
+  const toggleTheme = () => {
+    const html = document.documentElement;
+    if (isDark) {
+      html.classList.add("light");
+    } else {
+      html.classList.remove("light");
+    }
+    setIsDark(!isDark);
+  };
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -39,15 +43,15 @@ const toggleTheme = () => {
     const fetchStudents = async () => {
       if (!session) return;
 
-      const { data: profiles } = await supabase
+      const { data: profiles } = await (supabase as any)
         .from("profiles")
         .select("id, full_name")
         .eq("teacher_id", session.user.id);
 
-      if (!profiles) return;
+      if (!profiles) { setLoading(false); return; }
 
       const enriched = await Promise.all(
-        profiles.map(async (student) => {
+        profiles.map(async (student: { id: string; full_name: string | null }) => {
           const { data: exercises } = await supabase
             .from("exercises")
             .select("created_at")
@@ -72,32 +76,34 @@ const toggleTheme = () => {
 
   const formatDate = (date: string | null) => {
     if (!date) return "No activity yet";
-    return new Date(date).toLocaleDateString("en-IN", {
+    return new Date(date).toLocaleDateString("en-US", {
       day: "numeric",
       month: "short",
-      year: "numeric",
     });
   };
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <WaveformLoader />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-screen bg-background text-foreground pb-10">
       {/* Header */}
       <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-10">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <h1 className="text-2xl font-bold tracking-tight">
-            Fret<span className="text-primary">Gym</span>
-          </h1>
+          <div className="flex items-center gap-2">
+            <MiniLogo />
+            <span className="text-sm font-semibold tracking-widest text-foreground">
+              Fret<span className="text-primary">Gym</span>
+            </span>
+          </div>
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="icon" onClick={toggleTheme}>
-            {isDark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+              {isDark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
             </Button>
             <Button variant="ghost" size="icon" onClick={handleLogout}>
               <LogOut className="h-5 w-5" />
@@ -106,49 +112,64 @@ const toggleTheme = () => {
         </div>
       </header>
 
-      {/* Main Content */}
-      <div className="container mx-auto px-4 py-6">
-        {/* Title + Add Student */}
-        <div className="flex items-center justify-between mb-8">
+      <main className="container mx-auto px-4 py-6 space-y-6">
+
+        {/* Title row */}
+        <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-3xl font-bold text-primary">My Students</h2>
-            <p className="text-muted-foreground mt-1">{students.length} student{students.length !== 1 ? "s" : ""}</p>
+            <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">My Students</p>
+            <p className="text-2xl font-bold text-foreground mt-1">
+              {students.length} {students.length === 1 ? "student" : "students"}
+            </p>
           </div>
-          <Button className="flex items-center gap-2">
-            <UserPlus className="h-4 w-4" />
+          <button className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold bg-primary text-primary-foreground hover:opacity-90 transition-opacity">
+            <UserPlus className="h-3 w-3" />
             Add Student
-          </Button>
+          </button>
         </div>
 
-        {/* Student List */}
+        {/* Student list */}
         {students.length === 0 ? (
-          <div className="text-center py-20 text-muted-foreground">
-            <p className="text-lg">No students yet.</p>
-            <p className="text-sm mt-1">Add a student to get started.</p>
+          <div className="rounded-2xl p-10 text-center text-sm text-muted-foreground"
+            style={{ border: "1px solid rgba(255,255,255,0.05)", background: "hsl(var(--card))" }}>
+            No students yet. Add a student to get started.
           </div>
         ) : (
-          <div className="grid gap-4">
+          <div className="space-y-3">
             {students.map((student) => (
               <div
                 key={student.id}
-                className="bg-card border border-border rounded-xl p-5 flex items-center justify-between hover:border-primary transition-colors cursor-pointer"
+                onClick={() => navigate(`/teacher/student/${student.id}`)}
+                onMouseEnter={() => setHoveredId(student.id)}
+                onMouseLeave={() => setHoveredId(null)}
+                className="rounded-2xl p-5 flex items-center justify-between cursor-pointer transition-all duration-300 relative overflow-hidden"
+                style={{
+                  background: hoveredId === student.id
+                    ? `linear-gradient(135deg, ${HOVER_COLOR} 0%, rgba(255,255,255,0.03) 100%)`
+                    : "rgba(255,255,255,0.03)",
+                  border: `1px solid ${hoveredId === student.id ? "rgba(52, 211, 153, 0.4)" : "rgba(255,255,255,0.06)"}`,
+                  transform: hoveredId === student.id ? "translateY(-2px)" : "translateY(0)",
+                  boxShadow: hoveredId === student.id ? `0 8px 24px ${HOVER_COLOR}` : "none",
+                }}
               >
                 <div>
-                  <p className="font-semibold text-lg">{student.full_name ?? "Unnamed Student"}</p>
-                  <div className="flex items-center gap-1 text-muted-foreground text-sm mt-1">
-                    <Clock className="h-3 w-3" />
-                    <span>Last active: {formatDate(student.last_practice)}</span>
-                  </div>
+                  <p className="text-base font-semibold text-foreground">
+                    {student.full_name ?? "Unnamed Student"}
+                  </p>
+                  <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground mt-1">
+                    Last active: {formatDate(student.last_practice)}
+                  </p>
                 </div>
-                <div className="flex items-center gap-2 text-primary font-bold">
-                  <Dumbbell className="h-4 w-4" />
-                  <span>{student.exercise_count} exercises</span>
+                <div className="text-right">
+                  <p className="text-xl font-bold text-foreground">{student.exercise_count}</p>
+                  <p className="text-xs text-muted-foreground uppercase tracking-widest">Exercises</p>
                 </div>
               </div>
             ))}
           </div>
         )}
-      </div>
+
+      </main>
     </div>
   );
 };

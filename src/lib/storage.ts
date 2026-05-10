@@ -217,6 +217,7 @@ export const StorageService = {
             .eq("id", id);
 
         if (error) throw error;
+        clearCache();
     },
 
     updateTargetBpm: async (id: string, newTarget: number) => {

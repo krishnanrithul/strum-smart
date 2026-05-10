@@ -20,6 +20,7 @@ const Index = () => {
   const [totalMinutes, setTotalMinutes] = useState(0);
   const [totalSessions, setTotalSessions] = useState(0);
   const [recentExercises, setRecentExercises] = useState<Exercise[]>([]);
+  const [clearConfirm, setClearConfirm] = useState(false);
 
   const toggleTheme = () => {
     const html = document.documentElement;
@@ -82,6 +83,14 @@ const Index = () => {
 
     loadData();
   }, [session]);
+
+  const handleClearAll = async () => {
+    if (!clearConfirm) { setClearConfirm(true); return; }
+    const all = await StorageService.getExercises();
+    await Promise.all(all.map((e) => StorageService.deleteExercise(e.id)));
+    setRecentExercises([]);
+    setClearConfirm(false);
+  };
 
   const navItems = [
     { path: "/", icon: Home, label: "Home" },
@@ -171,12 +180,26 @@ const Index = () => {
         <section>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-base font-semibold text-muted-foreground uppercase tracking-wider">My Exercises</h2>
-            <button
-              onClick={() => navigate("/library")}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:opacity-90 transition-opacity"
-            >
-              See All
-            </button>
+            <div className="flex items-center gap-2">
+              {recentExercises.length > 0 && (
+                <button
+                  onClick={handleClearAll}
+                  onBlur={() => setClearConfirm(false)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors"
+                  style={clearConfirm
+                    ? { background: "rgba(239,68,68,0.15)", border: "1px solid rgba(239,68,68,0.3)", color: "rgb(239,68,68)" }
+                    : { background: "transparent", border: "1px solid rgba(239,68,68,0.3)", color: "rgb(239,68,68)" }}
+                >
+                  {clearConfirm ? "Confirm?" : "Clear All"}
+                </button>
+              )}
+              <button
+                onClick={() => navigate("/library")}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:opacity-90 transition-opacity"
+              >
+                See All
+              </button>
+            </div>
           </div>
 
           {recentExercises.length === 0 ? (
@@ -190,7 +213,6 @@ const Index = () => {
                 const history = exercise.history;
                 const lastBpm = history.length > 0 ? history[history.length - 1].bpm : exercise.currentBpm;
                 const prevBpm = history.length > 1 ? history[history.length - 2].bpm : lastBpm;
-                const diff = lastBpm - prevBpm;
                 const progress = getBpmProgress(exercise);
 
                 return (
@@ -215,14 +237,10 @@ const Index = () => {
                             style={{ width: `${progress}%` }}
                           />
                         </div>
-                        <div className="flex items-center gap-1">
-                          {diff > 0 && (
-                            <span className="text-xs font-semibold text-primary">+{diff}</span>
-                          )}
-                          {diff < 0 && (
-                            <span className="text-xs font-semibold text-destructive">{diff}</span>
-                          )}
-                          <span className="text-xs text-muted-foreground">→ {exercise.targetBpm}</span>
+                        <div className="flex items-center gap-0.5 text-xs">
+                          <span className="text-muted-foreground">{prevBpm} →&nbsp;</span>
+                          <span className="text-foreground font-semibold">{lastBpm}</span>
+                          <span className="text-muted-foreground">&nbsp;BPM</span>
                         </div>
                       </div>
                     </div>
