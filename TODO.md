@@ -1,17 +1,23 @@
 # FretGym TODO
 
-## 🐛 Bugs
-- [ ] Verify existing-user teacher code banner works end-to-end
+## ✅ Done This Session
+- [x] Invite code system — teacher generates, student enters during onboarding or from home banner
+- [x] Student signup now saves full_name
+- [x] Teacher dashboard shows invite code panel
+- [x] Progress bars fixed (0% for unpracticed exercises)
+- [x] Teacher notes spec for Practice screen
+- [x] Practice time calculation spec for StudentDetail
+- [x] Last active spec (pull from sessions table)
 
 ## 🔨 Features (in order)
-- [ ] Teacher notes visible in student's Practice screen
-- [ ] Fix practice time showing 0m in Student Detail stats
-- [ ] Last active on student card pulls from sessions table, not exercises
+- [ ] Verify teacher notes show in Practice screen
+- [ ] Verify practice time displays correctly in StudentDetail
+- [ ] Verify last active pulls from sessions table
 - [ ] BPM plateau detection — flag when stuck, generate tip via Claude API
 
-## 🎨 Polish
-- [ ] Rewrite empty state copy to sound like a guitarist, not a developer
-- [ ] BPM display styled to feel like hardware — tuner/amp aesthetic, not a dashboard metric
+## 🐛 Bugs
+- [ ] Verify existing-user teacher code banner works end-to-end (test linking on home screen)
+- [ ] BPM display restyle — revert to flat/minimal (remove inset panels, just bold monospace typography)
 
 ## 📱 iOS
 - [ ] Capacitor setup — wrap the app, get it on your phone

@@ -148,9 +148,9 @@ const StudentDetail = () => {
                         <p className="text-base font-semibold text-foreground">{ex.title}</p>
                         <p className="text-xs uppercase text-muted-foreground mt-0.5">{ex.category}</p>
                       </div>
-                      <div className="text-right">
-                        <p className="text-xl font-bold text-foreground">{ex.current_bpm}</p>
-                        <p className="text-xs text-muted-foreground">BPM</p>
+                      <div className="text-right flex-shrink-0">
+                        <p className="text-2xl font-mono font-bold text-foreground tabular-nums leading-none">{ex.current_bpm}</p>
+                        <p className="text-xs text-muted-foreground mt-1">BPM</p>
                       </div>
                     </div>
 
