@@ -128,8 +128,8 @@ const StudentDetail = () => {
             <div className="space-y-3">
               {exercises.map((ex) => {
                 const startBpm = ex.history?.[0]?.bpm ?? ex.current_bpm;
-                const fillPct = ex.target_bpm > 0
-                  ? Math.min(100, Math.round((ex.current_bpm / ex.target_bpm) * 100))
+                const fillPct = ex.target_bpm > 0 && ex.current_bpm !== startBpm
+                  ? Math.min(100, Math.round(((ex.current_bpm - startBpm) / (ex.target_bpm - startBpm)) * 100))
                   : 0;
                 const isEditing = editingTargetId === ex.id;
 
