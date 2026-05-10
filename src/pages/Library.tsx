@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
-import { ArrowLeft, Plus, ChevronRight, Pencil, Trash2 } from "lucide-react";
+import { Plus, ChevronRight, Pencil, Trash2 } from "lucide-react";
+import AppHeader from "@/components/AppHeader";
 import MiniLogo from "@/components/MiniLogo";
 import WaveformLoader from "@/components/WaveformLoader";
-import { Link, useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
+import { useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { StorageService, Exercise, Project } from "@/lib/storage";
@@ -176,20 +176,7 @@ const Library = () => {
   return (
     <div className="min-h-screen bg-background pb-24">
 
-      {/* Header */}
-      <header className="sticky top-0 z-10 border-b border-border bg-background/80 backdrop-blur-sm">
-        <div className="container mx-auto px-4 py-4 flex items-center gap-3">
-          <Link to="/">
-            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-          </Link>
-          <div className="flex items-center gap-2">
-            <MiniLogo />
-            <h1 className="text-xs font-semibold tracking-widest uppercase text-foreground">Library</h1>
-          </div>
-        </div>
-      </header>
+      <AppHeader title="LIBRARY" showBack />
 
       <main className="container mx-auto px-4 py-6 space-y-10">
       

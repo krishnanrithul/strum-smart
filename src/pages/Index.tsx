@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
-import { Library, TrendingUp, LogOut, Sun, Moon, ChevronRight, Home } from "lucide-react";
+import { Library, TrendingUp, ChevronRight, Home } from "lucide-react";
+import AppHeader from "@/components/AppHeader";
 import MiniLogo from "@/components/MiniLogo";
 import WaveformLoader from "@/components/WaveformLoader";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { StorageService, Exercise } from "@/lib/storage";
 import { useAuth } from "@/contexts/AuthContext";
@@ -12,25 +12,14 @@ import { supabase } from "@/integrations/supabase/client";
 const Index = () => {
   const location = useLocation();
   const currentPath = location.pathname;
-  const { signOut, session } = useAuth();
+  const { session } = useAuth();
   const navigate = useNavigate();
-  const [isDark, setIsDark] = useState(true);
   const [statsLoading, setStatsLoading] = useState(true);
   const [todayPeakBpm, setTodayPeakBpm] = useState(0);
   const [totalMinutes, setTotalMinutes] = useState(0);
   const [totalSessions, setTotalSessions] = useState(0);
   const [recentExercises, setRecentExercises] = useState<Exercise[]>([]);
   const [clearConfirm, setClearConfirm] = useState(false);
-
-  const toggleTheme = () => {
-    const html = document.documentElement;
-    if (isDark) {
-      html.classList.add("light");
-    } else {
-      html.classList.remove("light");
-    }
-    setIsDark(!isDark);
-  };
 
   useEffect(() => {
     if (!session) {
@@ -108,22 +97,7 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background pb-24">
-      {/* Header */}
-      <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-10">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <h1 className="text-2xl font-bold tracking-tight">
-            Fret<span className="text-primary">Gym</span>
-          </h1>
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" onClick={toggleTheme}>
-              {isDark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-            </Button>
-            <Button variant="ghost" size="icon" onClick={() => signOut()}>
-              <LogOut className="h-5 w-5" />
-            </Button>
-          </div>
-        </div>
-      </header>
+      <AppHeader />
 
       <main className="container mx-auto px-4 py-6 space-y-6">
 

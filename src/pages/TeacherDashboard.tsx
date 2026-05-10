@@ -1,10 +1,9 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { UserPlus, LogOut, Sun, Moon } from "lucide-react";
-import MiniLogo from "@/components/MiniLogo";
+import { UserPlus } from "lucide-react";
+import AppHeader from "@/components/AppHeader";
 import { useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
 import WaveformLoader from "@/components/WaveformLoader";
 
 type Student = {
@@ -20,24 +19,8 @@ const TeacherDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const navigate = useNavigate();
-  const [isDark, setIsDark] = useState(true);
 
   const HOVER_COLOR = "rgba(52, 211, 153, 0.18)";
-
-  const toggleTheme = () => {
-    const html = document.documentElement;
-    if (isDark) {
-      html.classList.add("light");
-    } else {
-      html.classList.remove("light");
-    }
-    setIsDark(!isDark);
-  };
-
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    navigate("/auth");
-  };
 
   useEffect(() => {
     const fetchStudents = async () => {
@@ -92,25 +75,7 @@ const TeacherDashboard = () => {
 
   return (
     <div className="min-h-screen bg-background text-foreground pb-10">
-      {/* Header */}
-      <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-10">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <MiniLogo />
-            <span className="text-sm font-semibold tracking-widest text-foreground">
-              Fret<span className="text-primary">Gym</span>
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" onClick={toggleTheme}>
-              {isDark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-            </Button>
-            <Button variant="ghost" size="icon" onClick={handleLogout}>
-              <LogOut className="h-5 w-5" />
-            </Button>
-          </div>
-        </div>
-      </header>
+      <AppHeader />
 
       <main className="container mx-auto px-4 py-6 space-y-6">
 

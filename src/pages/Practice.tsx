@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
-import { ArrowLeft, Play, Pause, RotateCcw, ChevronDown, ChevronUp } from "lucide-react";
+import { Play, Pause, RotateCcw, ChevronDown, ChevronUp } from "lucide-react";
+import AppHeader from "@/components/AppHeader";
 import MiniLogo from "@/components/MiniLogo";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -119,16 +120,7 @@ const Practice = () => {
 
   return (
     <div className="min-h-screen bg-background pb-10">
-      {/* Header */}
-      <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-10">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <button onClick={() => navigate(-1)} className="text-muted-foreground hover:text-foreground transition-colors">
-            <ArrowLeft className="h-5 w-5" />
-          </button>
-          <span className="text-xs font-semibold tracking-widest uppercase text-foreground">Practice Session</span>
-          <MiniLogo />
-        </div>
-      </header>
+      <AppHeader title="PRACTICE SESSION" showBack />
 
       <main className="container mx-auto px-4 py-6 space-y-6">
 

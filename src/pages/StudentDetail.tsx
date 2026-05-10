@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, ChevronRight } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import AppHeader from "@/components/AppHeader";
 import MiniLogo from "@/components/MiniLogo";
 import WaveformLoader from "@/components/WaveformLoader";
 import AssignExerciseModal from "@/components/AssignExerciseModal";
-import { ExerciseTemplate } from "@/lib/storage";
 
 const glassCard = { border: "1px solid rgba(255,255,255,0.05)" };
 const glassCardGlow = {
@@ -80,18 +80,7 @@ const StudentDetail = () => {
 
   return (
     <div className="min-h-screen bg-background pb-10">
-      {/* Header */}
-      <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-10">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <button onClick={() => navigate(-1)} className="text-muted-foreground hover:text-foreground transition-colors">
-            <ArrowLeft className="h-5 w-5" />
-          </button>
-          <span className="text-xs font-semibold tracking-widest uppercase text-foreground">
-            {studentName}
-          </span>
-          <MiniLogo />
-        </div>
-      </header>
+      <AppHeader title={studentName.toUpperCase()} showBack />
 
       <main className="container mx-auto px-4 py-6 space-y-6">
 
@@ -176,10 +165,6 @@ const StudentDetail = () => {
         onClose={() => setAssignOpen(false)}
         studentId={id!}
         studentName={studentName}
-        onSelect={(template: ExerciseTemplate | { title: string; custom: true }) => {
-          console.log("Selected:", template);
-          setAssignOpen(false);
-        }}
       />
     </div>
   );
