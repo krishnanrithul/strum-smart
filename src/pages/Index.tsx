@@ -251,7 +251,7 @@ const Index = () => {
 
                 return (
                   <Link key={exercise.id} to={`/practice/${exercise.id}`}>
-                    <div className="group bg-card border border-border rounded-xl p-4 hover:border-primary transition-all duration-200">
+                    <div className="group bg-card border border-border rounded-xl p-4 hover:border-primary transition-all duration-200 cursor-pointer hover:shadow-[inset_0_0_0_1000px_rgba(255,255,255,0.05)]">
                       <div className="flex items-start justify-between mb-3">
                         <div>
                           <h3 className="font-semibold text-sm">{exercise.title}</h3>

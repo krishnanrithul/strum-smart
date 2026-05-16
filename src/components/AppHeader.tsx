@@ -7,11 +7,12 @@ import { supabase } from "@/integrations/supabase/client";
 
 interface AppHeaderProps {
   title?: string;
+  breadcrumb?: string;
   showBack?: boolean;
   onBack?: () => void;
 }
 
-const AppHeader = ({ title, showBack = false, onBack }: AppHeaderProps) => {
+const AppHeader = ({ title, breadcrumb, showBack = false, onBack }: AppHeaderProps) => {
   const navigate = useNavigate();
 
   const [isDark, setIsDark] = useState(() => {
@@ -51,9 +52,16 @@ const AppHeader = ({ title, showBack = false, onBack }: AppHeaderProps) => {
               <ArrowLeft className="h-5 w-5" />
             </button>
             {title && (
-              <span className="text-xs font-semibold tracking-widest uppercase text-foreground">
-                {title}
-              </span>
+              <div>
+                {breadcrumb && (
+                  <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">
+                    {breadcrumb}
+                  </p>
+                )}
+                <span className="text-xs font-semibold tracking-widest uppercase text-foreground">
+                  {title}
+                </span>
+              </div>
             )}
           </div>
         ) : (
