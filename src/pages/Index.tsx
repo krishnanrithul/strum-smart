@@ -23,6 +23,7 @@ const Index = () => {
   const [inviteInput, setInviteInput] = useState("");
   const [codeError, setCodeError] = useState("");
   const [codeSubmitting, setCodeSubmitting] = useState(false);
+  const [hoveredExerciseId, setHoveredExerciseId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!session) {
@@ -104,6 +105,72 @@ const Index = () => {
     setClearConfirm(false);
   };
 
+  const renderExerciseCard = (exercise: Exercise) => {
+    const history = exercise.history;
+    const lastBpm = history.length > 0 ? history[history.length - 1].bpm : exercise.currentBpm;
+    const prevBpm = history.length > 1 ? history[history.length - 2].bpm : lastBpm;
+    const progress = getBpmProgress(exercise);
+    return (
+      <Link key={exercise.id} to={`/practice/${exercise.id}`}>
+        <div
+          className="rounded-xl p-4 cursor-pointer relative overflow-hidden transition-all duration-300"
+          onMouseEnter={() => setHoveredExerciseId(exercise.id)}
+          onMouseLeave={() => setHoveredExerciseId(null)}
+          style={{
+            background: hoveredExerciseId === exercise.id
+              ? "linear-gradient(135deg, rgba(52,211,153,0.18) 0%, rgba(255,255,255,0.03) 100%)"
+              : "rgba(255,255,255,0.03)",
+            border: `1px solid ${hoveredExerciseId === exercise.id ? "rgba(52,211,153,0.4)" : "rgba(255,255,255,0.06)"}`,
+            transform: hoveredExerciseId === exercise.id ? "translateY(-2px)" : "translateY(0)",
+            boxShadow: hoveredExerciseId === exercise.id ? "0 8px 24px rgba(52,211,153,0.18)" : "none",
+            backdropFilter: "blur(12px)",
+          }}
+        >
+          <div
+            className="absolute top-0 left-0 right-0 h-px transition-opacity duration-300"
+            style={{
+              background: "linear-gradient(90deg, transparent, rgba(52,211,153,0.6), transparent)",
+              opacity: hoveredExerciseId === exercise.id ? 1 : 0,
+            }}
+          />
+          <div className="relative z-10">
+            <div className="flex items-start justify-between mb-3">
+              <div>
+                <h3 className="font-semibold text-sm">{exercise.title}</h3>
+                <div className="flex items-center gap-1 mt-0.5">
+                  <span className="text-xs text-muted-foreground">{exercise.category}</span>
+                  {exercise.is_assigned && (
+                    <>
+                      <span className="text-xs text-muted-foreground"> · </span>
+                      <span className="text-xs font-semibold uppercase tracking-wide text-primary">From Teacher</span>
+                    </>
+                  )}
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="text-lg font-black text-primary">{lastBpm}</p>
+                <p className="text-xs text-muted-foreground">BPM</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="flex-1 h-1.5 bg-secondary rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-primary rounded-full transition-all duration-500"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+              <div className="flex items-center gap-0.5 text-xs">
+                <span className="text-muted-foreground">{prevBpm} →&nbsp;</span>
+                <span className="text-foreground font-semibold">{lastBpm}</span>
+                <span className="text-muted-foreground">&nbsp;BPM</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Link>
+    );
+  };
+
   const getBpmProgress = (exercise: Exercise) => {
     const current = exercise.currentBpm;
     const target = exercise.targetBpm;
@@ -119,7 +186,7 @@ const Index = () => {
       <main className="container mx-auto px-4 py-6 space-y-6">
 
         {/* Hero stat — Today's Max BPM */}
-        <section className="relative overflow-hidden rounded-2xl bg-card border border-border p-6">
+        <section className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-white to-green-50 dark:from-zinc-900 dark:to-green-950 border border-border p-6">
           <div className="absolute -top-10 -right-10 w-48 h-48 rounded-full bg-primary/10 blur-3xl pointer-events-none" />
           <div className="relative">
             <p className="text-sm font-medium text-muted-foreground uppercase tracking-widest mb-1">Today's Peak</p>
@@ -242,53 +309,23 @@ const Index = () => {
               <p className="text-xs mt-1">Head to Library to get started.</p>
             </div>
           ) : (
-            <div className="space-y-3">
-              {recentExercises.map((exercise) => {
-                const history = exercise.history;
-                const lastBpm = history.length > 0 ? history[history.length - 1].bpm : exercise.currentBpm;
-                const prevBpm = history.length > 1 ? history[history.length - 2].bpm : lastBpm;
-                const progress = getBpmProgress(exercise);
-
-                return (
-                  <Link key={exercise.id} to={`/practice/${exercise.id}`}>
-                    <div className="group bg-card border border-border rounded-xl p-4 hover:border-primary transition-all duration-200 cursor-pointer hover:shadow-[inset_0_0_0_1000px_rgba(255,255,255,0.05)]">
-                      <div className="flex items-start justify-between mb-3">
-                        <div>
-                          <h3 className="font-semibold text-sm">{exercise.title}</h3>
-                          <div className="flex items-center gap-1 mt-0.5">
-                            <span className="text-xs text-muted-foreground">{exercise.category}</span>
-                            {exercise.is_assigned && (
-                              <>
-                                <span className="text-xs text-muted-foreground"> · </span>
-                                <span className="text-xs font-semibold uppercase tracking-wide text-primary">From Teacher</span>
-                              </>
-                            )}
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-lg font-black text-primary">{lastBpm}</p>
-                          <p className="text-xs text-muted-foreground">BPM</p>
-                        </div>
-                      </div>
-
-                      {/* Progress bar */}
-                      <div className="flex items-center gap-3">
-                        <div className="flex-1 h-1.5 bg-secondary rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-primary rounded-full transition-all duration-500"
-                            style={{ width: `${progress}%` }}
-                          />
-                        </div>
-                        <div className="flex items-center gap-0.5 text-xs">
-                          <span className="text-muted-foreground">{prevBpm} →&nbsp;</span>
-                          <span className="text-foreground font-semibold">{lastBpm}</span>
-                          <span className="text-muted-foreground">&nbsp;BPM</span>
-                        </div>
-                      </div>
-                    </div>
-                  </Link>
-                );
-              })}
+            <div className="space-y-8">
+              {recentExercises.filter(e => e.is_assigned).length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground mb-4">From Your Teacher</p>
+                  <div className="space-y-3">
+                    {recentExercises.filter(e => e.is_assigned).map(renderExerciseCard)}
+                  </div>
+                </div>
+              )}
+              {recentExercises.filter(e => !e.is_assigned).length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground mb-4">Added By You</p>
+                  <div className="space-y-3">
+                    {recentExercises.filter(e => !e.is_assigned).map(renderExerciseCard)}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </section>

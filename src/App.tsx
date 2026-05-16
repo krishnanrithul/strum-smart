@@ -33,7 +33,7 @@ const StudentLayout = () => {
       <div className="pb-[72px]">
         <Outlet />
       </div>
-      <nav className="fixed bottom-0 left-0 right-0 bg-card border-t border-border" style={{ height: "72px" }}>
+      <nav className="fixed bottom-0 left-0 right-0 bg-white dark:bg-card border-t border-zinc-200 dark:border-border" style={{ height: "72px" }}>
         <div className="container mx-auto px-4 h-full">
           <div className="grid grid-cols-3 gap-2 h-full items-center">
             {navItems.map(({ path, icon: Icon, label }) => {

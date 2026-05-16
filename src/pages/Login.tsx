@@ -47,7 +47,6 @@ export default function Login() {
                 if (error) {
                     toast({ title: "Error", description: error.message, variant: "destructive" });
                 } else {
-                    toast({ title: "Welcome back!", description: "Let's get to work." });
                     navigate("/");
                 }
             }

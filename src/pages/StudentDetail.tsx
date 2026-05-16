@@ -346,7 +346,7 @@ const StudentDetail = () => {
         {/* Exercises — Student's Own */}
         {exercises.filter((e) => !e.is_assigned).length > 0 && (
           <section className="space-y-3">
-            <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">Student's Own</p>
+            <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">Added By Student</p>
             <div className="space-y-3">
               {exercises.filter((e) => !e.is_assigned).map(renderExerciseCard)}
             </div>

@@ -40,8 +40,8 @@ export const RoutineCard = ({ routine, onClick }: Props) => {
         <p className="text-sm font-semibold text-foreground">{routine.name}</p>
         <p className="text-xs text-muted-foreground mt-1 leading-snug">{routine.description}</p>
         <p
-          className="text-xs mt-3 transition-colors duration-300"
-          style={{ color: hovered ? "rgba(52, 211, 153, 0.7)" : "rgba(255,255,255,0.2)" }}
+          className="text-xs mt-3 transition-colors duration-300 text-muted-foreground"
+          style={hovered ? { color: "rgba(52, 211, 153, 0.7)" } : undefined}
         >
           {routine.exercises.length} exercises
         </p>
