@@ -5,15 +5,9 @@ export async function redeemInviteCode(code: string, studentId: string): Promise
     .from("invite_codes")
     .select("*")
     .eq("code", code.toUpperCase().trim())
-    .is("used_at", null)
     .single();
 
-  if (findErr || !invite) throw new Error("Invalid or already used code");
-
-  await (supabase as any)
-    .from("invite_codes")
-    .update({ used_at: new Date().toISOString(), used_by: studentId })
-    .eq("id", invite.id);
+  if (findErr || !invite) throw new Error("Invalid code");
 
   const { error: profileErr } = await (supabase as any)
     .from("profiles")
@@ -37,4 +31,14 @@ export async function createInviteCode(teacherId: string): Promise<string> {
     .insert({ code, teacher_id: teacherId });
   if (error) throw error;
   return code;
+}
+
+export async function getExistingInviteCode(teacherId: string): Promise<string | null> {
+  const { data } = await (supabase as any)
+    .from("invite_codes")
+    .select("code")
+    .eq("teacher_id", teacherId)
+    .order("created_at", { ascending: false })
+    .limit(1);
+  return data?.[0]?.code ?? null;
 }

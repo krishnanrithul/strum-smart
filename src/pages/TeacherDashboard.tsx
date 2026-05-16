@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Copy, Check, RefreshCw } from "lucide-react";
+import { Copy, Check, Share2 } from "lucide-react";
 import AppHeader from "@/components/AppHeader";
 import { useNavigate } from "react-router-dom";
 import WaveformLoader from "@/components/WaveformLoader";
-import { createInviteCode } from "@/hooks/useInviteCode";
+import { createInviteCode, getExistingInviteCode } from "@/hooks/useInviteCode";
 
 type Student = {
   id: string;
@@ -42,11 +42,32 @@ const TeacherDashboard = () => {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const handleShare = async () => {
+    if (!inviteCode) return;
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: "Join my FretGym class",
+          text: `Use code ${inviteCode} to join my class on FretGym.`,
+        });
+      } catch {
+        // user cancelled — do nothing
+      }
+    } else {
+      await navigator.clipboard.writeText(inviteCode);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
   const HOVER_COLOR = "rgba(52, 211, 153, 0.18)";
 
   useEffect(() => {
     const fetchStudents = async () => {
       if (!session) return;
+
+      const existing = await getExistingInviteCode(session.user.id);
+      if (existing) setInviteCode(existing);
 
       const { data: profiles } = await (supabase as any)
         .from("profiles")
@@ -130,31 +151,40 @@ const TeacherDashboard = () => {
             Student Invite Code
           </p>
           {inviteCode ? (
-            <div className="flex items-center gap-3">
-              <div
-                className="flex-1 flex items-center justify-center rounded-xl py-4"
-                style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}
+            <div className="space-y-2">
+              <div className="flex items-center gap-3">
+                <div
+                  className="flex-1 flex items-center justify-center rounded-xl py-4"
+                  style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}
+                >
+                  <span className="text-2xl font-mono font-semibold tracking-[0.3em] text-foreground">
+                    {inviteCode}
+                  </span>
+                </div>
+                <div className="flex flex-col gap-2">
+                  <button
+                    onClick={handleCopy}
+                    className="p-3 rounded-xl text-muted-foreground hover:text-foreground transition-colors"
+                    style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}
+                  >
+                    {copied ? <Check size={16} className="text-primary" /> : <Copy size={16} />}
+                  </button>
+                  <button
+                    onClick={handleShare}
+                    className="p-3 rounded-xl text-muted-foreground hover:text-foreground transition-colors"
+                    style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}
+                  >
+                    <Share2 size={16} />
+                  </button>
+                </div>
+              </div>
+              <button
+                onClick={handleGenerateCode}
+                disabled={codeLoading}
+                className="text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40"
               >
-                <span className="text-2xl font-mono font-semibold tracking-[0.3em] text-foreground">
-                  {inviteCode}
-                </span>
-              </div>
-              <div className="flex flex-col gap-2">
-                <button
-                  onClick={handleCopy}
-                  className="p-3 rounded-xl text-muted-foreground hover:text-foreground transition-colors"
-                  style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}
-                >
-                  {copied ? <Check size={16} className="text-primary" /> : <Copy size={16} />}
-                </button>
-                <button
-                  onClick={handleGenerateCode}
-                  className="p-3 rounded-xl text-muted-foreground hover:text-foreground transition-colors"
-                  style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}
-                >
-                  <RefreshCw size={16} />
-                </button>
-              </div>
+                {codeLoading ? "Generating…" : "Regenerate"}
+              </button>
             </div>
           ) : (
             <button
@@ -166,7 +196,7 @@ const TeacherDashboard = () => {
             </button>
           )}
           <p className="text-xs text-muted-foreground">
-            Single use — share with your student during their setup.
+            Share this code with your students to link them to your account.
           </p>
         </div>
 

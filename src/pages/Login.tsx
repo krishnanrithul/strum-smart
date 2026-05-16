@@ -8,7 +8,38 @@ import { useNavigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
+const FretGymLogo = () => (
+    <div className="flex items-center justify-center gap-2">
+        <svg width="36" height="44" viewBox="0 0 210 290" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="0" y="0" width="210" height="18" rx="5" fill="#22c55e"/>
+            <line x1="21" y1="18" x2="21" y2="290" stroke="#ffffff" strokeWidth="3" strokeOpacity="0.25"/>
+            <line x1="63" y1="18" x2="63" y2="290" stroke="#ffffff" strokeWidth="3" strokeOpacity="0.25"/>
+            <line x1="105" y1="18" x2="105" y2="290" stroke="#ffffff" strokeWidth="3" strokeOpacity="0.25"/>
+            <line x1="147" y1="18" x2="147" y2="290" stroke="#ffffff" strokeWidth="3" strokeOpacity="0.25"/>
+            <line x1="189" y1="18" x2="189" y2="290" stroke="#ffffff" strokeWidth="3" strokeOpacity="0.25"/>
+            <line x1="0" y1="88" x2="210" y2="88" stroke="#ffffff" strokeWidth="1.5" strokeOpacity="0.15"/>
+            <line x1="0" y1="158" x2="210" y2="158" stroke="#ffffff" strokeWidth="1.5" strokeOpacity="0.15"/>
+            <line x1="0" y1="228" x2="210" y2="228" stroke="#ffffff" strokeWidth="1.5" strokeOpacity="0.15"/>
+            <rect x="1" y="20" width="208" height="50" rx="25" fill="#22c55e"/>
+            <circle cx="63" cy="123" r="28" fill="#22c55e"/>
+            <text x="63" y="132" textAnchor="middle" fontFamily="sans-serif" fontSize="28" fontWeight="700" fill="#0a0a0a">F</text>
+            <circle cx="147" cy="193" r="28" fill="#22c55e"/>
+            <text x="147" y="202" textAnchor="middle" fontFamily="sans-serif" fontSize="28" fontWeight="700" fill="#0a0a0a">G</text>
+            <circle cx="189" cy="123" r="22" fill="#22c55e" opacity="0.5"/>
+            <circle cx="189" cy="193" r="22" fill="#22c55e" opacity="0.5"/>
+        </svg>
+        <h1 className="text-3xl font-bold tracking-tighter">
+            Fret<span className="text-primary">Gym</span>
+        </h1>
+    </div>
+);
+
+type View = "role-select" | "form";
+type Role = "student" | "teacher";
+
 export default function Login() {
+    const [view, setView] = useState<View>("role-select");
+    const [selectedRole, setSelectedRole] = useState<Role | null>(null);
     const [name, setName] = useState("");
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
@@ -18,11 +49,21 @@ export default function Login() {
     const navigate = useNavigate();
     const { toast } = useToast();
 
-    // Redirect if already logged in
     if (session) {
         navigate("/");
         return null;
     }
+
+    const handleRoleSelect = (role: Role) => {
+        setSelectedRole(role);
+        setIsSignUp(true);
+        setView("form");
+    };
+
+    const handleLoginLink = () => {
+        setIsSignUp(false);
+        setView("form");
+    };
 
     const handleAuth = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -34,13 +75,20 @@ export default function Login() {
                 if (error) {
                     toast({ title: "Error", description: error.message, variant: "destructive" });
                 } else {
-                    if (data?.user && name.trim()) {
+                    if (data?.user) {
                         await (supabase as any)
                             .from("profiles")
-                            .upsert({ id: data.user.id, full_name: name.trim() }, { onConflict: "id" });
+                            .upsert(
+                                { id: data.user.id, full_name: name.trim() || undefined, role: selectedRole },
+                                { onConflict: "id" }
+                            );
                     }
                     toast({ title: "Account created!", description: "You can now start your practice journey." });
-                    navigate("/");
+                    if (selectedRole === "teacher") {
+                        navigate("/teacher/dashboard");
+                    } else {
+                        navigate("/onboarding");
+                    }
                 }
             } else {
                 const { error } = await signIn(email, password);
@@ -61,35 +109,54 @@ export default function Login() {
         }
     };
 
+    if (view === "role-select") {
+        return (
+            <div className="min-h-screen flex flex-col items-center justify-center bg-background p-6">
+                <div className="w-full max-w-sm space-y-8">
+                    <div className="text-center space-y-3">
+                        <FretGymLogo />
+                        <p className="text-muted-foreground text-sm">Your teacher, in your pocket.</p>
+                    </div>
+                    <div className="space-y-3">
+                        <button
+                            onClick={() => handleRoleSelect("student")}
+                            className="w-full py-4 rounded-xl bg-primary text-primary-foreground font-semibold text-base hover:opacity-90 transition-opacity"
+                        >
+                            I'm a Student
+                        </button>
+                        <button
+                            onClick={() => handleRoleSelect("teacher")}
+                            className="w-full py-4 rounded-xl bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-100 font-semibold text-base transition-colors"
+                        >
+                            I'm a Teacher
+                        </button>
+                    </div>
+                    <div className="text-center">
+                        <button
+                            type="button"
+                            onClick={handleLoginLink}
+                            className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                            Already have an account?{" "}
+                            <span className="text-primary">Log in</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="min-h-screen flex items-center justify-center bg-background p-4">
             <Card className="w-full max-w-md p-8 space-y-6 border-border bg-card">
                 <div className="text-center space-y-2">
-                    <div className="flex items-center justify-center gap-2 mb-2">
-                        <svg width="36" height="44" viewBox="0 0 210 290" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <rect x="0" y="0" width="210" height="18" rx="5" fill="#22c55e"/>
-                            <line x1="21" y1="18" x2="21" y2="290" stroke="#ffffff" strokeWidth="3" strokeOpacity="0.25"/>
-                            <line x1="63" y1="18" x2="63" y2="290" stroke="#ffffff" strokeWidth="3" strokeOpacity="0.25"/>
-                            <line x1="105" y1="18" x2="105" y2="290" stroke="#ffffff" strokeWidth="3" strokeOpacity="0.25"/>
-                            <line x1="147" y1="18" x2="147" y2="290" stroke="#ffffff" strokeWidth="3" strokeOpacity="0.25"/>
-                            <line x1="189" y1="18" x2="189" y2="290" stroke="#ffffff" strokeWidth="3" strokeOpacity="0.25"/>
-                            <line x1="0" y1="88" x2="210" y2="88" stroke="#ffffff" strokeWidth="1.5" strokeOpacity="0.15"/>
-                            <line x1="0" y1="158" x2="210" y2="158" stroke="#ffffff" strokeWidth="1.5" strokeOpacity="0.15"/>
-                            <line x1="0" y1="228" x2="210" y2="228" stroke="#ffffff" strokeWidth="1.5" strokeOpacity="0.15"/>
-                            <rect x="1" y="20" width="208" height="50" rx="25" fill="#22c55e"/>
-                            <circle cx="63" cy="123" r="28" fill="#22c55e"/>
-                            <text x="63" y="132" textAnchor="middle" fontFamily="sans-serif" fontSize="28" fontWeight="700" fill="#0a0a0a">F</text>
-                            <circle cx="147" cy="193" r="28" fill="#22c55e"/>
-                            <text x="147" y="202" textAnchor="middle" fontFamily="sans-serif" fontSize="28" fontWeight="700" fill="#0a0a0a">G</text>
-                            <circle cx="189" cy="123" r="22" fill="#22c55e" opacity="0.5"/>
-                            <circle cx="189" cy="193" r="22" fill="#22c55e" opacity="0.5"/>
-                        </svg>
-                        <h1 className="text-3xl font-bold tracking-tighter">
-                            Fret<span className="text-primary">Gym</span>
-                        </h1>
-                    </div>
+                    <FretGymLogo />
                     <p className="text-muted-foreground">
-                        {isSignUp ? "Create an account" : "Welcome back"}
+                        {isSignUp
+                            ? selectedRole === "teacher"
+                                ? "Create a teacher account"
+                                : "Create a student account"
+                            : "Welcome back"}
                     </p>
                 </div>
 
@@ -145,7 +212,13 @@ export default function Login() {
                 <div className="text-center text-sm">
                     <button
                         type="button"
-                        onClick={() => setIsSignUp(!isSignUp)}
+                        onClick={() => {
+                            if (isSignUp) {
+                                setIsSignUp(false);
+                            } else {
+                                setView("role-select");
+                            }
+                        }}
                         className="text-primary hover:underline"
                     >
                         {isSignUp
