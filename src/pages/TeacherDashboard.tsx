@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Copy, Check, Share2 } from "lucide-react";
+import { Copy, Check, Share2, Plus, Loader2 } from "lucide-react";
 import AppHeader from "@/components/AppHeader";
 import { useNavigate } from "react-router-dom";
 import WaveformLoader from "@/components/WaveformLoader";
@@ -23,6 +23,11 @@ const TeacherDashboard = () => {
   const [inviteCode, setInviteCode] = useState<string | null>(null);
   const [codeLoading, setCodeLoading] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [addStudentOpen, setAddStudentOpen] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteLoading, setInviteLoading] = useState(false);
+  const [inviteError, setInviteError] = useState("");
+  const [inviteSuccess, setInviteSuccess] = useState(false);
 
   const handleGenerateCode = async () => {
     if (!session) return;
@@ -40,6 +45,31 @@ const TeacherDashboard = () => {
     await navigator.clipboard.writeText(inviteCode);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const closeAddStudentModal = () => {
+    setAddStudentOpen(false);
+    setInviteEmail("");
+    setInviteError("");
+    setInviteSuccess(false);
+  };
+
+  const handleInviteStudent = async () => {
+    if (!session || !inviteEmail.trim()) return;
+    setInviteLoading(true);
+    setInviteError("");
+    try {
+      const { error } = await (supabase as any)
+        .from("student_invites")
+        .insert({ teacher_id: session.user.id, email: inviteEmail.trim(), status: "pending" });
+      if (error) throw error;
+      setInviteSuccess(true);
+      setTimeout(() => closeAddStudentModal(), 2000);
+    } catch (err: any) {
+      setInviteError(err.message || "Something went wrong. Please try again.");
+    } finally {
+      setInviteLoading(false);
+    }
   };
 
   const handleShare = async () => {
@@ -137,6 +167,12 @@ const TeacherDashboard = () => {
               {students.length} {students.length === 1 ? "student" : "students"}
             </p>
           </div>
+          <button
+            onClick={() => setAddStudentOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:opacity-90 transition-opacity"
+          >
+            <Plus size={12} /> Add Student
+          </button>
         </div>
 
         {/* Invite code card */}
@@ -242,6 +278,56 @@ const TeacherDashboard = () => {
         )}
 
       </main>
+
+      {/* Add Student modal */}
+      {addStudentOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+          onClick={closeAddStudentModal}
+        >
+          <div
+            className="w-full max-w-sm mx-4 rounded-2xl p-6 space-y-4"
+            style={{ background: "hsl(var(--card))", border: "1px solid rgba(255,255,255,0.08)" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <p className="text-base font-semibold text-foreground">Add Student</p>
+
+            {inviteSuccess ? (
+              <p className="text-sm text-primary py-4 text-center">
+                Invite saved — ask them to sign up and enter your teacher code to connect.
+              </p>
+            ) : (
+              <>
+                <input
+                  type="email"
+                  placeholder="student@email.com"
+                  value={inviteEmail}
+                  onChange={(e) => { setInviteEmail(e.target.value); setInviteError(""); }}
+                  className="w-full rounded-xl px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground bg-transparent focus:outline-none"
+                  style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)" }}
+                  autoFocus
+                />
+                {inviteError && (
+                  <p className="text-xs text-destructive">{inviteError}</p>
+                )}
+                <button
+                  onClick={handleInviteStudent}
+                  disabled={inviteLoading || !inviteEmail.trim()}
+                  className="w-full py-3 rounded-xl bg-primary text-primary-foreground text-sm font-semibold transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {inviteLoading ? <Loader2 size={16} className="animate-spin" /> : "Send Invite"}
+                </button>
+                <button
+                  onClick={closeAddStudentModal}
+                  className="w-full text-sm text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Cancel
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -82,6 +82,34 @@ export default function Login() {
                                 { id: data.user.id, full_name: name.trim() || undefined, role: selectedRole },
                                 { onConflict: "id" }
                             );
+
+                        const { data: invites } = await (supabase as any)
+                            .from("student_invites")
+                            .select("id, teacher_id")
+                            .eq("email", email.trim())
+                            .eq("status", "pending")
+                            .limit(1);
+
+                        const invite = invites?.[0];
+                        if (invite) {
+                            const { data: profile } = await (supabase as any)
+                                .from("profiles")
+                                .select("teacher_id")
+                                .eq("id", data.user.id)
+                                .single();
+
+                            if (!profile?.teacher_id) {
+                                await (supabase as any)
+                                    .from("profiles")
+                                    .update({ teacher_id: invite.teacher_id })
+                                    .eq("id", data.user.id);
+
+                                await (supabase as any)
+                                    .from("student_invites")
+                                    .update({ status: "accepted" })
+                                    .eq("id", invite.id);
+                            }
+                        }
                     }
                     toast({ title: "Account created!", description: "You can now start your practice journey." });
                     if (selectedRole === "teacher") {
