@@ -13,9 +13,9 @@ const Index = () => {
   const { session } = useAuth();
   const navigate = useNavigate();
   const [statsLoading, setStatsLoading] = useState(true);
-  const [todayPeakBpm, setTodayPeakBpm] = useState(0);
-  const [totalMinutes, setTotalMinutes] = useState(0);
-  const [totalSessions, setTotalSessions] = useState(0);
+  const [personalBestBpm, setPersonalBestBpm] = useState(0);
+  const [todayMinutes, setTodayMinutes] = useState(0);
+  const [currentStreak, setCurrentStreak] = useState(0);
   const [recentExercises, setRecentExercises] = useState<Exercise[]>([]);
   const [clearConfirm, setClearConfirm] = useState(false);
   const [teacherId, setTeacherId] = useState<string | null | undefined>(undefined);
@@ -37,7 +37,7 @@ const Index = () => {
         const [{ data: sessionRows }, exercises, { data: profile }] = await Promise.all([
           supabase
             .from("sessions")
-            .select("duration, date")
+            .select("bpm_reached, duration, created_at")
             .eq("user_id", session.user.id),
           StorageService.getExercises(),
           (supabase as any)
@@ -49,20 +49,38 @@ const Index = () => {
         setTeacherId(profile?.teacher_id ?? null);
 
         const rows = sessionRows || [];
-        const today = new Date().toISOString().split("T")[0];
 
-        const peakToday = exercises.reduce((max, e) => {
-          const todayBpms = e.history
-            .filter((h) => h.date.startsWith(today))
-            .map((h) => h.bpm);
-          return todayBpms.length ? Math.max(max, ...todayBpms) : max;
-        }, 0);
+        // Personal Best BPM
+        const bestBpm = rows.reduce((max, r) => Math.max(max, r.bpm_reached || 0), 0);
 
-        const totalSecs = rows.reduce((acc, r) => acc + (r.duration || 0), 0);
+        // Today's practice time (local timezone)
+        const todayStr = new Date().toLocaleDateString("en-CA");
+        const todaySecs = rows
+          .filter((r) => new Date(r.created_at).toLocaleDateString("en-CA") === todayStr)
+          .reduce((acc, r) => acc + (r.duration || 0), 0);
 
-        setTodayPeakBpm(peakToday);
-        setTotalMinutes(Math.floor(totalSecs / 60));
-        setTotalSessions(rows.length);
+        // Current streak
+        const uniqueDays = [...new Set(
+          rows.map((r) => new Date(r.created_at).toLocaleDateString("en-CA"))
+        )].sort().reverse();
+        const now = new Date();
+        const yesterdayStr = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1)
+          .toLocaleDateString("en-CA");
+        let streak = 0;
+        if (uniqueDays.includes(todayStr) || uniqueDays.includes(yesterdayStr)) {
+          const startDate = new Date(
+            uniqueDays.includes(todayStr) ? todayStr : yesterdayStr
+          );
+          let check = new Date(startDate);
+          while (uniqueDays.includes(check.toLocaleDateString("en-CA"))) {
+            streak++;
+            check.setDate(check.getDate() - 1);
+          }
+        }
+
+        setPersonalBestBpm(bestBpm);
+        setTodayMinutes(Math.floor(todaySecs / 60));
+        setCurrentStreak(streak);
 
         const inProgress = exercises
           .filter((e) => e.status === "In Progress" || e.status === "New")
@@ -183,13 +201,13 @@ const Index = () => {
     <div className="min-h-screen bg-background">
       <AppHeader />
 
-      <main className="container mx-auto px-4 py-6 space-y-6">
+      <main className="container mx-auto px-4 py-6 space-y-10">
 
         {/* Hero stat — Today's Max BPM */}
-        <section className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-white to-green-50 dark:from-zinc-900 dark:to-green-950 border border-border p-6">
+        <section className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-white to-green-50 dark:from-zinc-900 dark:to-green-950 border border-border p-6 sm:p-8">
           <div className="absolute -top-10 -right-10 w-48 h-48 rounded-full bg-primary/10 blur-3xl pointer-events-none" />
           <div className="relative">
-            <p className="text-sm font-medium text-muted-foreground uppercase tracking-widest mb-1">Today's Peak</p>
+            <p className="text-sm font-medium text-muted-foreground uppercase tracking-widest mb-3">Personal Best</p>
             {statsLoading ? (
               <div className="flex items-center py-4">
                 <WaveformLoader />
@@ -201,21 +219,23 @@ const Index = () => {
                     className="text-8xl font-black text-primary leading-none"
                     style={{ textShadow: "0 0 40px hsl(var(--primary) / 0.4)" }}
                   >
-                    {todayPeakBpm > 0 ? todayPeakBpm : "—"}
+                    {personalBestBpm > 0 ? personalBestBpm : "—"}
                   </span>
-                  {todayPeakBpm > 0 && (
+                  {personalBestBpm > 0 && (
                     <span className="text-2xl font-semibold text-muted-foreground mb-3">BPM</span>
                   )}
                 </div>
-                <div className="flex items-center gap-6 mt-4 pt-4 border-t border-border">
+                <div className="flex items-center gap-6 mt-8 pt-6 border-t border-border">
                   <div>
-                    <p className="text-xs text-muted-foreground uppercase tracking-wider">Practice Time</p>
-                    <p className="text-xl font-bold mt-0.5">{totalMinutes}m</p>
+                    <p className="text-xs text-muted-foreground uppercase tracking-wider">Today</p>
+                    <p className="text-xl font-bold mt-1">
+                      {todayMinutes < 60 ? `${todayMinutes}m` : `${Math.floor(todayMinutes / 60)}h ${todayMinutes % 60}m`}
+                    </p>
                   </div>
                   <div className="w-px h-8 bg-border" />
                   <div>
-                    <p className="text-xs text-muted-foreground uppercase tracking-wider">Total Sessions</p>
-                    <p className="text-xl font-bold mt-0.5">{totalSessions}</p>
+                    <p className="text-xs text-muted-foreground uppercase tracking-wider">Streak</p>
+                    <p className="text-xl font-bold mt-1">{currentStreak} days</p>
                   </div>
                 </div>
               </>
