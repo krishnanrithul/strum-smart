@@ -129,7 +129,7 @@ const Index = () => {
     const prevBpm = history.length > 1 ? history[history.length - 2].bpm : lastBpm;
     const progress = getBpmProgress(exercise);
     return (
-      <Link key={exercise.id} to={`/practice/${exercise.id}`}>
+      <Link key={exercise.id} to={`/practice/${exercise.id}`} className="block">
         <div
           className="rounded-xl p-4 cursor-pointer relative overflow-hidden transition-all duration-300"
           onMouseEnter={() => setHoveredExerciseId(exercise.id)}

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { TrendingUp, Calendar } from "lucide-react";
+import { TrendingUp, Calendar, Sparkles, RefreshCw } from "lucide-react";
 import AppHeader from "@/components/AppHeader";
 import MiniLogo from "@/components/MiniLogo";
 import WaveformLoader from "@/components/WaveformLoader";
@@ -7,6 +7,8 @@ import { Link } from "react-router-dom";
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip } from "recharts";
 import { StorageService, Exercise, Session } from "@/lib/storage";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 
 const glassCard = {
   border: "1px solid rgba(255,255,255,0.05)",
@@ -17,11 +19,17 @@ const glassCardWithGlow = {
   background: "radial-gradient(circle at top right, rgba(34,197,94,0.12) 0%, transparent 60%), hsl(var(--card))",
 };
 
+const INSIGHT_CACHE_KEY = "fretgym_ai_insights";
+
 const Progress = () => {
+  const { session } = useAuth();
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [selectedExerciseId, setSelectedExerciseId] = useState<string>("");
   const [loading, setLoading] = useState(true);
+  const [insightText, setInsightText] = useState<string | null>(null);
+  const [insightLoading, setInsightLoading] = useState(false);
+  const [insightError, setInsightError] = useState(false);
 
   useEffect(() => {
     const loadData = async () => {
@@ -44,6 +52,100 @@ const Progress = () => {
     };
     loadData();
   }, []);
+
+  const loadInsights = async (forceRefresh = false) => {
+    if (!session) return;
+    const todayStr = new Date().toLocaleDateString("en-CA");
+
+    if (!forceRefresh) {
+      try {
+        const cached = localStorage.getItem(INSIGHT_CACHE_KEY);
+        if (cached) {
+          const { text, generated_at } = JSON.parse(cached);
+          if (generated_at === todayStr) { setInsightText(text); return; }
+        }
+      } catch {}
+    }
+
+    setInsightLoading(true);
+    setInsightError(false);
+    setInsightText(null);
+
+    try {
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+      const { data: recentSessions } = await (supabase as any)
+        .from("sessions")
+        .select("exercise_id, bpm_reached, duration, created_at")
+        .eq("user_id", session.user.id)
+        .gte("created_at", thirtyDaysAgo.toISOString());
+
+      const rows = recentSessions || [];
+
+      const exerciseSummary = exercises
+        .map(e => `${e.title} (current: ${e.currentBpm} BPM, target: ${e.targetBpm} BPM)`)
+        .join("; ");
+
+      const oneWeekAgo = new Date();
+      oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+      const weekMins = Math.floor(
+        sessions
+          .filter(s => new Date(s.date) >= oneWeekAgo)
+          .reduce((acc, s) => acc + s.duration, 0) / 60
+      );
+
+      const uniqueDays = [...new Set(sessions.map(s => s.date.split("T")[0]))].sort().reverse();
+      const todayISO = new Date().toISOString().split("T")[0];
+      let streakDays = 0;
+      let cur = todayISO;
+      for (const day of uniqueDays) {
+        if (day === cur) {
+          streakDays++;
+          const d = new Date(cur); d.setDate(d.getDate() - 1);
+          cur = d.toISOString().split("T")[0];
+        } else break;
+      }
+
+      const maxBpmReached = rows.length
+        ? Math.max(...rows.map((r: any) => r.bpm_reached || 0))
+        : 0;
+
+      const prompt = `You are a guitar practice coach. Write a 3-4 sentence personalised practice report for a student. Be specific — mention actual exercise names and BPM numbers from the data below. Respond in plain sentences only, no bullet points, no markdown, no headers.
+
+Exercises: ${exerciseSummary || "none added yet"}
+Sessions in last 30 days: ${rows.length} (peak BPM reached: ${maxBpmReached})
+Practice time this week: ${weekMins} minutes
+Current streak: ${streakDays} days`;
+
+      // ---- SWAP POINT: replace Ollama with Anthropic API in production ----
+      const res = await fetch("http://localhost:11434/api/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ model: "llama3", prompt, stream: false }),
+      });
+      if (!res.ok) throw new Error("api_error");
+      const json = await res.json();
+      const text = (json.response || "").trim();
+      if (!text) throw new Error("empty_response");
+
+      localStorage.setItem(INSIGHT_CACHE_KEY, JSON.stringify({ text, generated_at: todayStr }));
+      setInsightText(text);
+    } catch {
+      setInsightError(true);
+    } finally {
+      setInsightLoading(false);
+    }
+  };
+
+  const handleRegenerate = () => {
+    localStorage.removeItem(INSIGHT_CACHE_KEY);
+    loadInsights(true);
+  };
+
+  useEffect(() => {
+    if (!loading) loadInsights();
+  }, [loading]);
 
   const selectedExercise = exercises.find(e => e.id === selectedExerciseId);
 
@@ -191,6 +293,29 @@ const Progress = () => {
           </div>
         </section>
 
+        {/* AI Insights */}
+        <section className="space-y-4">
+          <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground flex items-center gap-1.5">
+            <Sparkles className="h-3 w-3" /> AI Insights
+          </p>
+          <div className="rounded-2xl bg-card p-6" style={glassCard}>
+            {insightLoading ? (
+              <p className="text-sm text-muted-foreground">Generating your report…</p>
+            ) : insightError ? (
+              <p className="text-sm text-muted-foreground">Couldn't generate insights right now. Try again later.</p>
+            ) : insightText ? (
+              <>
+                <p className="text-sm text-foreground leading-relaxed">{insightText}</p>
+                <button
+                  onClick={handleRegenerate}
+                  className="mt-4 flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <RefreshCw className="h-3 w-3" /> Regenerate
+                </button>
+              </>
+            ) : null}
+          </div>
+        </section>
 
       </main>
     </div>
