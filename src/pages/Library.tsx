@@ -1,10 +1,8 @@
 import { useState, useEffect } from "react";
 import { Plus, ChevronRight, Pencil, Trash2 } from "lucide-react";
 import AppHeader from "@/components/AppHeader";
-import MiniLogo from "@/components/MiniLogo";
 import WaveformLoader from "@/components/WaveformLoader";
 import { useNavigate } from "react-router-dom";
-import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { StorageService, Exercise, Project } from "@/lib/storage";
 import { AddExerciseDialog } from "@/components/AddExerciseDialog";
@@ -14,7 +12,6 @@ import { RoutineCard } from "@/components/RoutineCard";
 import { RoutineModal } from "@/components/RoutineModal";
 import { BuildYourOwnModal } from "@/components/BuildYourOwnModal";
 import { ROUTINES } from "@/data/routines";
-import { getStatusColor } from "@/lib/badges";
 import { useToast } from "@/hooks/use-toast";
 
 const Library = () => {
@@ -168,62 +165,55 @@ const Library = () => {
   const routinesAdded = ROUTINES.filter(r => isRoutineAdded(r)).length;
 
   if (loading) return (
-    <div className="min-h-screen bg-background flex items-center justify-center">
+    <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
       <WaveformLoader />
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-background pb-24">
+    <div className="min-h-screen bg-zinc-950 pb-24">
 
       <AppHeader />
 
-      <main className="container mx-auto px-4 py-6 space-y-10">
-      
-      {/* Stats card */}
-        <div className="rounded-2xl p-5 space-y-4" style={{ border: "1px solid rgba(255,255,255,0.05)", background: "radial-gradient(circle at top right, rgba(34,197,94,0.12) 0%, transparent 60%), hsl(var(--card))" }}>
-          <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">My Library</p>
+      <main className="container mx-auto px-4 pt-8 pb-6 space-y-10">
+
+        {/* Stats — bleeds into page */}
+        <div className="pb-4">
+          <p className="text-[10px] tracking-[0.4em] text-zinc-400 uppercase mb-3">My Library</p>
           <div className="flex items-end gap-2">
-            <span className="text-4xl font-bold text-foreground leading-none">{myExercises.length}</span>
-            <span className="text-sm text-muted-foreground mb-1">exercise{myExercises.length !== 1 ? "s" : ""}</span>
+            <span className="text-6xl font-mono font-bold text-zinc-100 leading-none">{myExercises.length}</span>
+            <span className="text-sm text-zinc-400 mb-1">exercise{myExercises.length !== 1 ? "s" : ""}</span>
           </div>
-          <div className="border-t border-white/5 pt-4 grid grid-cols-3 gap-4">
+          <div className="border-t border-zinc-800 mt-6 pt-6 grid grid-cols-3 gap-4">
             <div>
-              <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">Routines Added</p>
-              <p className="text-xl font-bold text-foreground mt-1">{routinesAdded}</p>
+              <p className="text-[10px] tracking-[0.4em] text-zinc-400 uppercase">Routines Added</p>
+              <p className="text-2xl font-mono text-zinc-100 mt-1">{routinesAdded}</p>
             </div>
             <div>
-              <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">Song Projects</p>
-              <p className="text-xl font-bold text-foreground mt-1">{projects.length}</p>
+              <p className="text-[10px] tracking-[0.4em] text-zinc-400 uppercase">Song Projects</p>
+              <p className="text-2xl font-mono text-zinc-100 mt-1">{projects.length}</p>
             </div>
             <div>
-              <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">Total Available Routines</p>
-              <p className="text-xl font-bold text-foreground mt-1">{ROUTINES.length}</p>
+              <p className="text-[10px] tracking-[0.4em] text-zinc-400 uppercase">Total Routines</p>
+              <p className="text-2xl font-mono text-zinc-100 mt-1">{ROUTINES.length}</p>
             </div>
           </div>
         </div>
 
         {/* Routines */}
-        <section className="space-y-4"></section>
-
-        {/* Routines */}
         <section className="space-y-4">
-          <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">Routines</p>
+          <p className="text-xs font-semibold tracking-widest text-zinc-400 uppercase">Routines</p>
           <div className="grid grid-cols-4 gap-3">
             {ROUTINES.map(routine => (
               <RoutineCard key={routine.id} routine={routine} onClick={() => setSelectedRoutine(routine)} />
             ))}
           </div>
 
-          {/* Build your own CTA — matches "Start Practice" style */}
           <button
             onClick={() => setBuildModalOpen(true)}
-            className="w-full flex items-center justify-between px-5 py-4 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+            className="w-full flex items-center justify-between px-5 py-4 rounded-sm bg-green-700 text-white hover:bg-green-600 transition-colors"
           >
-            <div className="flex items-center gap-3">
-              <MiniLogo color="#0a0a0a" />
-              <span className="text-base font-medium">Build your own</span>
-            </div>
+            <span className="text-base font-medium">Build your own</span>
             <ChevronRight className="h-4 w-4 opacity-70" />
           </button>
         </section>
@@ -231,41 +221,40 @@ const Library = () => {
         {/* Song Projects */}
         <section className="space-y-4">
           <div className="flex items-center justify-between">
-            <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">Song Projects</p>
+            <p className="text-xs font-semibold tracking-widest text-zinc-400 uppercase">Song Projects</p>
             <AddProjectDialog onProjectAdded={loadData} />
           </div>
           {projects.length === 0 ? (
-            <div className="text-center py-10 border border-dashed border-border rounded-xl text-sm text-muted-foreground">
+            <div className="text-center py-10 border border-dashed border-zinc-900 text-sm text-zinc-600">
               No song projects yet. Start one!
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-2">
               {projects.map(project => (
                 <div
                   key={project.id}
-                  className="rounded-2xl bg-card p-4 flex items-center justify-between cursor-pointer hover:bg-card/80 transition-colors"
-                  style={{ border: "1px solid rgba(255,255,255,0.05)" }}
+                  className="bg-zinc-900 border border-zinc-800 rounded-sm p-4 flex items-center justify-between cursor-pointer hover:bg-zinc-800 transition-colors"
                   onClick={() => navigate(`/song/${project.id}`)}
                 >
                   <div className="min-w-0 flex-1">
-                    <h3 className="text-sm font-semibold text-foreground truncate">{project.title}</h3>
-                    {project.artist && <p className="text-xs text-muted-foreground mt-0.5">{project.artist}</p>}
+                    <h3 className="text-base font-medium text-zinc-100 truncate">{project.title}</h3>
+                    {project.artist && <p className="text-xs text-zinc-500 mt-0.5">{project.artist}</p>}
                   </div>
                   <div className="flex items-center gap-2 ml-3 shrink-0">
-                    <Badge variant="outline" className={getStatusColor(project.status)}>{project.status}</Badge>
+                    <span className="text-[10px] tracking-widest text-green-700 uppercase">{project.status}</span>
                     <button
                       onClick={(e) => handleEditProjectClick(project, e)}
-                      className="text-muted-foreground hover:text-foreground transition-colors p-1"
+                      className="text-zinc-600 hover:text-zinc-300 transition-colors p-1"
                     >
                       <Pencil className="h-4 w-4" />
                     </button>
                     <button
                       onClick={(e) => handleDeleteProjectClick(project, e)}
-                      className="text-muted-foreground hover:text-destructive transition-colors p-1"
+                      className="text-zinc-600 hover:text-red-500 transition-colors p-1"
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>
-                    <ChevronRight className="h-4 w-4 text-muted-foreground/40" />
+                    <ChevronRight className="h-4 w-4 text-zinc-700" />
                   </div>
                 </div>
               ))}
@@ -276,13 +265,13 @@ const Library = () => {
         {/* My Exercises */}
         <section className="space-y-4">
           <div className="flex items-center justify-between">
-            <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">My Exercises</p>
+            <p className="text-xs font-semibold tracking-widest text-zinc-400 uppercase">My Exercises</p>
             <div className="flex items-center gap-2">
               {myExercises.length > 0 && (
                 <button
                   onClick={() => setDeleteAllDialogOpen(true)}
-                  className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-destructive hover:bg-destructive/25 transition-colors"
-                  style={{ background: "rgba(239,68,68,0.15)", border: "1px solid rgba(239,68,68,0.3)" }}
+                  className="flex items-center gap-1.5 rounded-sm px-3 py-1.5 text-xs font-semibold text-red-500 hover:text-red-400 transition-colors"
+                  style={{ border: "1px solid rgba(239,68,68,0.3)" }}
                 >
                   Delete all
                 </button>
@@ -290,16 +279,16 @@ const Library = () => {
               <AddExerciseDialog
                 onExerciseAdded={loadData}
                 trigger={
-                  <button className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold bg-primary text-primary-foreground hover:opacity-90 transition-opacity">
+                  <button className="flex items-center gap-1.5 rounded-sm px-3 py-1.5 text-xs font-semibold bg-zinc-800 text-zinc-100 hover:bg-zinc-700 border border-zinc-700 transition-colors">
                     <Plus className="h-3 w-3" /> Add
                   </button>
                 }
               />
             </div>
           </div>
-          <div className="space-y-3">
+          <div>
             {myExercises.length === 0 ? (
-              <div className="text-center py-10 border border-dashed border-border rounded-xl text-sm text-muted-foreground">
+              <div className="text-center py-10 border border-dashed border-zinc-900 text-sm text-zinc-600">
                 No exercises yet. Add a routine or build your own above.
               </div>
             ) : (

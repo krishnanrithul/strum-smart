@@ -58,9 +58,9 @@ export function AddProjectDialog({ onProjectAdded, projectToEdit, open: controll
     };
 
     const trigger = !isControlled ? (
-        <Button className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground">
-            <Plus className="h-4 w-4" /> New Song
-        </Button>
+        <button className="flex items-center gap-1.5 rounded-sm px-3 py-1.5 text-xs font-semibold bg-zinc-800 text-zinc-100 hover:bg-zinc-700 border border-zinc-700 transition-colors">
+            <Plus className="h-3 w-3" /> New Song
+        </button>
     ) : null;
 
     return (

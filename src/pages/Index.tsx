@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { ChevronRight } from "lucide-react";
 import AppHeader from "@/components/AppHeader";
-import MiniLogo from "@/components/MiniLogo";
 import WaveformLoader from "@/components/WaveformLoader";
 import { Link, useNavigate } from "react-router-dom";
 import { StorageService, Exercise } from "@/lib/storage";
@@ -23,7 +22,6 @@ const Index = () => {
   const [inviteInput, setInviteInput] = useState("");
   const [codeError, setCodeError] = useState("");
   const [codeSubmitting, setCodeSubmitting] = useState(false);
-  const [hoveredExerciseId, setHoveredExerciseId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!session) {
@@ -130,59 +128,30 @@ const Index = () => {
     const progress = getBpmProgress(exercise);
     return (
       <Link key={exercise.id} to={`/practice/${exercise.id}`} className="block">
-        <div
-          className="rounded-xl p-4 cursor-pointer relative overflow-hidden transition-all duration-300"
-          onMouseEnter={() => setHoveredExerciseId(exercise.id)}
-          onMouseLeave={() => setHoveredExerciseId(null)}
-          style={{
-            background: hoveredExerciseId === exercise.id
-              ? "linear-gradient(135deg, rgba(52,211,153,0.18) 0%, rgba(255,255,255,0.03) 100%)"
-              : "rgba(255,255,255,0.03)",
-            border: `1px solid ${hoveredExerciseId === exercise.id ? "rgba(52,211,153,0.4)" : "rgba(255,255,255,0.06)"}`,
-            transform: hoveredExerciseId === exercise.id ? "translateY(-2px)" : "translateY(0)",
-            boxShadow: hoveredExerciseId === exercise.id ? "0 8px 24px rgba(52,211,153,0.18)" : "none",
-            backdropFilter: "blur(12px)",
-          }}
-        >
-          <div
-            className="absolute top-0 left-0 right-0 h-px transition-opacity duration-300"
-            style={{
-              background: "linear-gradient(90deg, transparent, rgba(52,211,153,0.6), transparent)",
-              opacity: hoveredExerciseId === exercise.id ? 1 : 0,
-            }}
-          />
-          <div className="relative z-10">
-            <div className="flex items-start justify-between mb-3">
-              <div>
-                <h3 className="font-semibold text-sm">{exercise.title}</h3>
-                <div className="flex items-center gap-1 mt-0.5">
-                  <span className="text-xs text-muted-foreground">{exercise.category}</span>
-                  {exercise.is_assigned && (
-                    <>
-                      <span className="text-xs text-muted-foreground"> · </span>
-                      <span className="text-xs font-semibold uppercase tracking-wide text-primary">From Teacher</span>
-                    </>
-                  )}
-                </div>
-              </div>
-              <div className="text-right">
-                <p className="text-lg font-black text-primary">{lastBpm}</p>
-                <p className="text-xs text-muted-foreground">BPM</p>
+        <div className="border-b border-zinc-900 py-5 px-1 cursor-pointer">
+          <div className="flex items-start justify-between mb-3">
+            <div>
+              <h3 className="text-base font-medium text-zinc-100">{exercise.title}</h3>
+              <div className="flex items-center gap-2 mt-0.5">
+                <span className="text-[10px] tracking-widest text-zinc-600 uppercase">{exercise.category}</span>
+                {exercise.is_assigned && (
+                  <span className="text-[10px] tracking-widest text-green-700 uppercase">From Teacher</span>
+                )}
               </div>
             </div>
-            <div className="flex items-center gap-3">
-              <div className="flex-1 h-1.5 bg-secondary rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-primary rounded-full transition-all duration-500"
-                  style={{ width: `${progress}%` }}
-                />
-              </div>
-              <div className="flex items-center gap-0.5 text-xs">
-                <span className="text-muted-foreground">{prevBpm} →&nbsp;</span>
-                <span className="text-foreground font-semibold">{lastBpm}</span>
-                <span className="text-muted-foreground">&nbsp;BPM</span>
-              </div>
+            <div className="text-right">
+              <span className="text-xl font-mono text-green-400">{lastBpm}</span>
+              <span className="text-xs text-zinc-600 ml-1">BPM</span>
             </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="flex-1 h-px bg-zinc-900 overflow-hidden">
+              <div
+                className="h-full bg-green-800 transition-all duration-500"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+            <span className="text-xs font-mono text-zinc-600">{prevBpm} → {lastBpm} BPM</span>
           </div>
         </div>
       </Link>
@@ -198,58 +167,49 @@ const Index = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-zinc-950">
       <AppHeader />
 
-      <main className="container mx-auto px-4 py-6 space-y-10">
+      <main className="container mx-auto px-4 pt-8 pb-6">
 
-        {/* Hero stat — Today's Max BPM */}
-        <section className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-white to-green-50 dark:from-zinc-900 dark:to-green-950 border border-border p-6 sm:p-8">
-          <div className="absolute -top-10 -right-10 w-48 h-48 rounded-full bg-primary/10 blur-3xl pointer-events-none" />
-          <div className="relative">
-            <p className="text-sm font-medium text-muted-foreground uppercase tracking-widest mb-3">Personal Best</p>
-            {statsLoading ? (
-              <div className="flex items-center py-4">
-                <WaveformLoader />
+        {/* Hero stat — Personal Best BPM */}
+        <section className="pb-4">
+          <p className="text-[10px] tracking-[0.4em] text-zinc-600 uppercase mb-3">Personal Best</p>
+          {statsLoading ? (
+            <div className="flex items-center py-4">
+              <WaveformLoader />
+            </div>
+          ) : (
+            <>
+              <div className="flex items-end gap-3">
+                <span className="text-8xl font-mono font-bold text-green-400 leading-none">
+                  {personalBestBpm > 0 ? personalBestBpm : "—"}
+                </span>
+                {personalBestBpm > 0 && (
+                  <span className="text-sm font-mono text-zinc-600 mb-3">BPM</span>
+                )}
               </div>
-            ) : (
-              <>
-                <div className="flex items-end gap-3">
-                  <span
-                    className="text-8xl font-black text-primary leading-none"
-                    style={{ textShadow: "0 0 40px hsl(var(--primary) / 0.4)" }}
-                  >
-                    {personalBestBpm > 0 ? personalBestBpm : "—"}
-                  </span>
-                  {personalBestBpm > 0 && (
-                    <span className="text-2xl font-semibold text-muted-foreground mb-3">BPM</span>
-                  )}
+              <div className="flex items-center gap-6 mt-8 pt-6 border-t border-zinc-800">
+                <div>
+                  <p className="text-[10px] tracking-[0.4em] text-zinc-600 uppercase">Today</p>
+                  <p className="text-2xl font-mono mt-1 text-zinc-100">
+                    {todayMinutes < 60 ? `${todayMinutes}m` : `${Math.floor(todayMinutes / 60)}h ${todayMinutes % 60}m`}
+                  </p>
                 </div>
-                <div className="flex items-center gap-6 mt-8 pt-6 border-t border-border">
-                  <div>
-                    <p className="text-xs text-muted-foreground uppercase tracking-wider">Today</p>
-                    <p className="text-xl font-bold mt-1">
-                      {todayMinutes < 60 ? `${todayMinutes}m` : `${Math.floor(todayMinutes / 60)}h ${todayMinutes % 60}m`}
-                    </p>
-                  </div>
-                  <div className="w-px h-8 bg-border" />
-                  <div>
-                    <p className="text-xs text-muted-foreground uppercase tracking-wider">Streak</p>
-                    <p className="text-xl font-bold mt-1">{currentStreak} days</p>
-                  </div>
+                <div className="w-px h-8 bg-zinc-800" />
+                <div>
+                  <p className="text-[10px] tracking-[0.4em] text-zinc-600 uppercase">Streak</p>
+                  <p className="text-2xl font-mono mt-1 text-zinc-100">{currentStreak} days</p>
                 </div>
-              </>
-            )}
-          </div>
+              </div>
+            </>
+          )}
         </section>
 
         {/* CTA */}
-        <Link to="/practice/free">
-          <button className="w-full flex items-center justify-between px-5 py-4 rounded-xl bg-primary text-primary-foreground font-semibold text-base hover:opacity-90 transition-opacity">
-            <div className="flex items-center gap-2">
-              <MiniLogo color="#0a0a0a" />
-              Start Practice
-            </div>
+        <Link to="/practice/free" className="block">
+          <button className="w-full flex items-center justify-between px-5 py-4 rounded-sm bg-green-700 text-white font-semibold text-base hover:bg-green-600 transition-colors">
+            Start Practice
             <ChevronRight className="h-5 w-5 opacity-70" />
           </button>
         </Link>
@@ -257,15 +217,15 @@ const Index = () => {
         {/* Teacher link banner */}
         {teacherId === null && (
           <div
-            className="rounded-2xl p-4"
+            className="mt-8 p-4"
             style={{ border: "1px solid rgba(255,255,255,0.06)", background: "rgba(255,255,255,0.03)" }}
           >
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-muted-foreground">Have a teacher?</span>
+              <span className="text-sm font-medium text-zinc-500">Have a teacher?</span>
               {!bannerExpanded && (
                 <button
                   onClick={() => setBannerExpanded(true)}
-                  className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:opacity-90 transition-opacity"
+                  className="px-3 py-1.5 rounded-sm bg-zinc-800 text-zinc-100 text-xs font-semibold hover:bg-zinc-700 transition-colors"
                 >
                   Enter Code
                 </button>
@@ -279,16 +239,16 @@ const Index = () => {
                   onChange={(e) => setInviteInput(e.target.value.toUpperCase().slice(0, 6))}
                   placeholder="XXXXXX"
                   maxLength={6}
-                  className="w-full text-center text-2xl font-mono font-semibold tracking-[0.3em] rounded-xl py-3 bg-transparent outline-none focus:ring-1 focus:ring-primary transition-colors text-foreground"
+                  className="w-full text-center text-2xl font-mono font-semibold tracking-[0.3em] rounded-sm py-3 bg-transparent outline-none focus:ring-1 focus:ring-green-700 transition-colors text-zinc-100"
                   style={{ border: "1px solid rgba(255,255,255,0.1)" }}
                 />
                 {codeError && (
-                  <p className="text-xs text-destructive">{codeError}</p>
+                  <p className="text-xs text-red-500">{codeError}</p>
                 )}
                 <button
                   onClick={handleLinkToTeacher}
                   disabled={codeSubmitting || inviteInput.length !== 6}
-                  className="w-full py-3 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
+                  className="w-full py-3 rounded-sm bg-green-700 text-white text-sm font-semibold hover:bg-green-600 transition-colors disabled:opacity-50"
                 >
                   {codeSubmitting ? "Linking…" : "Link to Teacher"}
                 </button>
@@ -297,51 +257,27 @@ const Index = () => {
           </div>
         )}
 
-        {/* My Exercises */}
-        <section>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-base font-semibold text-muted-foreground uppercase tracking-wider">My Exercises</h2>
-            <div className="flex items-center gap-2">
-              {recentExercises.length > 0 && (
-                <button
-                  onClick={handleClearAll}
-                  onBlur={() => setClearConfirm(false)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors"
-                  style={clearConfirm
-                    ? { background: "rgba(239,68,68,0.15)", border: "1px solid rgba(239,68,68,0.3)", color: "rgb(239,68,68)" }
-                    : { background: "transparent", border: "1px solid rgba(239,68,68,0.3)", color: "rgb(239,68,68)" }}
-                >
-                  {clearConfirm ? "Confirm?" : "Clear All"}
-                </button>
-              )}
-              <button
-                onClick={() => navigate("/library")}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:opacity-90 transition-opacity"
-              >
-                See All
-              </button>
-            </div>
-          </div>
-
+        {/* Exercises */}
+        <section className="mt-8">
           {recentExercises.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-border p-8 text-center text-muted-foreground">
-              <p className="text-sm">No exercises yet.</p>
-              <p className="text-xs mt-1">Head to Library to get started.</p>
+            <div className="border border-dashed border-zinc-900 py-8 text-center">
+              <p className="text-sm text-zinc-600">No exercises yet.</p>
+              <p className="text-xs mt-1 text-zinc-700">Head to Library to get started.</p>
             </div>
           ) : (
             <div className="space-y-8">
               {recentExercises.filter(e => e.is_assigned).length > 0 && (
                 <div>
-                  <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground mb-4">From Your Teacher</p>
-                  <div className="space-y-3">
+                  <p className="text-[10px] tracking-[0.5em] text-zinc-700 uppercase mb-4">From Your Teacher</p>
+                  <div>
                     {recentExercises.filter(e => e.is_assigned).map(renderExerciseCard)}
                   </div>
                 </div>
               )}
               {recentExercises.filter(e => !e.is_assigned).length > 0 && (
                 <div>
-                  <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground mb-4">Added By You</p>
-                  <div className="space-y-3">
+                  <p className="text-[10px] tracking-[0.5em] text-zinc-700 uppercase mb-4">Added By You</p>
+                  <div>
                     {recentExercises.filter(e => !e.is_assigned).map(renderExerciseCard)}
                   </div>
                 </div>
