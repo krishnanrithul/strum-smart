@@ -39,12 +39,15 @@ const StudentDetail = () => {
   const [recentSessions, setRecentSessions] = useState<any[]>([]);
   const [editingTargetId, setEditingTargetId] = useState<string | null>(null);
   const [editingTargetValue, setEditingTargetValue] = useState("");
+  const [confirmRemoveId, setConfirmRemoveId] = useState<string | null>(null);
+  const [editingNotesId, setEditingNotesId] = useState<string | null>(null);
+  const [editingNotesValue, setEditingNotesValue] = useState("");
 
   const loadExercises = async () => {
     if (!id) return;
     const { data } = await supabase
       .from("exercises")
-      .select("id, title, category, current_bpm, target_bpm, history, is_assigned")
+      .select("id, title, category, current_bpm, target_bpm, history, is_assigned, teacher_notes")
       .eq("user_id", id);
     const exs = data || [];
     setExercises(exs);
@@ -53,6 +56,25 @@ const StudentDetail = () => {
       return bpms.length ? Math.max(max, ...bpms) : max;
     }, 0);
     setPeakBpm(peak);
+  };
+
+  const handleRemove = async (exerciseId: string) => {
+    await (supabase as any)
+      .from("assigned_exercises")
+      .delete()
+      .eq("exercise_id", exerciseId)
+      .eq("student_id", id);
+    setExercises((prev) => prev.filter((e: any) => e.id !== exerciseId));
+    setConfirmRemoveId(null);
+  };
+
+  const handleUpdateNotes = async (exerciseId: string) => {
+    await supabase
+      .from("exercises")
+      .update({ teacher_notes: editingNotesValue.trim() || null })
+      .eq("id", exerciseId);
+    setEditingNotesId(null);
+    loadExercises();
   };
 
   const handleUpdateTarget = async (exerciseId: string) => {
@@ -139,6 +161,7 @@ const StudentDetail = () => {
                   ? Math.min(100, Math.round(((ex.current_bpm - startBpm) / (ex.target_bpm - startBpm)) * 100))
                   : 0;
                 const isEditing = editingTargetId === ex.id;
+                const isEditingNotes = editingNotesId === ex.id;
 
                 return (
                   <div key={ex.id} className="rounded-2xl bg-card p-5 space-y-3" style={glassCard}>
@@ -146,7 +169,12 @@ const StudentDetail = () => {
                     <div className="flex items-start justify-between">
                       <div>
                         <p className="text-base font-semibold text-foreground">{ex.title}</p>
-                        <p className="text-xs uppercase text-muted-foreground mt-0.5">{ex.category}</p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <p className="text-xs uppercase text-muted-foreground">{ex.category}</p>
+                          {ex.is_assigned && (
+                            <span className="text-xs font-semibold uppercase tracking-wide text-primary">From Teacher</span>
+                          )}
+                        </div>
                       </div>
                       <div className="text-right flex-shrink-0">
                         <p className="text-2xl font-mono font-bold text-foreground tabular-nums leading-none">{ex.current_bpm}</p>
@@ -168,9 +196,6 @@ const StudentDetail = () => {
                         </div>
                         <div className="flex items-center justify-between">
                           <span className="text-xs text-muted-foreground">START: {startBpm} BPM</span>
-                          {ex.is_assigned && (
-                            <span className="text-xs text-primary">From Teacher</span>
-                          )}
                           {isEditing ? (
                             <span className="flex items-center gap-1">
                               <input
@@ -200,15 +225,86 @@ const StudentDetail = () => {
                       </div>
                     )}
 
-                    {/* Update target button */}
-                    {!isEditing && (
-                      <div className="flex justify-end">
-                        <button
-                          onClick={() => { setEditingTargetId(ex.id); setEditingTargetValue(String(ex.target_bpm)); }}
-                          className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
-                        >
-                          Update Target
-                        </button>
+                    {/* Inline notes editor */}
+                    {isEditingNotes && (
+                      <div className="space-y-2 pt-1">
+                        <textarea
+                          value={editingNotesValue}
+                          onChange={(e) => setEditingNotesValue(e.target.value)}
+                          placeholder="Add a note for this student…"
+                          rows={3}
+                          autoFocus
+                          className="w-full text-sm bg-transparent rounded-lg p-2 outline-none focus:border-primary text-foreground resize-none"
+                          style={{ border: "1px solid rgba(255,255,255,0.15)" }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Escape") setEditingNotesId(null);
+                          }}
+                        />
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => setEditingNotesId(null)}
+                            className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            onClick={() => handleUpdateNotes(ex.id)}
+                            className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
+                          >
+                            Save Note ✓
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Action buttons */}
+                    {!isEditing && !isEditingNotes && (
+                      <div className="flex items-center justify-end gap-2">
+                        {ex.is_assigned && confirmRemoveId === ex.id ? (
+                          <>
+                            <button
+                              onClick={() => setConfirmRemoveId(null)}
+                              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-opacity hover:opacity-90"
+                              style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", color: "hsl(var(--muted-foreground))" }}
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              onClick={() => handleRemove(ex.id)}
+                              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-opacity hover:opacity-90"
+                              style={{ background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.4)", color: "rgb(239,68,68)" }}
+                            >
+                              Confirm Remove?
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            {ex.is_assigned && (
+                              <button
+                                onClick={() => setConfirmRemoveId(ex.id)}
+                                className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-opacity hover:opacity-90"
+                                style={{ background: "transparent", border: "1px solid rgba(239,68,68,0.4)", color: "rgb(239,68,68)" }}
+                              >
+                                Remove
+                              </button>
+                            )}
+                            {ex.is_assigned && (
+                              <button
+                                onClick={() => { setEditingNotesId(ex.id); setEditingNotesValue(ex.teacher_notes ?? ""); }}
+                                className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-opacity hover:opacity-90"
+                                style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", color: "hsl(var(--muted-foreground))" }}
+                              >
+                                Edit Notes
+                              </button>
+                            )}
+                            <button
+                              onClick={() => { setEditingTargetId(ex.id); setEditingTargetValue(String(ex.target_bpm)); }}
+                              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
+                            >
+                              Update Target
+                            </button>
+                          </>
+                        )}
                       </div>
                     )}
                   </div>

@@ -1,18 +1,15 @@
 import { useState, useEffect } from "react";
-import { Library, TrendingUp, ChevronRight, Home } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import AppHeader from "@/components/AppHeader";
 import MiniLogo from "@/components/MiniLogo";
 import WaveformLoader from "@/components/WaveformLoader";
-import { Link, useLocation, useNavigate } from "react-router-dom";
-import { cn } from "@/lib/utils";
+import { Link, useNavigate } from "react-router-dom";
 import { StorageService, Exercise } from "@/lib/storage";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { redeemInviteCode } from "@/hooks/useInviteCode";
 
 const Index = () => {
-  const location = useLocation();
-  const currentPath = location.pathname;
   const { session } = useAuth();
   const navigate = useNavigate();
   const [statsLoading, setStatsLoading] = useState(true);
@@ -107,12 +104,6 @@ const Index = () => {
     setClearConfirm(false);
   };
 
-  const navItems = [
-    { path: "/", icon: Home, label: "Home" },
-    { path: "/library", icon: Library, label: "Library" },
-    { path: "/progress", icon: TrendingUp, label: "Progress" },
-  ];
-
   const getBpmProgress = (exercise: Exercise) => {
     const current = exercise.currentBpm;
     const target = exercise.targetBpm;
@@ -122,7 +113,7 @@ const Index = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background pb-24">
+    <div className="min-h-screen bg-background">
       <AppHeader />
 
       <main className="container mx-auto px-4 py-6 space-y-6">
@@ -302,33 +293,6 @@ const Index = () => {
           )}
         </section>
       </main>
-
-      {/* Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-card border-t border-border">
-        <div className="container mx-auto px-4">
-          <div className="grid grid-cols-3 gap-2 py-2">
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = currentPath === item.path;
-              return (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  className={cn(
-                    "flex flex-col items-center justify-center py-3 rounded-lg transition-all",
-                    isActive
-                      ? "text-primary bg-primary/10"
-                      : "text-muted-foreground hover:text-foreground hover:bg-secondary"
-                  )}
-                >
-                  <Icon className="h-6 w-6 mb-1" />
-                  <span className="text-xs font-medium">{item.label}</span>
-                </Link>
-              );
-            })}
-          </div>
-        </div>
-      </nav>
     </div>
   );
 };

@@ -176,7 +176,7 @@ const Library = () => {
   return (
     <div className="min-h-screen bg-background pb-24">
 
-      <AppHeader title="LIBRARY" showBack />
+      <AppHeader />
 
       <main className="container mx-auto px-4 py-6 space-y-10">
       

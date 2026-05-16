@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
-import { ArrowLeft, TrendingUp, Calendar } from "lucide-react";
+import { TrendingUp, Calendar } from "lucide-react";
+import AppHeader from "@/components/AppHeader";
 import MiniLogo from "@/components/MiniLogo";
 import WaveformLoader from "@/components/WaveformLoader";
 import { Link } from "react-router-dom";
-import { Button } from "@/components/ui/button";
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip } from "recharts";
 import { StorageService, Exercise, Session } from "@/lib/storage";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -98,20 +98,7 @@ const Progress = () => {
   return (
     <div className="min-h-screen bg-background pb-24">
 
-      {/* Header */}
-      <header className="sticky top-0 z-10 border-b border-border bg-background/80 backdrop-blur-sm">
-        <div className="container mx-auto px-4 py-4 flex items-center gap-3">
-          <Link to="/">
-            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-          </Link>
-          <div className="flex items-center gap-2">
-            <MiniLogo />
-            <h1 className="text-xs font-semibold tracking-widest uppercase text-foreground">Progress</h1>
-          </div>
-        </div>
-      </header>
+      <AppHeader />
 
       <main className="container mx-auto px-4 py-6 space-y-8">
 
