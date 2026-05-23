@@ -8,20 +8,20 @@ Mark each as ✅ Pass / ❌ Fail / ⚠️ Partial.
 ## 1. Onboarding
 
 ### Teacher Signup
-- [ ] Go to signup, select "Teacher" role
-- [ ] Fill in name and email, submit
-- [ ] **Expected:** Lands on Teacher Dashboard, invite code is visible in the panel
+- [Pass] Go to signup, select "Teacher" role
+- [Pass] Fill in name and email, submit
+- [Pass] **Expected:** Lands on Teacher Dashboard, invite code is visible in the panel
 
 ### Student Signup (new user)
-- [ ] Go to signup, select "Student" role
-- [ ] Fill in full name and email, submit
-- [ ] **Expected:** Lands on onboarding screen, full name is displayed correctly (not null)
-- [ ] Enter the teacher's invite code during onboarding
-- [ ] **Expected:** Code accepted, student is linked to teacher, proceeds to home
+- [Pass] Go to signup, select "Student" role
+- [Pass] Fill in full name and email, submit
+- [Pass] **Expected:** Lands on onboarding screen, full name is displayed correctly (not null)
+- [Pass] Enter the teacher's invite code during onboarding
+- [Pass] **Expected:** Code accepted, student is linked to teacher, proceeds to home
 
 ### Student Signup — bad invite code
-- [ ] During onboarding, enter a random invalid code
-- [ ] **Expected:** Inline error shown, does not proceed or crash
+- [Pass] During onboarding, enter a random invalid code
+- [Pass] **Expected:** Inline error shown, does not proceed or crash
 
 ### Student Signup — skip invite code
 - [ ] During onboarding, skip the invite code step
@@ -31,12 +31,12 @@ Mark each as ✅ Pass / ❌ Fail / ⚠️ Partial.
 
 ## 2. Existing Student — Teacher Code Banner
 
-- [ ] Log in as a student with no teacher linked
-- [ ] **Expected:** Banner visible on Home page prompting to enter invite code
-- [ ] Enter a valid teacher invite code in the banner
-- [ ] **Expected:** Student is linked to teacher, banner disappears, no page reload required
-- [ ] Enter an invalid code in the banner
-- [ ] **Expected:** Inline error on the banner, banner stays visible
+- [Pass] Log in as a student with no teacher linked
+- [Pass] **Expected:** Banner visible on Home page prompting to enter invite code
+- [Pass] Enter a valid teacher invite code in the banner
+- [Pass] **Expected:** Student is linked to teacher, banner disappears, no page reload required
+- [Pass] Enter an invalid code in the banner
+- [Pass] **Expected:** Inline error on the banner, banner stays visible
 
 ---
 

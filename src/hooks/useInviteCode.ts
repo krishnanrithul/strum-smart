@@ -1,9 +1,9 @@
 import { supabase } from "@/integrations/supabase/client";
 
-export async function redeemInviteCode(code: string, studentId: string): Promise<void> {
+export async function redeemInviteCode(code: string, studentId: string): Promise<{ teacherName: string | null }> {
   const { data: invite, error: findErr } = await (supabase as any)
     .from("invite_codes")
-    .select("*")
+    .select("teacher_id")
     .eq("code", code.toUpperCase().trim())
     .single();
 
@@ -15,6 +15,14 @@ export async function redeemInviteCode(code: string, studentId: string): Promise
     .eq("id", studentId);
 
   if (profileErr) throw profileErr;
+
+  const { data: teacherProfile } = await (supabase as any)
+    .from("profiles")
+    .select("full_name")
+    .eq("id", invite.teacher_id)
+    .single();
+
+  return { teacherName: teacherProfile?.full_name ?? null };
 }
 
 function generateCode(): string {

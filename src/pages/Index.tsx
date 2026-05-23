@@ -23,6 +23,7 @@ const Index = () => {
   const [inviteInput, setInviteInput] = useState("");
   const [codeError, setCodeError] = useState("");
   const [codeSubmitting, setCodeSubmitting] = useState(false);
+  const [connectedTeacherName, setConnectedTeacherName] = useState<string | null>(null);
   const [hoveredExerciseId, setHoveredExerciseId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -37,7 +38,7 @@ const Index = () => {
         const [{ data: sessionRows }, exercises, { data: profile }] = await Promise.all([
           supabase
             .from("sessions")
-            .select("bpm_reached, duration, created_at")
+            .select("duration, created_at")
             .eq("user_id", session.user.id),
           StorageService.getExercises(),
           (supabase as any)
@@ -50,8 +51,8 @@ const Index = () => {
 
         const rows = sessionRows || [];
 
-        // Personal Best BPM
-        const bestBpm = rows.reduce((max, r) => Math.max(max, r.bpm_reached || 0), 0);
+        // Personal Best BPM — max currentBpm across all exercises
+        const bestBpm = exercises.reduce((max, e) => Math.max(max, e.currentBpm), 0);
 
         // Today's practice time (local timezone)
         const todayStr = new Date().toLocaleDateString("en-CA");
@@ -106,8 +107,9 @@ const Index = () => {
     setCodeSubmitting(true);
     setCodeError("");
     try {
-      await redeemInviteCode(inviteInput.trim(), session.user.id);
-      setTeacherId("linked");
+      const { teacherName } = await redeemInviteCode(inviteInput.trim(), session.user.id);
+      setConnectedTeacherName(teacherName ?? "");
+      setTimeout(() => setTeacherId("linked"), 2000);
     } catch {
       setCodeError("That code didn't work — check with your teacher.");
     } finally {
@@ -116,7 +118,6 @@ const Index = () => {
   };
 
   const handleClearAll = async () => {
-    if (!clearConfirm) { setClearConfirm(true); return; }
     const all = await StorageService.getExercises();
     await Promise.all(all.map((e) => StorageService.deleteExercise(e.id)));
     setRecentExercises([]);
@@ -167,7 +168,6 @@ const Index = () => {
               </div>
               <div className="text-right">
                 <p className="text-lg font-black text-primary">{lastBpm}</p>
-                <p className="text-xs text-muted-foreground">BPM</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
@@ -235,7 +235,7 @@ const Index = () => {
                   <div className="w-px h-8 bg-border" />
                   <div>
                     <p className="text-xs text-muted-foreground uppercase tracking-wider">Streak</p>
-                    <p className="text-xl font-bold mt-1">{currentStreak} days</p>
+                    <p className="text-xl font-bold mt-1">{currentStreak} {currentStreak === 1 ? "day" : "days"}</p>
                   </div>
                 </div>
               </>
@@ -271,7 +271,14 @@ const Index = () => {
                 </button>
               )}
             </div>
-            {bannerExpanded && (
+            {connectedTeacherName !== null && (
+              <p className="text-sm text-primary font-medium mt-3 text-center">
+                {connectedTeacherName
+                  ? `You're connected to ${connectedTeacherName}.`
+                  : "You're connected to your teacher."}
+              </p>
+            )}
+            {bannerExpanded && connectedTeacherName === null && (
               <div className="mt-3 space-y-3">
                 <input
                   type="text"
@@ -300,27 +307,24 @@ const Index = () => {
         {/* My Exercises */}
         <section>
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-base font-semibold text-muted-foreground uppercase tracking-wider">My Exercises</h2>
             <div className="flex items-center gap-2">
+              <h2 className="text-base font-semibold text-muted-foreground uppercase tracking-wider">My Exercises</h2>
               {recentExercises.length > 0 && (
                 <button
-                  onClick={handleClearAll}
-                  onBlur={() => setClearConfirm(false)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors"
-                  style={clearConfirm
-                    ? { background: "rgba(239,68,68,0.15)", border: "1px solid rgba(239,68,68,0.3)", color: "rgb(239,68,68)" }
-                    : { background: "transparent", border: "1px solid rgba(239,68,68,0.3)", color: "rgb(239,68,68)" }}
+                  onClick={() => setClearConfirm(true)}
+                  className="text-muted-foreground hover:text-foreground text-base leading-none transition-colors"
+                  title="Clear all exercises"
                 >
-                  {clearConfirm ? "Confirm?" : "Clear All"}
+                  ···
                 </button>
               )}
-              <button
-                onClick={() => navigate("/library")}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:opacity-90 transition-opacity"
-              >
-                See All
-              </button>
             </div>
+            <button
+              onClick={() => navigate("/library")}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:opacity-90 transition-opacity"
+            >
+              See All
+            </button>
           </div>
 
           {recentExercises.length === 0 ? (
@@ -350,6 +354,35 @@ const Index = () => {
           )}
         </section>
       </main>
+
+      {clearConfirm && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+          onClick={() => setClearConfirm(false)}
+        >
+          <div
+            className="w-full max-w-sm mx-4 rounded-2xl p-6 space-y-4"
+            style={{ background: "hsl(var(--card))", border: "1px solid rgba(255,255,255,0.08)" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <p className="text-base font-semibold text-foreground">Clear all exercises?</p>
+            <p className="text-sm text-muted-foreground">This will remove all your exercises. This can't be undone.</p>
+            <button
+              onClick={handleClearAll}
+              className="w-full py-3 rounded-xl text-sm font-semibold text-white transition-opacity"
+              style={{ background: "rgb(239,68,68)" }}
+            >
+              Remove All
+            </button>
+            <button
+              onClick={() => setClearConfirm(false)}
+              className="w-full text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
