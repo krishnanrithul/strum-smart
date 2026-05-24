@@ -33,7 +33,7 @@ const StudentLayout = () => {
       <div className="pb-[72px]">
         <Outlet />
       </div>
-      <nav className="fixed bottom-0 left-0 right-0 bg-white dark:bg-card border-t border-zinc-200 dark:border-border" style={{ height: "72px" }}>
+      <nav className="fixed bottom-0 left-0 right-0 bg-[#000000] border-t border-[#222222]" style={{ height: "72px" }}>
         <div className="container mx-auto px-4 h-full">
           <div className="grid grid-cols-3 gap-2 h-full items-center">
             {navItems.map(({ path, icon: Icon, label }) => {
@@ -45,8 +45,8 @@ const StudentLayout = () => {
                   className={cn(
                     "flex flex-col items-center justify-center py-3 rounded-lg transition-all",
                     isActive
-                      ? "text-primary bg-primary/10"
-                      : "text-muted-foreground hover:text-foreground hover:bg-secondary"
+                      ? "text-green-500"
+                      : "text-[#666666] hover:bg-secondary hover:text-foreground"
                   )}
                 >
                   <Icon className="h-6 w-6 mb-1" fill={isActive ? "currentColor" : "none"} />
