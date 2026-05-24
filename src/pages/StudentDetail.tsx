@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, ChevronDown, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import AppHeader from "@/components/AppHeader";
 import MiniLogo from "@/components/MiniLogo";
@@ -37,6 +37,38 @@ const formatRelativeTime = (iso: string | null): string => {
   return `Last practiced: ${Math.floor(diffDays / 30)} months ago`;
 };
 
+const AI_TTL = 24 * 60 * 60 * 1000;
+
+const callAI = async (prompt: string): Promise<string> => {
+  if (import.meta.env.DEV) {
+    const res = await fetch("http://localhost:11434/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ model: "llama3.1", messages: [{ role: "user", content: prompt }], stream: false }),
+    });
+    if (!res.ok) throw new Error("api_error");
+    const json = await res.json();
+    return (json.message?.content || "").trim();
+  } else {
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": import.meta.env.VITE_ANTHROPIC_API_KEY,
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-20250514",
+        messages: [{ role: "user", content: prompt }],
+        max_tokens: 300,
+      }),
+    });
+    if (!res.ok) throw new Error("api_error");
+    const json = await res.json();
+    return (json.content?.[0]?.text || "").trim();
+  }
+};
+
 const StudentDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -47,6 +79,7 @@ const StudentDetail = () => {
   const [totalSessions, setTotalSessions] = useState(0);
   const [totalMinutes, setTotalMinutes] = useState(0);
   const [peakBpm, setPeakBpm] = useState(0);
+  const [lastActiveDate, setLastActiveDate] = useState<string | null>(null);
   const [exercises, setExercises] = useState<any[]>([]);
   const [recentSessions, setRecentSessions] = useState<any[]>([]);
   const [editingTargetId, setEditingTargetId] = useState<string | null>(null);
@@ -54,6 +87,12 @@ const StudentDetail = () => {
   const [confirmRemoveId, setConfirmRemoveId] = useState<string | null>(null);
   const [editingNotesId, setEditingNotesId] = useState<string | null>(null);
   const [editingNotesValue, setEditingNotesValue] = useState("");
+  const [aiSummary, setAiSummary] = useState<string | null>(null);
+  const [aiSummaryLoading, setAiSummaryLoading] = useState(false);
+  const [aiSuggestion, setAiSuggestion] = useState<string | null>(null);
+  const [aiSuggestionLoading, setAiSuggestionLoading] = useState(false);
+  const [summaryExpanded, setSummaryExpanded] = useState(false);
+  const [suggestionExpanded, setSuggestionExpanded] = useState(false);
 
   const loadExercises = async () => {
     if (!id) return;
@@ -110,6 +149,56 @@ const StudentDetail = () => {
     loadExercises();
   };
 
+  const loadAiSummary = async () => {
+    if (!id) return;
+    const cacheKey = `fretgym_student_summary_${id}`;
+    const tsKey = `${cacheKey}_ts`;
+    try {
+      const cached = localStorage.getItem(cacheKey);
+      const ts = localStorage.getItem(tsKey);
+      if (cached && ts && Date.now() - Number(ts) < AI_TTL) { setAiSummary(cached); return; }
+    } catch {}
+    setAiSummaryLoading(true);
+    try {
+      const lastActive = formatRelativeTime(lastActiveDate).replace("Last practiced: ", "").replace("Never practiced", "Never");
+      const exerciseList = exercises.map(e => {
+        const startBpm = e.history?.[0]?.bpm ?? e.current_bpm;
+        const hasTarget = e.target_bpm > startBpm;
+        return `${e.title} (${e.category}): ${e.current_bpm} BPM${hasTarget ? `, target ${e.target_bpm} BPM` : ", no target set"}`;
+      }).join("; ");
+      const prompt = `You are a guitar teacher's assistant. Given this student's practice data, give 2-3 specific observations about their progress and one actionable suggestion for the teacher. Do not use markdown bold or asterisks. Format your response exactly like this — no other text:\nInsights:\n- point one\n- point two\nSuggestion:\nOne paragraph here.\n\nStudent: ${studentName}\nSessions: ${totalSessions}\nPractice time: ${formatDuration(totalMinutes)}\nPeak BPM: ${peakBpm > 0 ? peakBpm : "none"}\nLast active: ${lastActive}\nExercises: ${exerciseList || "none yet"}`;
+      const text = await callAI(prompt);
+      if (!text) throw new Error("empty");
+      localStorage.setItem(cacheKey, text);
+      localStorage.setItem(tsKey, String(Date.now()));
+      setAiSummary(text);
+    } catch { /* show nothing */ } finally { setAiSummaryLoading(false); }
+  };
+
+  const loadAiSuggestion = async () => {
+    if (!id) return;
+    const cacheKey = `fretgym_student_suggestion_${id}`;
+    const tsKey = `${cacheKey}_ts`;
+    try {
+      const cached = localStorage.getItem(cacheKey);
+      const ts = localStorage.getItem(tsKey);
+      if (cached && ts && Date.now() - Number(ts) < AI_TTL) { setAiSuggestion(cached); return; }
+    } catch {}
+    setAiSuggestionLoading(true);
+    try {
+      const exerciseList = exercises.map(e => {
+        const sessionCount = (e.history || []).length;
+        return `${e.title} (${e.category}): ${e.current_bpm}/${e.target_bpm} BPM, ${sessionCount} sessions`;
+      }).join("; ");
+      const prompt = `You are a guitar teacher's assistant. Based on this student's current exercises and progress, suggest one specific exercise to assign next. Do not use markdown bold or asterisks. Format your response exactly like this — no other text:\nInsights:\n- exercise name and category\n- suggested starting BPM\nSuggestion:\nOne sentence explaining why this exercise is the right next step.\n\nStudent exercises: ${exerciseList || "none yet"}`;
+      const text = await callAI(prompt);
+      if (!text) throw new Error("empty");
+      localStorage.setItem(cacheKey, text);
+      localStorage.setItem(tsKey, String(Date.now()));
+      setAiSuggestion(text);
+    } catch { /* show nothing */ } finally { setAiSuggestionLoading(false); }
+  };
+
   useEffect(() => {
     if (!id) return;
 
@@ -121,7 +210,7 @@ const StudentDetail = () => {
           { data: sessionRows },
         ] = await Promise.all([
           (supabase as any).from("profiles").select("full_name").eq("id", id).single(),
-          supabase.from("sessions").select("duration, date, created_at").eq("user_id", id).order("created_at", { ascending: false }),
+          supabase.from("sessions").select("id, duration, bpm_reached, created_at, exercises").eq("user_id", id).order("created_at", { ascending: false }),
         ]);
 
         setStudentName(profile?.full_name ?? "Student");
@@ -129,6 +218,7 @@ const StudentDetail = () => {
         const rows = sessionRows || [];
         setTotalSessions(rows.length);
         setTotalMinutes(formatMins(rows.reduce((acc: number, r: any) => acc + (r.duration || 0), 0)));
+        setLastActiveDate(rows[0]?.created_at ?? null);
         setRecentSessions(rows.slice(0, 5));
 
         await loadExercises();
@@ -139,6 +229,12 @@ const StudentDetail = () => {
 
     load();
   }, [id]);
+
+  useEffect(() => {
+    if (loading || !id) return;
+    loadAiSummary();
+    loadAiSuggestion();
+  }, [loading, id]);
 
   const renderExerciseCard = (ex: any) => {
     const startBpm = ex.history?.[0]?.bpm ?? ex.current_bpm;
@@ -195,6 +291,8 @@ const StudentDetail = () => {
                     ✓
                   </button>
                 </span>
+              ) : startBpm === ex.target_bpm ? (
+                <span className="text-xs text-muted-foreground">No target set</span>
               ) : (
                 <span className="text-xs text-muted-foreground">TARGET: {ex.target_bpm} BPM</span>
               )}
@@ -240,6 +338,13 @@ const StudentDetail = () => {
                 Save Note ✓
               </button>
             </div>
+          </div>
+        )}
+
+        {/* Progress bar */}
+        {ex.target_bpm > startBpm && (
+          <div className="h-1.5 w-full bg-secondary rounded-full overflow-hidden">
+            <div className="h-full bg-primary rounded-full transition-all duration-500" style={{ width: `${fillPct}%` }} />
           </div>
         )}
 
@@ -312,8 +417,8 @@ const StudentDetail = () => {
       <main className="container mx-auto px-4 py-6 space-y-6">
 
         {/* Stats Card */}
-        <div className="rounded-2xl p-6" style={glassCardGlow}>
-          <div className="grid grid-cols-3 gap-4 text-center">
+        <div className="rounded-2xl bg-card p-6" style={glassCard}>
+          <div className="grid grid-cols-4 gap-4 text-center">
             <div>
               <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">Sessions</p>
               <p className="text-3xl font-bold text-foreground mt-1">{totalSessions}</p>
@@ -324,10 +429,114 @@ const StudentDetail = () => {
             </div>
             <div>
               <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">Peak BPM</p>
-              <p className="text-3xl font-bold text-primary mt-1">{peakBpm > 0 ? peakBpm : "—"}</p>
+              <p className="text-3xl font-bold text-primary mt-1">{totalSessions > 0 && peakBpm > 0 ? peakBpm : "—"}</p>
+            </div>
+            <div>
+              <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">Last Active</p>
+              <p className="text-xl font-bold text-foreground mt-1">
+                {formatRelativeTime(lastActiveDate).replace("Last practiced: ", "").replace("Never practiced", "Never")}
+              </p>
             </div>
           </div>
         </div>
+
+        {/* AI Summary */}
+        {(aiSummaryLoading || aiSummary) && (
+          <div className="rounded-2xl bg-card" style={glassCard}>
+            <button
+              onClick={() => setSummaryExpanded(!summaryExpanded)}
+              className="w-full flex items-center justify-between px-5 py-4"
+            >
+              <span className="text-xs font-semibold tracking-widest uppercase text-muted-foreground flex items-center gap-1.5">
+                <Sparkles className="h-4 w-4 text-green-500" /> AI Summary
+              </span>
+              <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${summaryExpanded ? "rotate-180" : ""}`} />
+            </button>
+            <div className={`overflow-hidden transition-all duration-200 ${summaryExpanded ? "max-h-[600px]" : "max-h-0"}`}>
+              <div className="px-5 pb-5">
+                {aiSummaryLoading ? (
+                  <p className="text-sm text-muted-foreground">Generating summary…</p>
+                ) : aiSummary ? (() => {
+                  const insightsIdx = aiSummary.indexOf("Insights:");
+                  const clean = insightsIdx > 0 ? aiSummary.slice(insightsIdx) : aiSummary;
+                  const suggestionIdx = clean.indexOf("Suggestion:");
+                  const insightsPart = (suggestionIdx > -1 ? clean.slice(0, suggestionIdx) : clean).replace(/^Insights:\s*/i, "").trim();
+                  const suggestionPart = suggestionIdx > -1 ? clean.slice(suggestionIdx).replace(/^Suggestion:\s*/i, "").trim() : "";
+                  const insightLines = insightsPart.split("\n").map(l => l.replace(/^[-*•\d.)]+\s*/, "").trim()).filter(Boolean);
+                  return (
+                    <div className="space-y-6">
+                      {insightLines.length > 0 && (
+                        <ul className="space-y-3">
+                          {insightLines.map((line, i) => (
+                            <li key={i} className="flex items-start gap-2.5 text-sm text-foreground leading-relaxed">
+                              <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-primary flex-shrink-0" />
+                              {line}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                      {suggestionPart && (
+                        <div className="rounded-xl p-4 bg-primary/5" style={{ border: "1px solid rgba(34,197,94,0.15)" }}>
+                          <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground mb-2">Suggestion</p>
+                          <p className="text-sm text-foreground leading-relaxed">{suggestionPart}</p>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })() : null}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* AI Suggestion */}
+        {(aiSuggestionLoading || aiSuggestion) && (
+          <div className="rounded-2xl bg-card" style={glassCard}>
+            <button
+              onClick={() => setSuggestionExpanded(!suggestionExpanded)}
+              className="w-full flex items-center justify-between px-5 py-4"
+            >
+              <span className="text-xs font-semibold tracking-widest uppercase text-muted-foreground flex items-center gap-1.5">
+                <Sparkles className="h-4 w-4 text-green-500" /> AI Suggestion
+              </span>
+              <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${suggestionExpanded ? "rotate-180" : ""}`} />
+            </button>
+            <div className={`overflow-hidden transition-all duration-200 ${suggestionExpanded ? "max-h-[600px]" : "max-h-0"}`}>
+              <div className="px-5 pb-5">
+                {aiSuggestionLoading ? (
+                  <p className="text-sm text-muted-foreground">Thinking…</p>
+                ) : aiSuggestion ? (() => {
+                  const insightsIdx = aiSuggestion.indexOf("Insights:");
+                  const clean = insightsIdx > 0 ? aiSuggestion.slice(insightsIdx) : aiSuggestion;
+                  const suggestionIdx = clean.indexOf("Suggestion:");
+                  const insightsPart = (suggestionIdx > -1 ? clean.slice(0, suggestionIdx) : clean).replace(/^Insights:\s*/i, "").trim();
+                  const suggestionPart = suggestionIdx > -1 ? clean.slice(suggestionIdx).replace(/^Suggestion:\s*/i, "").trim() : "";
+                  const insightLines = insightsPart.split("\n").map(l => l.replace(/^[-*•\d.)]+\s*/, "").trim()).filter(Boolean);
+                  return (
+                    <div className="space-y-6">
+                      {insightLines.length > 0 && (
+                        <ul className="space-y-3">
+                          {insightLines.map((line, i) => (
+                            <li key={i} className="flex items-start gap-2.5 text-sm text-foreground leading-relaxed">
+                              <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-primary flex-shrink-0" />
+                              {line}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                      {suggestionPart && (
+                        <div className="rounded-xl p-4 bg-primary/5" style={{ border: "1px solid rgba(34,197,94,0.15)" }}>
+                          <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground mb-2">Suggestion</p>
+                          <p className="text-sm text-foreground leading-relaxed">{suggestionPart}</p>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })() : null}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Exercises — Assigned by You */}
         <section className="space-y-3">
@@ -364,7 +573,7 @@ const StudentDetail = () => {
             <div className="rounded-2xl bg-card divide-y divide-white/5" style={glassCard}>
               {recentSessions.map((s, i) => (
                 <div key={i} className="flex items-center justify-between px-5 py-4">
-                  <p className="text-sm text-muted-foreground">{s.date ? formatDate(s.date) : "—"}</p>
+                  <p className="text-sm text-muted-foreground">{s.created_at ? formatDate(s.created_at) : "—"}</p>
                   <p className="text-sm font-semibold text-foreground">{formatDuration(formatMins(s.duration || 0))}</p>
                 </div>
               ))}

@@ -13,7 +13,9 @@ const Index = () => {
   const { session } = useAuth();
   const navigate = useNavigate();
   const [statsLoading, setStatsLoading] = useState(true);
+  const [firstName, setFirstName] = useState<string | null>(null);
   const [personalBestBpm, setPersonalBestBpm] = useState(0);
+  const [personalBestExercise, setPersonalBestExercise] = useState<string | null>(null);
   const [todayMinutes, setTodayMinutes] = useState(0);
   const [currentStreak, setCurrentStreak] = useState(0);
   const [recentExercises, setRecentExercises] = useState<Exercise[]>([]);
@@ -42,16 +44,19 @@ const Index = () => {
           StorageService.getExercises(),
           (supabase as any)
             .from("profiles")
-            .select("teacher_id")
+            .select("teacher_id, full_name")
             .eq("id", session.user.id)
             .single(),
         ]);
         setTeacherId(profile?.teacher_id ?? null);
+        const fullName: string | null = profile?.full_name ?? null;
+        setFirstName(fullName ? fullName.split(" ")[0] : null);
 
         const rows = sessionRows || [];
 
         // Personal Best BPM — max currentBpm across all exercises
         const bestBpm = exercises.reduce((max, e) => Math.max(max, e.currentBpm), 0);
+        const bestExercise = exercises.find(e => e.currentBpm === bestBpm)?.title ?? null;
 
         // Today's practice time (local timezone)
         const todayStr = new Date().toLocaleDateString("en-CA");
@@ -79,6 +84,7 @@ const Index = () => {
         }
 
         setPersonalBestBpm(bestBpm);
+        setPersonalBestExercise(bestExercise);
         setTodayMinutes(Math.floor(todaySecs / 60));
         setCurrentStreak(streak);
 
@@ -195,6 +201,8 @@ const Index = () => {
 
       <main className="container mx-auto px-4 py-6 space-y-10">
 
+        {firstName && <p className="text-2xl font-bold mb-4">Hey, {firstName}.</p>}
+
         {/* Hero stat — Today's Max BPM */}
         <section className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-zinc-900 to-green-950 border border-border p-6 sm:p-8">
           <div className="absolute -top-10 -right-10 w-48 h-48 rounded-full bg-primary/10 blur-3xl pointer-events-none" />
@@ -217,6 +225,9 @@ const Index = () => {
                     <span className="text-2xl font-semibold text-muted-foreground mb-3">BPM</span>
                   )}
                 </div>
+                {personalBestBpm > 0 && personalBestExercise && (
+                  <p className="text-sm text-muted-foreground mt-2">on {personalBestExercise}</p>
+                )}
                 <div className="flex items-center gap-6 mt-8 pt-6 border-t border-border">
                   <div>
                     <p className="text-xs text-muted-foreground uppercase tracking-wider">Today</p>

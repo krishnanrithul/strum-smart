@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
-import { TrendingUp, Calendar, Sparkles, RefreshCw } from "lucide-react";
-import ReactMarkdown from "react-markdown";
+import { TrendingUp, Calendar, Sparkles } from "lucide-react";
 import AppHeader from "@/components/AppHeader";
 import MiniLogo from "@/components/MiniLogo";
 import WaveformLoader from "@/components/WaveformLoader";
@@ -20,7 +19,9 @@ const glassCardWithGlow = {
   background: "radial-gradient(circle at top right, rgba(34,197,94,0.12) 0%, transparent 60%), hsl(var(--card))",
 };
 
-const INSIGHT_CACHE_KEY = "fretgym_ai_insights";
+const INSIGHTS_TEXT_KEY = "fretgym_insights";
+const INSIGHTS_TS_KEY = "fretgym_insights_timestamp";
+const INSIGHTS_TTL = 24 * 60 * 60 * 1000;
 
 const Progress = () => {
   const { session } = useAuth();
@@ -28,7 +29,14 @@ const Progress = () => {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [selectedExerciseId, setSelectedExerciseId] = useState<string>("");
   const [loading, setLoading] = useState(true);
-  const [insightText, setInsightText] = useState<string | null>(null);
+  const [insightText, setInsightText] = useState<string | null>(() => {
+    try {
+      const text = localStorage.getItem(INSIGHTS_TEXT_KEY);
+      const ts = localStorage.getItem(INSIGHTS_TS_KEY);
+      if (text && ts && Date.now() - Number(ts) < INSIGHTS_TTL) return text;
+    } catch {}
+    return null;
+  });
   const [insightLoading, setInsightLoading] = useState(false);
   const [insightError, setInsightError] = useState(false);
 
@@ -54,19 +62,17 @@ const Progress = () => {
     loadData();
   }, []);
 
-  const loadInsights = async (forceRefresh = false) => {
+  const loadInsights = async () => {
     if (!session) return;
-    const todayStr = new Date().toLocaleDateString("en-CA");
 
-    if (!forceRefresh) {
-      try {
-        const cached = localStorage.getItem(INSIGHT_CACHE_KEY);
-        if (cached) {
-          const { text, generated_at } = JSON.parse(cached);
-          if (generated_at === todayStr) { setInsightText(text); return; }
-        }
-      } catch {}
-    }
+    try {
+      const cachedText = localStorage.getItem(INSIGHTS_TEXT_KEY);
+      const cachedTs = localStorage.getItem(INSIGHTS_TS_KEY);
+      if (cachedText && cachedTs && Date.now() - Number(cachedTs) < INSIGHTS_TTL) {
+        setInsightText(cachedText);
+        return;
+      }
+    } catch {}
 
     setInsightLoading(true);
     setInsightError(false);
@@ -99,7 +105,7 @@ const Progress = () => {
         })
         .join("; ");
 
-      const prompt = `You are a guitar practice coach. Here is a student's recent practice data: current streak ${streakDays} days, practice time this week ${weekMins} minutes, exercises: ${exerciseSummary || "none yet"}. Give 2-3 short, specific, encouraging insights about their progress and one concrete suggestion for improvement. Be brief and direct. Do not start with 'Here are' or any introduction. Start directly with the insights.`;
+      const prompt = `You are a guitar practice coach. Here is a student's recent practice data: current streak ${streakDays} days, practice time this week ${weekMins} minutes, exercises: ${exerciseSummary || "none yet"}. Give 2-3 short, specific, encouraging insights and one concrete suggestion. Format your response exactly like this — no other text:\nInsights:\n- point one\n- point two\nSuggestion:\nOne paragraph here.`;
 
       let text: string;
 
@@ -136,18 +142,14 @@ const Progress = () => {
       }
 
       if (!text) throw new Error("empty_response");
-      localStorage.setItem(INSIGHT_CACHE_KEY, JSON.stringify({ text, generated_at: todayStr }));
+      localStorage.setItem(INSIGHTS_TEXT_KEY, text);
+      localStorage.setItem(INSIGHTS_TS_KEY, String(Date.now()));
       setInsightText(text);
     } catch {
       setInsightError(true);
     } finally {
       setInsightLoading(false);
     }
-  };
-
-  const handleRegenerate = () => {
-    localStorage.removeItem(INSIGHT_CACHE_KEY);
-    loadInsights(true);
   };
 
   useEffect(() => {
@@ -303,27 +305,52 @@ const Progress = () => {
           </div>
         </section>
 
-        {/* AI Insights */}
+        {/* Training Notes */}
         <section className="space-y-4">
           <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground flex items-center gap-1.5">
-            <Sparkles className="h-3 w-3" /> AI Insights
+            <Sparkles className="h-4 w-4 text-green-500" /> Training Notes
           </p>
           <div className="rounded-2xl bg-card p-6" style={glassCard}>
             {insightLoading ? (
-              <p className="text-sm text-muted-foreground">Generating your report…</p>
+              <p className="text-sm text-muted-foreground">Generating insights…</p>
             ) : insightError ? (
               <p className="text-sm text-muted-foreground">Couldn't generate insights right now. Try again later.</p>
             ) : insightText ? (
               <>
-                <div className="text-sm text-foreground leading-relaxed prose prose-invert prose-sm max-w-none">
-                  <ReactMarkdown>{insightText}</ReactMarkdown>
-                </div>
-                <button
-                  onClick={handleRegenerate}
-                  className="mt-4 flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  <RefreshCw className="h-3 w-3" /> Regenerate
-                </button>
+                {(() => {
+                  const insightsIdx = insightText.indexOf("Insights:");
+                  const clean = insightsIdx > 0 ? insightText.slice(insightsIdx) : insightText;
+                  const suggestionIdx = clean.indexOf("Suggestion:");
+                  const insightsPart = (suggestionIdx > -1 ? clean.slice(0, suggestionIdx) : clean)
+                    .replace(/^Insights:\s*/i, "").trim();
+                  const suggestionPart = suggestionIdx > -1
+                    ? clean.slice(suggestionIdx).replace(/^Suggestion:\s*/i, "").trim()
+                    : "";
+                  const insightLines = insightsPart
+                    .split("\n")
+                    .map(l => l.replace(/^[-*•\d.)]+\s*/, "").trim())
+                    .filter(Boolean);
+                  return (
+                    <div className="space-y-6">
+                      {insightLines.length > 0 && (
+                        <ul className="space-y-3">
+                          {insightLines.map((line, i) => (
+                            <li key={i} className="flex items-start gap-2.5 text-sm text-foreground leading-relaxed">
+                              <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-primary flex-shrink-0" />
+                              {line}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                      {suggestionPart && (
+                        <div className="rounded-xl p-4 bg-primary/5" style={{ border: "1px solid rgba(34,197,94,0.15)" }}>
+                          <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground mb-2">Suggestion</p>
+                          <p className="text-sm text-foreground leading-relaxed">{suggestionPart}</p>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
               </>
             ) : null}
           </div>

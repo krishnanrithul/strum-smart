@@ -28,6 +28,7 @@ const TeacherDashboard = () => {
   const [inviteLoading, setInviteLoading] = useState(false);
   const [inviteError, setInviteError] = useState("");
   const [inviteSuccess, setInviteSuccess] = useState(false);
+  const [firstName, setFirstName] = useState<string | null>(null);
 
   const handleGenerateCode = async () => {
     if (!session) return;
@@ -99,6 +100,14 @@ const TeacherDashboard = () => {
       const existing = await getExistingInviteCode(session.user.id);
       if (existing) setInviteCode(existing);
 
+      const { data: teacherProfile } = await (supabase as any)
+        .from("profiles")
+        .select("full_name")
+        .eq("id", session.user.id)
+        .single();
+      const fullName: string | null = teacherProfile?.full_name ?? null;
+      setFirstName(fullName ? fullName.split(" ")[0] : null);
+
       const { data: profiles } = await (supabase as any)
         .from("profiles")
         .select("id, full_name")
@@ -158,6 +167,8 @@ const TeacherDashboard = () => {
       <AppHeader />
 
       <main className="container mx-auto px-4 py-6 space-y-6">
+
+        {firstName && <p className="text-2xl font-bold mb-4">Hey, {firstName}.</p>}
 
         {/* Title row */}
         <div className="flex items-center justify-between">
