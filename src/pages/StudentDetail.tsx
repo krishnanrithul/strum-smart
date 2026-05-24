@@ -440,7 +440,7 @@ const StudentDetail = () => {
           </div>
         </div>
 
-        {/* AI Summary */}
+        {/* Student Summary */}
         {(aiSummaryLoading || aiSummary) && (
           <div className="rounded-2xl bg-card" style={glassCard}>
             <button
@@ -448,7 +448,7 @@ const StudentDetail = () => {
               className="w-full flex items-center justify-between px-5 py-4"
             >
               <span className="text-xs font-semibold tracking-widest uppercase text-muted-foreground flex items-center gap-1.5">
-                <Sparkles className="h-4 w-4 text-green-500" /> AI Summary
+                <Sparkles className="h-4 w-4 text-green-500" /> Student Summary
               </span>
               <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${summaryExpanded ? "rotate-180" : ""}`} />
             </button>
@@ -489,7 +489,7 @@ const StudentDetail = () => {
           </div>
         )}
 
-        {/* AI Suggestion */}
+        {/* Exercise Suggestion */}
         {(aiSuggestionLoading || aiSuggestion) && (
           <div className="rounded-2xl bg-card" style={glassCard}>
             <button
@@ -497,7 +497,7 @@ const StudentDetail = () => {
               className="w-full flex items-center justify-between px-5 py-4"
             >
               <span className="text-xs font-semibold tracking-widest uppercase text-muted-foreground flex items-center gap-1.5">
-                <Sparkles className="h-4 w-4 text-green-500" /> AI Suggestion
+                <Sparkles className="h-4 w-4 text-green-500" /> Exercise Suggestion
               </span>
               <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${suggestionExpanded ? "rotate-180" : ""}`} />
             </button>
