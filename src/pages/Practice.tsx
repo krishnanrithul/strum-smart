@@ -323,6 +323,10 @@ const Practice = () => {
         <button
           className="w-full flex items-center justify-between px-5 py-4 rounded-xl bg-primary text-primary-foreground font-semibold text-base hover:opacity-90 transition-opacity"
           onClick={() => {
+            if (isMetronomeActive && metronomeRef.current) {
+              metronomeRef.current.stop();
+              setIsMetronomeActive(false);
+            }
             setIsPlaying(false);
             if (isFree) { navigate("/"); } else { setShowCompleteDialog(true); }
           }}

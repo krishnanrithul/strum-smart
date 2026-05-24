@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { TrendingUp, Calendar, Sparkles, RefreshCw } from "lucide-react";
+import ReactMarkdown from "react-markdown";
 import AppHeader from "@/components/AppHeader";
 import MiniLogo from "@/components/MiniLogo";
 import WaveformLoader from "@/components/WaveformLoader";
@@ -72,27 +73,10 @@ const Progress = () => {
     setInsightText(null);
 
     try {
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-      const { data: recentSessions } = await (supabase as any)
-        .from("sessions")
-        .select("exercise_id, bpm_reached, duration, created_at")
-        .eq("user_id", session.user.id)
-        .gte("created_at", thirtyDaysAgo.toISOString());
-
-      const rows = recentSessions || [];
-
-      const exerciseSummary = exercises
-        .map(e => `${e.title} (current: ${e.currentBpm} BPM, target: ${e.targetBpm} BPM)`)
-        .join("; ");
-
       const oneWeekAgo = new Date();
       oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
       const weekMins = Math.floor(
-        sessions
-          .filter(s => new Date(s.date) >= oneWeekAgo)
-          .reduce((acc, s) => acc + s.duration, 0) / 60
+        sessions.filter(s => new Date(s.date) >= oneWeekAgo).reduce((acc, s) => acc + s.duration, 0) / 60
       );
 
       const uniqueDays = [...new Set(sessions.map(s => s.date.split("T")[0]))].sort().reverse();
@@ -107,28 +91,51 @@ const Progress = () => {
         } else break;
       }
 
-      const maxBpmReached = rows.length
-        ? Math.max(...rows.map((r: any) => r.bpm_reached || 0))
-        : 0;
+      const exerciseSummary = exercises
+        .map(e => {
+          const startBpm = e.history[0]?.bpm ?? e.currentBpm;
+          const gain = e.currentBpm - startBpm;
+          return `${e.title}: ${e.currentBpm} BPM (${gain >= 0 ? "+" : ""}${gain} from start, target ${e.targetBpm} BPM)`;
+        })
+        .join("; ");
 
-      const prompt = `You are a guitar practice coach. Write a 3-4 sentence personalised practice report for a student. Be specific — mention actual exercise names and BPM numbers from the data below. Respond in plain sentences only, no bullet points, no markdown, no headers.
+      const prompt = `You are a guitar practice coach. Here is a student's recent practice data: current streak ${streakDays} days, practice time this week ${weekMins} minutes, exercises: ${exerciseSummary || "none yet"}. Give 2-3 short, specific, encouraging insights about their progress and one concrete suggestion for improvement. Be brief and direct. Do not start with 'Here are' or any introduction. Start directly with the insights.`;
 
-Exercises: ${exerciseSummary || "none added yet"}
-Sessions in last 30 days: ${rows.length} (peak BPM reached: ${maxBpmReached})
-Practice time this week: ${weekMins} minutes
-Current streak: ${streakDays} days`;
+      let text: string;
 
-      // ---- SWAP POINT: replace Ollama with Anthropic API in production ----
-      const res = await fetch("http://localhost:11434/api/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ model: "llama3", prompt, stream: false }),
-      });
-      if (!res.ok) throw new Error("api_error");
-      const json = await res.json();
-      const text = (json.response || "").trim();
+      if (import.meta.env.DEV) {
+        const res = await fetch("http://localhost:11434/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model: "llama3.1",
+            messages: [{ role: "user", content: prompt }],
+            stream: false,
+          }),
+        });
+        if (!res.ok) throw new Error("api_error");
+        const json = await res.json();
+        text = (json.message?.content || "").trim();
+      } else {
+        const res = await fetch("https://api.anthropic.com/v1/messages", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-api-key": import.meta.env.VITE_ANTHROPIC_API_KEY,
+            "anthropic-version": "2023-06-01",
+          },
+          body: JSON.stringify({
+            model: "claude-sonnet-4-20250514",
+            messages: [{ role: "user", content: prompt }],
+            max_tokens: 500,
+          }),
+        });
+        if (!res.ok) throw new Error("api_error");
+        const json = await res.json();
+        text = (json.content?.[0]?.text || "").trim();
+      }
+
       if (!text) throw new Error("empty_response");
-
       localStorage.setItem(INSIGHT_CACHE_KEY, JSON.stringify({ text, generated_at: todayStr }));
       setInsightText(text);
     } catch {
@@ -162,7 +169,10 @@ Current streak: ${streakDays} days`;
   oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
   const thisWeekSessions = sessions.filter(s => new Date(s.date) >= oneWeekAgo);
   const thisWeekSeconds = thisWeekSessions.reduce((acc, s) => acc + s.duration, 0);
-  const thisWeekHours = (thisWeekSeconds / 3600).toFixed(1);
+  const thisWeekMins = Math.floor(thisWeekSeconds / 60);
+  const thisWeekFormatted = thisWeekMins < 60
+    ? `${thisWeekMins}m`
+    : `${Math.floor(thisWeekMins / 60)}h ${thisWeekMins % 60}m`;
 
   const calculateStreak = () => {
     if (sessions.length === 0) return 0;
@@ -211,7 +221,7 @@ Current streak: ${streakDays} days`;
             <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground flex items-center gap-1.5">
               <TrendingUp className="h-3 w-3" /> This Week
             </p>
-            <p className="text-4xl font-bold text-foreground leading-none mt-3">{thisWeekHours}h</p>
+            <p className="text-4xl font-bold text-foreground leading-none mt-3">{thisWeekFormatted}</p>
             <p className="text-sm text-muted-foreground mt-2">{thisWeekSessions.length} sessions</p>
           </div>
 
@@ -305,7 +315,9 @@ Current streak: ${streakDays} days`;
               <p className="text-sm text-muted-foreground">Couldn't generate insights right now. Try again later.</p>
             ) : insightText ? (
               <>
-                <p className="text-sm text-foreground leading-relaxed">{insightText}</p>
+                <div className="text-sm text-foreground leading-relaxed prose prose-invert prose-sm max-w-none">
+                  <ReactMarkdown>{insightText}</ReactMarkdown>
+                </div>
                 <button
                   onClick={handleRegenerate}
                   className="mt-4 flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"

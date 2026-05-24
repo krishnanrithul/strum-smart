@@ -19,7 +19,7 @@ const formatDuration = (mins: number) => {
   if (mins < 60) return `${mins}m`;
   const h = Math.floor(mins / 60);
   const m = mins % 60;
-  return m === 0 ? `${h}h` : `${h}h ${m}m`;
+  return `${h}h ${m}m`;
 };
 
 const formatDate = (iso: string) =>
@@ -365,7 +365,7 @@ const StudentDetail = () => {
               {recentSessions.map((s, i) => (
                 <div key={i} className="flex items-center justify-between px-5 py-4">
                   <p className="text-sm text-muted-foreground">{s.date ? formatDate(s.date) : "—"}</p>
-                  <p className="text-sm font-semibold text-foreground">{formatMins(s.duration || 0)}m</p>
+                  <p className="text-sm font-semibold text-foreground">{formatDuration(formatMins(s.duration || 0))}</p>
                 </div>
               ))}
             </div>

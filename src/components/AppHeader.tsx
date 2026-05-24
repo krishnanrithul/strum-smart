@@ -1,5 +1,4 @@
-import { useState, useEffect } from "react";
-import { ArrowLeft, Sun, Moon, LogOut } from "lucide-react";
+import { ArrowLeft, LogOut } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import MiniLogo from "@/components/MiniLogo";
@@ -14,22 +13,6 @@ interface AppHeaderProps {
 
 const AppHeader = ({ title, breadcrumb, showBack = false, onBack }: AppHeaderProps) => {
   const navigate = useNavigate();
-
-  const [isDark, setIsDark] = useState(() => {
-    const stored = localStorage.getItem("theme");
-    return stored ? stored === "dark" : true;
-  });
-
-  useEffect(() => {
-    if (isDark) {
-      document.documentElement.classList.remove("light");
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.add("light");
-      document.documentElement.classList.remove("dark");
-    }
-    localStorage.setItem("theme", isDark ? "dark" : "light");
-  }, [isDark]);
 
   const handleBack = () => {
     if (onBack) onBack();
@@ -77,9 +60,6 @@ const AppHeader = ({ title, breadcrumb, showBack = false, onBack }: AppHeaderPro
 
         {/* Right */}
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" onClick={() => setIsDark(!isDark)}>
-            {isDark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-          </Button>
           <Button variant="ghost" size="icon" onClick={handleLogout}>
             <LogOut className="h-5 w-5" />
           </Button>

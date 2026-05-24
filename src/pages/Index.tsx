@@ -19,6 +19,7 @@ const Index = () => {
   const [recentExercises, setRecentExercises] = useState<Exercise[]>([]);
   const [clearConfirm, setClearConfirm] = useState(false);
   const [teacherId, setTeacherId] = useState<string | null | undefined>(undefined);
+  const [firstName, setFirstName] = useState<string | null>(null);
   const [bannerExpanded, setBannerExpanded] = useState(false);
   const [inviteInput, setInviteInput] = useState("");
   const [codeError, setCodeError] = useState("");
@@ -43,11 +44,13 @@ const Index = () => {
           StorageService.getExercises(),
           (supabase as any)
             .from("profiles")
-            .select("teacher_id")
+            .select("teacher_id, full_name")
             .eq("id", session.user.id)
             .single(),
         ]);
         setTeacherId(profile?.teacher_id ?? null);
+        const fullName: string | null = profile?.full_name ?? null;
+        setFirstName(fullName ? fullName.split(" ")[0] : null);
 
         const rows = sessionRows || [];
 
@@ -83,9 +86,13 @@ const Index = () => {
         setTodayMinutes(Math.floor(todaySecs / 60));
         setCurrentStreak(streak);
 
+        const categoryOrder: Record<string, number> = { Warmup: 0, Technical: 1, Repertoire: 2 };
         const inProgress = exercises
           .filter((e) => e.status === "In Progress" || e.status === "New")
           .sort((a, b) => {
+            const catA = categoryOrder[a.category] ?? 3;
+            const catB = categoryOrder[b.category] ?? 3;
+            if (catA !== catB) return catA - catB;
             if (a.status !== b.status) return a.status === "In Progress" ? -1 : 1;
             const lastA = a.history[a.history.length - 1]?.date ?? "";
             const lastB = b.history[b.history.length - 1]?.date ?? "";
@@ -130,16 +137,16 @@ const Index = () => {
     const prevBpm = history.length > 1 ? history[history.length - 2].bpm : lastBpm;
     const progress = getBpmProgress(exercise);
     return (
-      <Link key={exercise.id} to={`/practice/${exercise.id}`}>
+      <Link key={exercise.id} to={`/practice/${exercise.id}`} className="block">
         <div
-          className="rounded-xl p-4 cursor-pointer relative overflow-hidden transition-all duration-300"
+          className="rounded-2xl p-4 cursor-pointer relative overflow-hidden transition-all duration-300"
           onMouseEnter={() => setHoveredExerciseId(exercise.id)}
           onMouseLeave={() => setHoveredExerciseId(null)}
           style={{
             background: hoveredExerciseId === exercise.id
               ? "linear-gradient(135deg, rgba(52,211,153,0.18) 0%, rgba(255,255,255,0.03) 100%)"
               : "rgba(255,255,255,0.03)",
-            border: `1px solid ${hoveredExerciseId === exercise.id ? "rgba(52,211,153,0.4)" : "rgba(255,255,255,0.06)"}`,
+            border: `1px solid ${hoveredExerciseId === exercise.id ? "rgba(52,211,153,0.4)" : "#222222"}`,
             transform: hoveredExerciseId === exercise.id ? "translateY(-2px)" : "translateY(0)",
             boxShadow: hoveredExerciseId === exercise.id ? "0 8px 24px rgba(52,211,153,0.18)" : "none",
             backdropFilter: "blur(12px)",
@@ -166,15 +173,16 @@ const Index = () => {
                   )}
                 </div>
               </div>
-              <div className="text-right">
+              <div className="flex items-baseline gap-1">
                 <p className="text-lg font-black text-primary">{lastBpm}</p>
+                <span className="text-xs text-muted-foreground">BPM</span>
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <div className="flex-1 h-1.5 bg-secondary rounded-full overflow-hidden">
+              <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: "#2a2a2a" }}>
                 <div
-                  className="h-full bg-primary rounded-full transition-all duration-500"
-                  style={{ width: `${progress}%` }}
+                  className="h-full rounded-full transition-all duration-500"
+                  style={{ width: `${progress}%`, background: "#22c55e" }}
                 />
               </div>
               <div className="flex items-center gap-0.5 text-xs">
@@ -203,9 +211,16 @@ const Index = () => {
 
       <main className="container mx-auto px-4 py-6 space-y-10">
 
+        {firstName && (
+          <p className="text-2xl font-semibold text-foreground">Hey, {firstName}.</p>
+        )}
+
         {/* Hero stat — Today's Max BPM */}
-        <section className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-white to-green-50 dark:from-zinc-900 dark:to-green-950 border border-border p-6 sm:p-8">
-          <div className="absolute -top-10 -right-10 w-48 h-48 rounded-full bg-primary/10 blur-3xl pointer-events-none" />
+        <section
+          className="relative overflow-hidden rounded-2xl border border-border p-6 sm:p-8"
+          style={{ background: "radial-gradient(ellipse at top left, rgba(34,197,94,0.35) 0%, #111111 60%)" }}
+        >
+          <div className="absolute -top-10 -left-10 w-48 h-48 rounded-full bg-primary/10 blur-3xl pointer-events-none" />
           <div className="relative">
             <p className="text-sm font-medium text-muted-foreground uppercase tracking-widest mb-3">Personal Best</p>
             {statsLoading ? (
@@ -244,8 +259,8 @@ const Index = () => {
         </section>
 
         {/* CTA */}
-        <Link to="/practice/free">
-          <button className="w-full flex items-center justify-between px-5 py-4 rounded-xl bg-primary text-primary-foreground font-semibold text-base hover:opacity-90 transition-opacity">
+        <Link to="/practice/free" className="-mt-6">
+          <button className="w-full flex items-center justify-between px-5 py-4 rounded-xl bg-primary text-primary-foreground font-semibold text-lg hover:opacity-90 transition-opacity">
             <div className="flex items-center gap-2">
               <MiniLogo color="#0a0a0a" />
               Start Practice
@@ -307,18 +322,7 @@ const Index = () => {
         {/* My Exercises */}
         <section>
           <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <h2 className="text-base font-semibold text-muted-foreground uppercase tracking-wider">My Exercises</h2>
-              {recentExercises.length > 0 && (
-                <button
-                  onClick={() => setClearConfirm(true)}
-                  className="text-muted-foreground hover:text-foreground text-base leading-none transition-colors"
-                  title="Clear all exercises"
-                >
-                  ···
-                </button>
-              )}
-            </div>
+            <h2 className="text-base font-semibold text-muted-foreground uppercase tracking-wider">My Exercises</h2>
             <button
               onClick={() => navigate("/library")}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:opacity-90 transition-opacity"
@@ -336,7 +340,7 @@ const Index = () => {
             <div className="space-y-8">
               {recentExercises.filter(e => e.is_assigned).length > 0 && (
                 <div>
-                  <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground mb-4">From Your Teacher</p>
+                  <p className="text-xs font-normal mb-4" style={{ color: "#A0A0A0" }}>From Your Teacher</p>
                   <div className="space-y-3">
                     {recentExercises.filter(e => e.is_assigned).map(renderExerciseCard)}
                   </div>
@@ -344,7 +348,7 @@ const Index = () => {
               )}
               {recentExercises.filter(e => !e.is_assigned).length > 0 && (
                 <div>
-                  <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground mb-4">Added By You</p>
+                  <p className="text-xs font-normal mb-4" style={{ color: "#A0A0A0" }}>Added by You</p>
                   <div className="space-y-3">
                     {recentExercises.filter(e => !e.is_assigned).map(renderExerciseCard)}
                   </div>
