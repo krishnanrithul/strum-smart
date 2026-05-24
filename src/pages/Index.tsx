@@ -26,6 +26,7 @@ const Index = () => {
   const [codeSubmitting, setCodeSubmitting] = useState(false);
   const [connectedTeacherName, setConnectedTeacherName] = useState<string | null>(null);
   const [hoveredExerciseId, setHoveredExerciseId] = useState<string | null>(null);
+  const [completeConfirmExercise, setCompleteConfirmExercise] = useState<Exercise | null>(null);
 
   useEffect(() => {
     if (!session) {
@@ -107,6 +108,12 @@ const Index = () => {
     loadData();
   }, [session]);
 
+  const handleMarkComplete = async (exercise: Exercise) => {
+    await supabase.from("exercises").update({ status: "Completed" }).eq("id", exercise.id);
+    setRecentExercises(prev => prev.filter(e => e.id !== exercise.id));
+    setCompleteConfirmExercise(null);
+  };
+
   const handleLinkToTeacher = async () => {
     if (!session || inviteInput.length !== 6) return;
     setCodeSubmitting(true);
@@ -180,6 +187,14 @@ const Index = () => {
                 <span className="text-foreground font-semibold">{lastBpm}</span>
                 <span className="text-muted-foreground">&nbsp;BPM</span>
               </div>
+            </div>
+            <div className="flex justify-end mt-2">
+              <button
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); setCompleteConfirmExercise(exercise); }}
+                className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Mark complete
+              </button>
             </div>
           </div>
         </div>
@@ -354,6 +369,35 @@ const Index = () => {
         </section>
       </main>
 
+      {completeConfirmExercise && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+          onClick={() => setCompleteConfirmExercise(null)}
+        >
+          <div
+            className="w-full max-w-sm mx-4 rounded-2xl p-6 space-y-4"
+            style={{ background: "hsl(var(--card))", border: "1px solid rgba(255,255,255,0.08)" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <p className="text-base font-semibold text-foreground">Mark as complete?</p>
+            <p className="text-sm text-muted-foreground">
+              This will move <span className="text-foreground font-medium">{completeConfirmExercise.title}</span> to your completed exercises.
+            </p>
+            <button
+              onClick={() => handleMarkComplete(completeConfirmExercise)}
+              className="w-full py-3 rounded-xl text-sm font-semibold bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
+            >
+              Complete Exercise
+            </button>
+            <button
+              onClick={() => setCompleteConfirmExercise(null)}
+              className="w-full text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

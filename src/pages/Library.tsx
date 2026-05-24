@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, ChevronRight, Pencil, Trash2 } from "lucide-react";
+import { Plus, ChevronRight, Pencil, Trash2, CheckCircle2, X } from "lucide-react";
 import AppHeader from "@/components/AppHeader";
 import MiniLogo from "@/components/MiniLogo";
 import WaveformLoader from "@/components/WaveformLoader";
@@ -16,6 +16,7 @@ import { BuildYourOwnModal } from "@/components/BuildYourOwnModal";
 import { ROUTINES } from "@/data/routines";
 import { getStatusColor } from "@/lib/badges";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 const Library = () => {
   const [exercises, setExercises] = useState<Exercise[]>([]);
@@ -33,6 +34,9 @@ const Library = () => {
   const [projectToEdit, setProjectToEdit] = useState<Project | null>(null);
   const [deleteProjectDialogOpen, setDeleteProjectDialogOpen] = useState(false);
   const [editProjectDialogOpen, setEditProjectDialogOpen] = useState(false);
+  const [reactivateConfirmExercise, setReactivateConfirmExercise] = useState<Exercise | null>(null);
+  const [completedSheetOpen, setCompletedSheetOpen] = useState(false);
+  const [completedSheetVisible, setCompletedSheetVisible] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -54,7 +58,14 @@ const Library = () => {
 
   useEffect(() => { loadData(); }, []);
 
+  useEffect(() => {
+    if (completedSheetOpen) setTimeout(() => setCompletedSheetVisible(true), 10);
+    else setCompletedSheetVisible(false);
+  }, [completedSheetOpen]);
+
   const myExercises = exercises.filter(e => !e.project_id);
+  const activeExercises = myExercises.filter(e => e.status !== "Completed");
+  const completedExercises = myExercises.filter(e => e.status === "Completed");
 
   const handleAddRoutine = async (routine: typeof ROUTINES[0]) => {
     setAddingRoutineId(routine.id);
@@ -108,6 +119,12 @@ const Library = () => {
     } finally {
       setDeleteAllDialogOpen(false);
     }
+  };
+
+  const handleReactivate = async (exercise: Exercise) => {
+    await supabase.from("exercises").update({ status: "In Progress" }).eq("id", exercise.id);
+    setExercises(prev => prev.map(e => e.id === exercise.id ? { ...e, status: "In Progress" as const } : e));
+    setReactivateConfirmExercise(null);
   };
 
   const isRoutineAdded = (routine: typeof ROUTINES[0]) =>
@@ -276,7 +293,18 @@ const Library = () => {
         {/* My Exercises */}
         <section className="space-y-4">
           <div className="flex items-center justify-between">
-            <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">My Exercises</p>
+            <div className="flex items-center gap-2">
+              <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">My Exercises</p>
+              {completedExercises.length > 0 && (
+                <button
+                  onClick={() => setCompletedSheetOpen(true)}
+                  className="px-2 py-0.5 rounded-full text-xs text-muted-foreground transition-colors hover:text-foreground"
+                  style={{ border: "1px solid rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.04)" }}
+                >
+                  {completedExercises.length} completed
+                </button>
+              )}
+            </div>
             <div className="flex items-center gap-2">
               {myExercises.length > 0 && (
                 <button
@@ -298,12 +326,12 @@ const Library = () => {
             </div>
           </div>
           <div className="space-y-3">
-            {myExercises.length === 0 ? (
+            {activeExercises.length === 0 ? (
               <div className="text-center py-10 border border-dashed border-border rounded-xl text-sm text-muted-foreground">
                 No exercises yet. Add a routine or build your own above.
               </div>
             ) : (
-              myExercises.map(exercise => (
+              activeExercises.map(exercise => (
                 <ExerciseCard
                   key={exercise.id}
                   exercise={exercise}
@@ -382,6 +410,65 @@ const Library = () => {
         projectToEdit={projectToEdit ?? undefined}
         onProjectAdded={() => { loadData(); setEditProjectDialogOpen(false); setProjectToEdit(null); toast({ title: "Project updated!" }); }}
       />
+
+      <AlertDialog open={!!reactivateConfirmExercise} onOpenChange={(o) => { if (!o) setReactivateConfirmExercise(null); }}>
+        <AlertDialogContent className="bg-card border-border">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Move back to active?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Move {reactivateConfirmExercise?.title} back to active exercises?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => reactivateConfirmExercise && handleReactivate(reactivateConfirmExercise)}
+              className="bg-primary hover:bg-primary/90"
+            >
+              Move to Active
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {completedSheetOpen && (
+        <div className={`fixed inset-0 z-50 flex items-end sm:items-center justify-center transition-opacity duration-300 ${completedSheetVisible ? "opacity-100" : "opacity-0"}`}>
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setCompletedSheetOpen(false)} />
+          <div
+            className={`relative w-full sm:max-w-md bg-card rounded-t-2xl sm:rounded-2xl p-6 z-10 transition-transform duration-300 ${completedSheetVisible ? "translate-y-0" : "translate-y-8"}`}
+            style={{ border: "1px solid rgba(255,255,255,0.15)" }}
+          >
+            <div className="flex items-start justify-between mb-4">
+              <p className="text-lg font-bold text-foreground">Completed Exercises</p>
+              <button onClick={() => setCompletedSheetOpen(false)} className="text-muted-foreground hover:text-foreground">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="space-y-3 max-h-[60vh] overflow-y-auto">
+              {completedExercises.map(exercise => (
+                <div
+                  key={exercise.id}
+                  className="rounded-xl p-4 flex items-center gap-4"
+                  style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)" }}
+                >
+                  <CheckCircle2 className="h-5 w-5 text-green-500/50 shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-foreground truncate">{exercise.title}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{exercise.currentBpm} BPM</p>
+                  </div>
+                  <button
+                    onClick={() => setReactivateConfirmExercise(exercise)}
+                    className="text-xs font-medium px-3 py-1 rounded-full shrink-0 transition-colors hover:bg-green-500/10"
+                    style={{ border: "1px solid #22c55e", color: "#22c55e", background: "transparent" }}
+                  >
+                    Practice Again
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

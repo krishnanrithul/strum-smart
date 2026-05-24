@@ -23,7 +23,7 @@ export interface Project {
     id: string;
     title: string;
     artist?: string;
-    status: "New" | "In Progress" | "Maintenance" | "Mastered";
+    status: "New" | "In Progress" | "Maintenance" | "Completed";
     created_at: string;
 }
 
@@ -34,7 +34,7 @@ export interface Exercise {
     category: "Technical" | "Repertoire" | "Warmup";
     currentBpm: number;
     targetBpm: number;
-    status: "New" | "In Progress" | "Maintenance" | "Mastered";
+    status: "New" | "In Progress" | "Maintenance" | "Completed";
     history: { date: string; bpm: number }[];
     songsterrUrl?: string;
     youtubeUrl?: string;

@@ -5,15 +5,20 @@ import MiniLogo from "@/components/MiniLogo";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { StorageService, Exercise } from "@/lib/storage";
+import { supabase } from "@/integrations/supabase/client";
 import { SessionCompleteDialog } from "@/components/SessionCompleteDialog";
 import { MetronomeEngine } from "@/lib/audio";
 import WaveformLoader from "@/components/WaveformLoader";
+import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
 
 const glassCard = { border: "1px solid rgba(255,255,255,0.05)" };
 
 const Practice = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { session } = useAuth();
+  const { toast } = useToast();
   const isFree = id === "free";
   const [exercise, setExercise] = useState<Exercise | null>(null);
   const [bpm, setBpm] = useState(120);
@@ -24,7 +29,11 @@ const Practice = () => {
   const [showCompleteDialog, setShowCompleteDialog] = useState(false);
   const [loading, setLoading] = useState(true);
   const [diagramExpanded, setDiagramExpanded] = useState(false);
+  const [showTargetReached, setShowTargetReached] = useState(false);
+  const [showMarkCompleteModal, setShowMarkCompleteModal] = useState(false);
   const metronomeRef = useRef<MetronomeEngine | null>(null);
+  const targetTriggeredRef = useRef(false);
+  const initialBpmRef = useRef(0);
 
   useEffect(() => {
     metronomeRef.current = new MetronomeEngine();
@@ -45,6 +54,7 @@ const Practice = () => {
           if (data) {
             setExercise(data);
             setBpm(data.currentBpm);
+            initialBpmRef.current = data.currentBpm;
           }
         } catch (error) {
           console.error("Failed to load exercise:", error);
@@ -71,6 +81,18 @@ const Practice = () => {
       metronomeRef.current.setBpm(bpm);
     }
     setBpmInput(String(bpm));
+    if (
+      !isFree &&
+      exercise &&
+      exercise.status !== "Completed" &&
+      exercise.targetBpm > 0 &&
+      bpm >= exercise.targetBpm &&
+      bpm > initialBpmRef.current &&
+      !targetTriggeredRef.current
+    ) {
+      targetTriggeredRef.current = true;
+      setShowTargetReached(true);
+    }
   }, [bpm]);
 
   const toggleMetronome = () => {
@@ -156,12 +178,25 @@ const Practice = () => {
         {/* Exercise Context */}
         {!isFree && exercise && (
           <div className="rounded-2xl bg-card px-5 py-4" style={glassCard}>
-            <p className="text-base font-semibold text-foreground">{exercise.title}</p>
-            {exercise.targetBpm > 0 && (
-              <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground mt-1">
-                Target: {exercise.targetBpm} BPM
-              </p>
-            )}
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-base font-semibold text-foreground">{exercise.title}</p>
+                {exercise.targetBpm > 0 && (
+                  <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground mt-1">
+                    Target: {exercise.targetBpm} BPM
+                  </p>
+                )}
+              </div>
+              {exercise.status !== "Completed" && (
+                <button
+                  onClick={() => setShowMarkCompleteModal(true)}
+                  className="text-xs font-medium px-3 py-1 rounded-full shrink-0 transition-colors hover:bg-green-500/10"
+                  style={{ border: "1px solid #22c55e", color: "#22c55e", background: "transparent" }}
+                >
+                  Mark as Complete
+                </button>
+              )}
+            </div>
           </div>
         )}
 
@@ -333,7 +368,7 @@ const Practice = () => {
         >
           <div className="flex items-center gap-2">
             <MiniLogo color="#0a0a0a" />
-            Complete Session
+            Save Session
           </div>
         </button>
 
@@ -347,6 +382,74 @@ const Practice = () => {
           durationSeconds={seconds}
           sessionBpm={bpm}
         />
+      )}
+
+      {showMarkCompleteModal && exercise && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div
+            className="w-full max-w-sm mx-4 rounded-2xl p-6 space-y-4"
+            style={{ background: "hsl(var(--card))", border: "1px solid rgba(255,255,255,0.08)" }}
+          >
+            <p className="text-base font-semibold text-foreground">Mark as complete?</p>
+            <p className="text-sm text-muted-foreground">
+              Mark {exercise.title} as complete? It will be moved out of your active exercises.
+            </p>
+            <button
+              onClick={async () => {
+                const { error } = await supabase
+                  .from("exercises")
+                  .update({ status: "Completed" })
+                  .eq("id", exercise.id)
+                  .eq("user_id", session?.user.id ?? "");
+                if (error) {
+                  toast({ title: "Couldn't save", description: "Please try again.", variant: "destructive" });
+                  return;
+                }
+                setShowMarkCompleteModal(false);
+                navigate("/");
+              }}
+              className="w-full py-3 rounded-xl text-sm font-semibold bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
+            >
+              Complete Exercise
+            </button>
+            <button
+              onClick={() => setShowMarkCompleteModal(false)}
+              className="w-full text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {showTargetReached && exercise && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div
+            className="w-full max-w-sm mx-4 rounded-2xl p-6 space-y-4"
+            style={{ background: "hsl(var(--card))", border: "1px solid rgba(255,255,255,0.08)" }}
+          >
+            <p className="text-2xl text-center">🎯</p>
+            <p className="text-base font-semibold text-foreground text-center">Target reached!</p>
+            <p className="text-sm text-muted-foreground text-center">
+              You hit {exercise.targetBpm} BPM on {exercise.title}.
+            </p>
+            <button
+              onClick={async () => {
+                await supabase.from("exercises").update({ status: "Completed" }).eq("id", exercise.id);
+                setShowTargetReached(false);
+              }}
+              className="w-full py-3 rounded-xl text-sm font-semibold bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
+            >
+              Complete Exercise
+            </button>
+            <button
+              onClick={() => setShowTargetReached(false)}
+              className="w-full text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Keep Going
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );
