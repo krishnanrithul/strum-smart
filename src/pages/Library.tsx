@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, ChevronRight, Pencil, Trash2, CheckCircle2, X } from "lucide-react";
+import { Plus, ChevronRight, ChevronLeft, Pencil, Trash2, CheckCircle2, X } from "lucide-react";
 import AppHeader from "@/components/AppHeader";
 import MiniLogo from "@/components/MiniLogo";
 import WaveformLoader from "@/components/WaveformLoader";
@@ -37,9 +37,11 @@ const Library = () => {
   const [reactivateConfirmExercise, setReactivateConfirmExercise] = useState<Exercise | null>(null);
   const [completedSheetOpen, setCompletedSheetOpen] = useState(false);
   const [completedSheetVisible, setCompletedSheetVisible] = useState(false);
+  const [routineSheetOpen, setRoutineSheetOpen] = useState(false);
+  const [routineSheetVisible, setRoutineSheetVisible] = useState(false);
+  const [routineSheetView, setRoutineSheetView] = useState<"list" | "picker">("list");
   const [routinePickerRoutine, setRoutinePickerRoutine] = useState<typeof ROUTINES[0] | null>(null);
   const [pickerSelected, setPickerSelected] = useState<Set<number>>(new Set());
-  const [routinePickerVisible, setRoutinePickerVisible] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -67,9 +69,9 @@ const Library = () => {
   }, [completedSheetOpen]);
 
   useEffect(() => {
-    if (routinePickerRoutine) setTimeout(() => setRoutinePickerVisible(true), 10);
-    else setRoutinePickerVisible(false);
-  }, [routinePickerRoutine]);
+    if (routineSheetOpen) setTimeout(() => setRoutineSheetVisible(true), 10);
+    else setRoutineSheetVisible(false);
+  }, [routineSheetOpen]);
 
   const myExercises = exercises.filter(e => !e.project_id);
   const activeExercises = myExercises.filter(e => e.status !== "Completed");
@@ -89,6 +91,7 @@ const Library = () => {
       toast({ title: `${routine.name} routine added!`, description: `${exercisesToAdd.length} exercises added.` });
       setRoutinePickerRoutine(null);
       setSelectedRoutine(null);
+      setRoutineSheetOpen(false);
       loadData();
     } catch (error) {
       console.error(error);
@@ -230,34 +233,19 @@ const Library = () => {
         </div>
 
         {/* Routines */}
-        <section className="space-y-4"></section>
-
-        {/* Routines */}
         <section className="space-y-4">
           <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">Routines</p>
           <div className="rounded-2xl bg-card divide-y divide-white/5" style={{ border: "1px solid rgba(255,255,255,0.05)" }}>
-            {ROUTINES.map(routine => (
-              <button
-                key={routine.id}
-                onClick={() => {
-                  setRoutinePickerRoutine(routine);
-                  setPickerSelected(new Set(routine.exercises.map((_, i) => i)));
-                }}
-                className="w-full px-5 py-4 flex items-center justify-between active:bg-white/5 transition-colors"
-              >
-                <div className="flex flex-col items-start text-left">
-                  <span className="text-base font-semibold text-foreground">{routine.name}</span>
-                  <span className="text-sm text-muted-foreground mt-0.5">{routine.description}</span>
-                </div>
-                <div className="flex items-center gap-3 ml-4 shrink-0">
-                  <div className="text-right">
-                    <p className="text-sm font-semibold text-foreground">{routine.exercises.length}</p>
-                    <p className="text-xs text-muted-foreground">exercises</p>
-                  </div>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                </div>
-              </button>
-            ))}
+            <button
+              onClick={() => { setRoutineSheetOpen(true); setRoutineSheetView("list"); }}
+              className="w-full px-5 py-4 flex items-center justify-between active:bg-white/5 transition-colors"
+            >
+              <span className="text-base font-semibold text-foreground">Routines</span>
+              <div className="flex items-center gap-3 shrink-0">
+                <span className="text-sm text-muted-foreground">{ROUTINES.length}</span>
+                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+              </div>
+            </button>
           </div>
 
           {/* Build your own CTA — matches "Start Practice" style */}
@@ -320,13 +308,13 @@ const Library = () => {
 
         {/* My Exercises */}
         <section className="space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
-              <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">My Exercises</p>
+              <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground whitespace-nowrap">Exercises</p>
               {completedExercises.length > 0 && (
                 <button
                   onClick={() => setCompletedSheetOpen(true)}
-                  className="px-2 py-0.5 rounded-full text-xs text-muted-foreground transition-colors hover:text-foreground"
+                  className="shrink-0 px-2 py-0.5 rounded-full text-xs text-muted-foreground transition-colors hover:text-foreground"
                   style={{ border: "1px solid rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.04)" }}
                 >
                   {completedExercises.length} completed
@@ -337,7 +325,7 @@ const Library = () => {
               {myExercises.length > 0 && (
                 <button
                   onClick={() => setDeleteAllDialogOpen(true)}
-                  className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-destructive hover:bg-destructive/25 transition-colors"
+                  className="shrink-0 flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-destructive hover:bg-destructive/25 transition-colors"
                   style={{ background: "rgba(239,68,68,0.15)", border: "1px solid rgba(239,68,68,0.3)" }}
                 >
                   Delete all
@@ -346,7 +334,7 @@ const Library = () => {
               <AddExerciseDialog
                 onExerciseAdded={loadData}
                 trigger={
-                  <button className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold bg-primary text-primary-foreground hover:opacity-90 transition-opacity">
+                  <button className="shrink-0 flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold bg-primary text-primary-foreground hover:opacity-90 transition-opacity">
                     <Plus className="h-3 w-3" /> Add
                   </button>
                 }
@@ -459,6 +447,108 @@ const Library = () => {
         </AlertDialogContent>
       </AlertDialog>
 
+      {routineSheetOpen && (
+        <div className={`fixed inset-0 z-50 flex items-end sm:items-center justify-center transition-opacity duration-300 ${routineSheetVisible ? "opacity-100" : "opacity-0"}`}>
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setRoutineSheetOpen(false)} />
+          <div
+            className={`relative w-full sm:max-w-md bg-card rounded-t-2xl sm:rounded-2xl p-6 z-10 transition-transform duration-300 ${routineSheetVisible ? "translate-y-0" : "translate-y-8"}`}
+            style={{ border: "1px solid rgba(255,255,255,0.15)" }}
+          >
+            {routineSheetView === "list" ? (
+              <>
+                <div className="flex items-start justify-between mb-4">
+                  <p className="text-lg font-bold text-foreground">Routines</p>
+                  <button onClick={() => setRoutineSheetOpen(false)} className="text-muted-foreground hover:text-foreground">
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+                <div className="divide-y divide-white/5">
+                  {ROUTINES.map(routine => (
+                    <button
+                      key={routine.id}
+                      onClick={() => {
+                        setRoutinePickerRoutine(routine);
+                        setPickerSelected(new Set(routine.exercises.map((_, i) => i)));
+                        setRoutineSheetView("picker");
+                      }}
+                      className="w-full py-4 flex items-center justify-between active:bg-white/5 transition-colors"
+                    >
+                      <span className="text-base font-semibold text-foreground">{routine.name}</span>
+                      <div className="flex items-center gap-3 shrink-0">
+                        <span className="text-sm text-muted-foreground">{routine.exercises.length} exercises</span>
+                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </>
+            ) : routinePickerRoutine ? (
+              <>
+                <div className="flex items-start justify-between mb-5">
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => { setRoutineSheetView("list"); setRoutinePickerRoutine(null); }}
+                      className="text-muted-foreground hover:text-foreground"
+                    >
+                      <ChevronLeft className="h-5 w-5" />
+                    </button>
+                    <p className="text-lg font-bold text-foreground">{routinePickerRoutine.name}</p>
+                  </div>
+                  <button onClick={() => setRoutineSheetOpen(false)} className="text-muted-foreground hover:text-foreground">
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+                <div className="space-y-3 mb-6">
+                  {routinePickerRoutine.exercises.map((ex, i) => (
+                    <button
+                      key={i}
+                      onClick={() => setPickerSelected(prev => {
+                        const next = new Set(prev);
+                        if (next.has(i)) next.delete(i); else next.add(i);
+                        return next;
+                      })}
+                      className="w-full flex items-center gap-3 text-left"
+                    >
+                      <div
+                        className="h-5 w-5 rounded flex items-center justify-center shrink-0 transition-colors"
+                        style={{
+                          background: pickerSelected.has(i) ? "hsl(var(--primary))" : "transparent",
+                          border: `1px solid ${pickerSelected.has(i) ? "hsl(var(--primary))" : "rgba(255,255,255,0.2)"}`,
+                        }}
+                      >
+                        {pickerSelected.has(i) && <span className="text-[10px] text-primary-foreground font-bold leading-none">✓</span>}
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-foreground">{ex.title}</p>
+                        <p className="text-xs text-muted-foreground">{ex.category}</p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+                <button
+                  onClick={() => handleAddRoutine(
+                    routinePickerRoutine,
+                    routinePickerRoutine.exercises.filter((_, i) => pickerSelected.has(i))
+                  )}
+                  disabled={pickerSelected.size === 0 || addingRoutineId === routinePickerRoutine.id}
+                  className="w-full px-5 py-3 rounded-xl bg-primary text-primary-foreground font-semibold text-sm hover:opacity-90 transition-opacity disabled:opacity-50"
+                >
+                  {addingRoutineId === routinePickerRoutine.id
+                    ? "Adding…"
+                    : `Add ${pickerSelected.size} exercise${pickerSelected.size !== 1 ? "s" : ""}`}
+                </button>
+                <button
+                  onClick={() => setRoutineSheetOpen(false)}
+                  className="w-full mt-3 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Cancel
+                </button>
+              </>
+            ) : null}
+          </div>
+        </div>
+      )}
+
       {completedSheetOpen && (
         <div className={`fixed inset-0 z-50 flex items-end sm:items-center justify-center transition-opacity duration-300 ${completedSheetVisible ? "opacity-100" : "opacity-0"}`}>
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setCompletedSheetOpen(false)} />
@@ -498,67 +588,6 @@ const Library = () => {
         </div>
       )}
 
-      {routinePickerRoutine && (
-        <div className={`fixed inset-0 z-50 flex items-end sm:items-center justify-center transition-opacity duration-300 ${routinePickerVisible ? "opacity-100" : "opacity-0"}`}>
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setRoutinePickerRoutine(null)} />
-          <div
-            className={`relative w-full sm:max-w-md bg-card rounded-t-2xl sm:rounded-2xl p-6 z-10 transition-transform duration-300 ${routinePickerVisible ? "translate-y-0" : "translate-y-8"}`}
-            style={{ border: "1px solid rgba(255,255,255,0.15)" }}
-          >
-            <div className="flex items-start justify-between mb-5">
-              <p className="text-lg font-bold text-foreground">{routinePickerRoutine.name}</p>
-              <button onClick={() => setRoutinePickerRoutine(null)} className="text-muted-foreground hover:text-foreground">
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            <div className="space-y-3 mb-6">
-              {routinePickerRoutine.exercises.map((ex, i) => (
-                <button
-                  key={i}
-                  onClick={() => setPickerSelected(prev => {
-                    const next = new Set(prev);
-                    if (next.has(i)) next.delete(i); else next.add(i);
-                    return next;
-                  })}
-                  className="w-full flex items-center gap-3 text-left"
-                >
-                  <div
-                    className="h-5 w-5 rounded flex items-center justify-center shrink-0 transition-colors"
-                    style={{
-                      background: pickerSelected.has(i) ? "hsl(var(--primary))" : "transparent",
-                      border: `1px solid ${pickerSelected.has(i) ? "hsl(var(--primary))" : "rgba(255,255,255,0.2)"}`,
-                    }}
-                  >
-                    {pickerSelected.has(i) && <span className="text-[10px] text-primary-foreground font-bold leading-none">✓</span>}
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-foreground">{ex.title}</p>
-                    <p className="text-xs text-muted-foreground">{ex.category}</p>
-                  </div>
-                </button>
-              ))}
-            </div>
-            <button
-              onClick={() => handleAddRoutine(
-                routinePickerRoutine,
-                routinePickerRoutine.exercises.filter((_, i) => pickerSelected.has(i))
-              )}
-              disabled={pickerSelected.size === 0 || addingRoutineId === routinePickerRoutine.id}
-              className="w-full px-5 py-3 rounded-xl bg-primary text-primary-foreground font-semibold text-sm hover:opacity-90 transition-opacity disabled:opacity-50"
-            >
-              {addingRoutineId === routinePickerRoutine.id
-                ? "Adding…"
-                : `Add ${pickerSelected.size} exercise${pickerSelected.size !== 1 ? "s" : ""}`}
-            </button>
-            <button
-              onClick={() => setRoutinePickerRoutine(null)}
-              className="w-full mt-3 text-sm text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

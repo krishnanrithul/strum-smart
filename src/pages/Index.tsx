@@ -180,7 +180,7 @@ const Index = () => {
           <div className="relative z-10">
             <div className="flex items-center justify-between mb-3">
               <div>
-                <h3 className="font-semibold text-lg">{exercise.title}</h3>
+                <h3 className="font-semibold text-base">{exercise.title}</h3>
                 <div className="flex items-center gap-1 mt-0.5">
                   <span className="text-sm text-muted-foreground">{exercise.category}</span>
                   {exercise.is_assigned && (
@@ -252,7 +252,7 @@ const Index = () => {
               <>
                 <div className="flex items-end gap-3">
                   <span
-                    className="text-8xl font-black text-primary leading-none"
+                    className="text-6xl sm:text-8xl font-black text-primary leading-none"
                     style={{ textShadow: "0 0 40px hsl(var(--primary) / 0.4)" }}
                   >
                     {personalBestBpm > 0 ? personalBestBpm : "—"}
@@ -347,7 +347,7 @@ const Index = () => {
         <section>
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
-              <h2 className="text-base font-semibold text-muted-foreground uppercase tracking-wider">My Exercises</h2>
+              <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">My Exercises</h2>
             </div>
             <button
               onClick={() => navigate("/library")}
