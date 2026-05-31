@@ -1,8 +1,10 @@
 # FretGym TODO
 
-## 📱 iOS (next focus)
-- [ ] Capacitor setup — wrap the app, get it on your phone
-- [ ] Metronome audio in silent mode — native audio plugin before App Store submission
+## 📱 iOS
+- [x] Capacitor setup — wrapped, running on phone
+- [x] Safe area insets — header, bottom nav
+- [x] App icon — FretGym logo
+- [x] Metronome audio in silent mode — test if current fix works, may need native plugin
 - [ ] Push notifications — streak reminders via Capacitor
 
 ## 🐛 Bugs
@@ -12,27 +14,25 @@
 - [ ] Cross-role flow — teacher assigns → student sees it → student practices → teacher sees updated stats
 - [ ] Run full manual test script end-to-end
 
-## 🎨 Polish
-- [ ] Bottom nav active state — verify looks correct on device
+## 🚀 TestFlight
+- [ ] Sign up for paid Apple Developer account ($99/yr)
+- [ ] Create app listing in App Store Connect
+- [ ] Archive and upload build from Xcode
+- [ ] Share link with first guitar teacher
 
 ## 🔨 Features (saved for later)
-- [ ] Plateau detection — query sessions for stagnation, show tip after session save
-- [ ] Add Student via email invite — send real email once Supabase CLI + Resend is set up
-- [ ] Guitar Fitness Score — single number summarising streak + BPM progress + practice consistency
-- [ ] Maintenance status — UI entry point for exercises the student wants to keep practicing without actively improving
+- [ ] Plateau detection
+- [ ] Add Student via email invite
+- [ ] Guitar Fitness Score
+- [ ] Maintenance status
+- [ ] Android support
 
-## ✅ Done this session
-- Exercise completion flow — Mark as Complete on practice screen and exercise card
-- Auto-trigger completion when target BPM hit during session
-- Save Session rename (was Complete Session)
-- Completed exercises section in Library — slide-up sheet matching routines animation
-- Practice Again button on completed exercises
-- Completed exercises hidden from active MY EXERCISES list on Home
-- Student Snapshot + Next Exercise on StudentDetail (collapsible)
-- AI cards renamed — Student Snapshot, Next Exercise
-- StudentDetail polish — Last Active, Peak BPM hides when no sessions
-- Exercise sort: Warmup → Technical → Repertoire
-- Bottom nav styling fixed
-- Hero card dark mode locked
-- Status constraint updated — Mastered replaced with Completed
-- StorageService used for exercise status updates (not Supabase directly)
+## ✅ Done today
+- Mobile layout fixes — safe areas, font sizes, header clipping
+- App icon designed and added to Xcode
+- Personal Best fixed — uses history only
+- Last practiced dates on exercise cards
+- Library routine list — compact single-entry with two-level bottom sheet
+- BPM → BPM progress row hidden when no progress
+- Metronome auto-starts with timer
+- Routine exercise selection — checklist before adding
