@@ -161,7 +161,20 @@ const Practice = () => {
           </div>
           <div className="flex gap-4 justify-center">
             <button
-              onClick={() => setIsPlaying(!isPlaying)}
+              onClick={() => {
+                const nowPlaying = !isPlaying;
+                setIsPlaying(nowPlaying);
+                if (nowPlaying) {
+                  if (!isMetronomeActive) {
+                    metronomeRef.current?.unlock();
+                    metronomeRef.current?.start(bpm);
+                    setIsMetronomeActive(true);
+                  }
+                } else {
+                  metronomeRef.current?.stop();
+                  setIsMetronomeActive(false);
+                }
+              }}
               className="h-14 w-14 rounded-full flex items-center justify-center bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
             >
               {isPlaying ? <Pause className="h-6 w-6" /> : <Play className="h-6 w-6 ml-0.5" />}

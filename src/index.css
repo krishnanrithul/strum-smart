@@ -99,3 +99,9 @@ All colors MUST be HSL.
     @apply text-metric-text font-bold tracking-tight;
   }
 }
+
+@media (max-width: 768px) {
+  html {
+    font-size: 18px;
+  }
+}

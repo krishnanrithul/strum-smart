@@ -3,6 +3,18 @@ import { Link } from "react-router-dom";
 import { Pencil, Trash2 } from "lucide-react";
 import { Exercise } from "@/lib/storage";
 
+const formatRelativeTime = (iso: string | null): string => {
+  if (!iso) return "Never practiced";
+  const diffDays = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
+  if (diffDays === 0) return "Last practiced: Today";
+  if (diffDays === 1) return "Last practiced: Yesterday";
+  if (diffDays < 7) return `Last practiced: ${diffDays} days ago`;
+  if (diffDays < 14) return "Last practiced: 1 week ago";
+  if (diffDays < 30) return `Last practiced: ${Math.floor(diffDays / 7)} weeks ago`;
+  if (diffDays < 60) return "Last practiced: 1 month ago";
+  return `Last practiced: ${Math.floor(diffDays / 30)} months ago`;
+};
+
 type Props = {
   exercise: Exercise;
   onEdit: (exercise: Exercise, e: React.MouseEvent) => void;
@@ -57,22 +69,25 @@ export const ExerciseCard = ({ exercise, onEdit, onDelete }: Props) => {
                 </>
               )}
             </div>
+            <p className="text-xs text-muted-foreground mt-0.5">{formatRelativeTime(exercise.history.length > 1 ? exercise.history[exercise.history.length - 1].date : null)}</p>
           </div>
           <div className="text-right">
             <p className="text-lg font-black text-primary">{exercise.currentBpm}</p>
             <p className="text-xs text-muted-foreground">BPM</p>
           </div>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="flex-1 h-1.5 bg-secondary rounded-full overflow-hidden">
-            <div className="h-full bg-primary rounded-full" style={{ width: `${progress}%` }} />
+        {startBpm !== exercise.currentBpm && (
+          <div className="flex items-center gap-3">
+            <div className="flex-1 h-1.5 bg-secondary rounded-full overflow-hidden">
+              <div className="h-full bg-primary rounded-full" style={{ width: `${progress}%` }} />
+            </div>
+            <div className="flex items-center gap-0.5 text-xs">
+              <span className="text-muted-foreground">{startBpm} →&nbsp;</span>
+              <span className="text-foreground font-semibold">{exercise.currentBpm}</span>
+              <span className="text-muted-foreground">&nbsp;BPM</span>
+            </div>
           </div>
-          <div className="flex items-center gap-0.5 text-xs">
-            <span className="text-muted-foreground">{startBpm} →&nbsp;</span>
-            <span className="text-foreground font-semibold">{exercise.currentBpm}</span>
-            <span className="text-muted-foreground">&nbsp;BPM</span>
-          </div>
-        </div>
+        )}
       </Link>
 
       <button

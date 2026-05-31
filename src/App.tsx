@@ -1,10 +1,12 @@
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Outlet, useLocation, Link } from "react-router-dom";
 import { Home, Library as LibraryIcon, TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { SplashScreen } from '@capacitor/splash-screen';
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Index from "./pages/Index";
@@ -61,7 +63,12 @@ const StudentLayout = () => {
   );
 };
 
-const App = () => (
+function App() {
+  useEffect(() => {
+    SplashScreen.hide({ fadeOutDuration: 500 });
+  }, []);
+
+  return (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
       <TooltipProvider>
@@ -89,6 +96,7 @@ const App = () => (
       </TooltipProvider>
     </AuthProvider>
   </QueryClientProvider>
-);
+  );
+}
 
 export default App;

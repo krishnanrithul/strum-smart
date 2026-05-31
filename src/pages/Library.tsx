@@ -37,6 +37,9 @@ const Library = () => {
   const [reactivateConfirmExercise, setReactivateConfirmExercise] = useState<Exercise | null>(null);
   const [completedSheetOpen, setCompletedSheetOpen] = useState(false);
   const [completedSheetVisible, setCompletedSheetVisible] = useState(false);
+  const [routinePickerRoutine, setRoutinePickerRoutine] = useState<typeof ROUTINES[0] | null>(null);
+  const [pickerSelected, setPickerSelected] = useState<Set<number>>(new Set());
+  const [routinePickerVisible, setRoutinePickerVisible] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -63,14 +66,19 @@ const Library = () => {
     else setCompletedSheetVisible(false);
   }, [completedSheetOpen]);
 
+  useEffect(() => {
+    if (routinePickerRoutine) setTimeout(() => setRoutinePickerVisible(true), 10);
+    else setRoutinePickerVisible(false);
+  }, [routinePickerRoutine]);
+
   const myExercises = exercises.filter(e => !e.project_id);
   const activeExercises = myExercises.filter(e => e.status !== "Completed");
   const completedExercises = myExercises.filter(e => e.status === "Completed");
 
-  const handleAddRoutine = async (routine: typeof ROUTINES[0]) => {
+  const handleAddRoutine = async (routine: typeof ROUTINES[0], exercisesToAdd: typeof routine.exercises) => {
     setAddingRoutineId(routine.id);
     try {
-      for (const ex of routine.exercises) {
+      for (const ex of exercisesToAdd) {
         await StorageService.addExercise({
           title: ex.title,
           category: ex.category,
@@ -78,7 +86,8 @@ const Library = () => {
           status: "New",
         });
       }
-      toast({ title: `${routine.name} routine added!`, description: `${routine.exercises.length} exercises added.` });
+      toast({ title: `${routine.name} routine added!`, description: `${exercisesToAdd.length} exercises added.` });
+      setRoutinePickerRoutine(null);
       setSelectedRoutine(null);
       loadData();
     } catch (error) {
@@ -226,9 +235,28 @@ const Library = () => {
         {/* Routines */}
         <section className="space-y-4">
           <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">Routines</p>
-          <div className="grid grid-cols-2 gap-3 items-stretch">
+          <div className="rounded-2xl bg-card divide-y divide-white/5" style={{ border: "1px solid rgba(255,255,255,0.05)" }}>
             {ROUTINES.map(routine => (
-              <RoutineCard key={routine.id} routine={routine} onClick={() => setSelectedRoutine(routine)} />
+              <button
+                key={routine.id}
+                onClick={() => {
+                  setRoutinePickerRoutine(routine);
+                  setPickerSelected(new Set(routine.exercises.map((_, i) => i)));
+                }}
+                className="w-full px-5 py-4 flex items-center justify-between active:bg-white/5 transition-colors"
+              >
+                <div className="flex flex-col items-start text-left">
+                  <span className="text-base font-semibold text-foreground">{routine.name}</span>
+                  <span className="text-sm text-muted-foreground mt-0.5">{routine.description}</span>
+                </div>
+                <div className="flex items-center gap-3 ml-4 shrink-0">
+                  <div className="text-right">
+                    <p className="text-sm font-semibold text-foreground">{routine.exercises.length}</p>
+                    <p className="text-xs text-muted-foreground">exercises</p>
+                  </div>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                </div>
+              </button>
             ))}
           </div>
 
@@ -349,7 +377,7 @@ const Library = () => {
         isAdding={addingRoutineId === selectedRoutine?.id}
         alreadyAdded={selectedRoutine ? isRoutineAdded(selectedRoutine) : false}
         onClose={() => setSelectedRoutine(null)}
-        onAdd={() => selectedRoutine && handleAddRoutine(selectedRoutine)}
+        onAdd={() => selectedRoutine && handleAddRoutine(selectedRoutine, selectedRoutine.exercises)}
       />
 
       <BuildYourOwnModal
@@ -466,6 +494,68 @@ const Library = () => {
                 </div>
               ))}
             </div>
+          </div>
+        </div>
+      )}
+
+      {routinePickerRoutine && (
+        <div className={`fixed inset-0 z-50 flex items-end sm:items-center justify-center transition-opacity duration-300 ${routinePickerVisible ? "opacity-100" : "opacity-0"}`}>
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setRoutinePickerRoutine(null)} />
+          <div
+            className={`relative w-full sm:max-w-md bg-card rounded-t-2xl sm:rounded-2xl p-6 z-10 transition-transform duration-300 ${routinePickerVisible ? "translate-y-0" : "translate-y-8"}`}
+            style={{ border: "1px solid rgba(255,255,255,0.15)" }}
+          >
+            <div className="flex items-start justify-between mb-5">
+              <p className="text-lg font-bold text-foreground">{routinePickerRoutine.name}</p>
+              <button onClick={() => setRoutinePickerRoutine(null)} className="text-muted-foreground hover:text-foreground">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="space-y-3 mb-6">
+              {routinePickerRoutine.exercises.map((ex, i) => (
+                <button
+                  key={i}
+                  onClick={() => setPickerSelected(prev => {
+                    const next = new Set(prev);
+                    if (next.has(i)) next.delete(i); else next.add(i);
+                    return next;
+                  })}
+                  className="w-full flex items-center gap-3 text-left"
+                >
+                  <div
+                    className="h-5 w-5 rounded flex items-center justify-center shrink-0 transition-colors"
+                    style={{
+                      background: pickerSelected.has(i) ? "hsl(var(--primary))" : "transparent",
+                      border: `1px solid ${pickerSelected.has(i) ? "hsl(var(--primary))" : "rgba(255,255,255,0.2)"}`,
+                    }}
+                  >
+                    {pickerSelected.has(i) && <span className="text-[10px] text-primary-foreground font-bold leading-none">✓</span>}
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-foreground">{ex.title}</p>
+                    <p className="text-xs text-muted-foreground">{ex.category}</p>
+                  </div>
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={() => handleAddRoutine(
+                routinePickerRoutine,
+                routinePickerRoutine.exercises.filter((_, i) => pickerSelected.has(i))
+              )}
+              disabled={pickerSelected.size === 0 || addingRoutineId === routinePickerRoutine.id}
+              className="w-full px-5 py-3 rounded-xl bg-primary text-primary-foreground font-semibold text-sm hover:opacity-90 transition-opacity disabled:opacity-50"
+            >
+              {addingRoutineId === routinePickerRoutine.id
+                ? "Adding…"
+                : `Add ${pickerSelected.size} exercise${pickerSelected.size !== 1 ? "s" : ""}`}
+            </button>
+            <button
+              onClick={() => setRoutinePickerRoutine(null)}
+              className="w-full mt-3 text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Cancel
+            </button>
           </div>
         </div>
       )}

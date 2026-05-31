@@ -9,6 +9,18 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { redeemInviteCode } from "@/hooks/useInviteCode";
 
+const formatRelativeTime = (iso: string | null): string => {
+  if (!iso) return "Never practiced";
+  const diffDays = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
+  if (diffDays === 0) return "Last practiced: Today";
+  if (diffDays === 1) return "Last practiced: Yesterday";
+  if (diffDays < 7) return `Last practiced: ${diffDays} days ago`;
+  if (diffDays < 14) return "Last practiced: 1 week ago";
+  if (diffDays < 30) return `Last practiced: ${Math.floor(diffDays / 7)} weeks ago`;
+  if (diffDays < 60) return "Last practiced: 1 month ago";
+  return `Last practiced: ${Math.floor(diffDays / 30)} months ago`;
+};
+
 const Index = () => {
   const { session } = useAuth();
   const navigate = useNavigate();
@@ -55,9 +67,17 @@ const Index = () => {
 
         const rows = sessionRows || [];
 
-        // Personal Best BPM — max currentBpm across all exercises
-        const bestBpm = exercises.reduce((max, e) => Math.max(max, e.currentBpm), 0);
-        const bestExercise = exercises.find(e => e.currentBpm === bestBpm)?.title ?? null;
+        // Personal Best BPM — max across session history entries (skip index 0, which is the creation entry)
+        let bestBpm = 0;
+        let bestExercise: string | null = null;
+        for (const e of exercises) {
+          for (const h of e.history.slice(1)) {
+            if (h.bpm > bestBpm) {
+              bestBpm = h.bpm;
+              bestExercise = e.title;
+            }
+          }
+        }
 
         // Today's practice time (local timezone)
         const todayStr = new Date().toLocaleDateString("en-CA");
@@ -160,9 +180,9 @@ const Index = () => {
           <div className="relative z-10">
             <div className="flex items-center justify-between mb-3">
               <div>
-                <h3 className="font-semibold text-sm">{exercise.title}</h3>
+                <h3 className="font-semibold text-lg">{exercise.title}</h3>
                 <div className="flex items-center gap-1 mt-0.5">
-                  <span className="text-xs text-muted-foreground">{exercise.category}</span>
+                  <span className="text-sm text-muted-foreground">{exercise.category}</span>
                   {exercise.is_assigned && (
                     <>
                       <span className="text-xs text-muted-foreground"> · </span>
@@ -170,22 +190,25 @@ const Index = () => {
                     </>
                   )}
                 </div>
+                <p className="text-xs text-muted-foreground mt-0.5">{formatRelativeTime(history.length > 1 ? history[history.length - 1].date : null)}</p>
               </div>
-              <p className="text-lg font-black text-primary leading-none">{lastBpm}</p>
+              <p className="text-xl font-black text-primary leading-none">{lastBpm}</p>
             </div>
-            <div className="flex items-center gap-3">
-              <div className="flex-1 h-1.5 bg-secondary rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-primary rounded-full transition-all duration-500"
-                  style={{ width: `${progress}%` }}
-                />
+            {prevBpm !== lastBpm && (
+              <div className="flex items-center gap-3">
+                <div className="flex-1 h-1.5 bg-secondary rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-primary rounded-full transition-all duration-500"
+                    style={{ width: `${progress}%` }}
+                  />
+                </div>
+                <div className="flex items-center gap-0.5 text-xs">
+                  <span className="text-muted-foreground">{prevBpm} →&nbsp;</span>
+                  <span className="text-foreground font-semibold">{lastBpm}</span>
+                  <span className="text-muted-foreground">&nbsp;BPM</span>
+                </div>
               </div>
-              <div className="flex items-center gap-0.5 text-xs">
-                <span className="text-muted-foreground">{prevBpm} →&nbsp;</span>
-                <span className="text-foreground font-semibold">{lastBpm}</span>
-                <span className="text-muted-foreground">&nbsp;BPM</span>
-              </div>
-            </div>
+            )}
             <div className="flex justify-end mt-2">
               <button
                 onClick={(e) => { e.preventDefault(); e.stopPropagation(); setCompleteConfirmExercise(exercise); }}
@@ -243,14 +266,14 @@ const Index = () => {
                 )}
                 <div className="flex items-center gap-6 mt-8 pt-6 border-t border-border">
                   <div>
-                    <p className="text-xs text-muted-foreground uppercase tracking-wider">Today</p>
+                    <p className="text-sm text-muted-foreground uppercase tracking-wider">Today</p>
                     <p className="text-xl font-bold mt-1">
                       {todayMinutes < 60 ? `${todayMinutes}m` : `${Math.floor(todayMinutes / 60)}h ${todayMinutes % 60}m`}
                     </p>
                   </div>
                   <div className="w-px h-8 bg-border" />
                   <div>
-                    <p className="text-xs text-muted-foreground uppercase tracking-wider">Streak</p>
+                    <p className="text-sm text-muted-foreground uppercase tracking-wider">Streak</p>
                     <p className="text-xl font-bold mt-1">{currentStreak} {currentStreak === 1 ? "day" : "days"}</p>
                   </div>
                 </div>
