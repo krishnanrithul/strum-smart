@@ -67,7 +67,7 @@ const Practice = () => {
   }, [id]);
 
   useEffect(() => {
-    let interval: NodeJS.Timeout;
+    let interval: ReturnType<typeof setInterval>;
     if (isPlaying) {
       interval = setInterval(() => {
         setSeconds((s) => s + 1);
@@ -96,6 +96,7 @@ const Practice = () => {
   }, [bpm]);
 
   const toggleMetronome = () => {
+    metronomeRef.current?.unlock();
     if (!metronomeRef.current) return;
     if (isMetronomeActive) {
       metronomeRef.current.stop();

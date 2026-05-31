@@ -171,8 +171,8 @@ const TeacherDashboard = () => {
         {firstName && <p className="text-2xl font-bold mb-4">Hey, {firstName}.</p>}
 
         {/* Title row */}
-        <div className="flex items-center justify-between">
-          <div>
+        <div className="flex items-center justify-between gap-4">
+          <div className="min-w-0">
             <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">My Students</p>
             <p className="text-2xl font-bold text-foreground mt-1">
               {students.length} {students.length === 1 ? "student" : "students"}
@@ -180,7 +180,7 @@ const TeacherDashboard = () => {
           </div>
           <button
             onClick={() => setAddStudentOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:opacity-90 transition-opacity"
+            className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:opacity-90 transition-opacity"
           >
             <Plus size={12} /> Add Student
           </button>
@@ -271,8 +271,8 @@ const TeacherDashboard = () => {
                   boxShadow: hoveredId === student.id ? `0 8px 24px ${HOVER_COLOR}` : "none",
                 }}
               >
-                <div>
-                  <p className="text-base font-semibold text-foreground">
+                <div className="min-w-0">
+                  <p className="text-base font-semibold text-foreground truncate">
                     {student.full_name ?? "Unnamed Student"}
                   </p>
                   <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground mt-1">

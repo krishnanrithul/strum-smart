@@ -158,7 +158,7 @@ const Index = () => {
             }}
           />
           <div className="relative z-10">
-            <div className="flex items-start justify-between mb-3">
+            <div className="flex items-center justify-between mb-3">
               <div>
                 <h3 className="font-semibold text-sm">{exercise.title}</h3>
                 <div className="flex items-center gap-1 mt-0.5">
@@ -171,9 +171,7 @@ const Index = () => {
                   )}
                 </div>
               </div>
-              <div className="text-right">
-                <p className="text-lg font-black text-primary">{lastBpm}</p>
-              </div>
+              <p className="text-lg font-black text-primary leading-none">{lastBpm}</p>
             </div>
             <div className="flex items-center gap-3">
               <div className="flex-1 h-1.5 bg-secondary rounded-full overflow-hidden">

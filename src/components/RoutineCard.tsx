@@ -13,7 +13,7 @@ export const RoutineCard = ({ routine, onClick }: Props) => {
       onClick={onClick}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      className="w-full text-left p-4 rounded-xl relative overflow-hidden transition-all duration-300"
+      className="w-full h-full text-left p-4 rounded-xl relative overflow-hidden transition-all duration-300"
       style={{
         background: hovered
           ? "linear-gradient(135deg, rgba(52,211,153,0.18) 0%, rgba(255,255,255,0.03) 100%)"

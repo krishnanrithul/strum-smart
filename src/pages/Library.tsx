@@ -206,15 +206,15 @@ const Library = () => {
           </div>
           <div className="border-t border-white/5 pt-4 grid grid-cols-3 gap-4">
             <div>
-              <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">Routines Added</p>
+              <p className="text-[10px] font-semibold tracking-widest uppercase text-muted-foreground">Routines</p>
               <p className="text-xl font-bold text-foreground mt-1">{routinesAdded}</p>
             </div>
             <div>
-              <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">Song Projects</p>
+              <p className="text-[10px] font-semibold tracking-widest uppercase text-muted-foreground">Songs</p>
               <p className="text-xl font-bold text-foreground mt-1">{projects.length}</p>
             </div>
             <div>
-              <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">Total Available Routines</p>
+              <p className="text-[10px] font-semibold tracking-widest uppercase text-muted-foreground">Available</p>
               <p className="text-xl font-bold text-foreground mt-1">{ROUTINES.length}</p>
             </div>
           </div>
@@ -226,7 +226,7 @@ const Library = () => {
         {/* Routines */}
         <section className="space-y-4">
           <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">Routines</p>
-          <div className="grid grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 gap-3 items-stretch">
             {ROUTINES.map(routine => (
               <RoutineCard key={routine.id} routine={routine} onClick={() => setSelectedRoutine(routine)} />
             ))}

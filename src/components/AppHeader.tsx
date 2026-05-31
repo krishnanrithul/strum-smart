@@ -25,8 +25,8 @@ const AppHeader = ({ title, breadcrumb, showBack = false, onBack }: AppHeaderPro
   };
 
   return (
-    <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-10">
-      <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+    <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-10" style={{ paddingTop: "env(safe-area-inset-top)" }}>
+      <div className="container mx-auto px-3 py-3 flex items-center justify-between">
         {/* Left */}
         {showBack ? (
           <div className="flex items-center gap-3">
@@ -43,7 +43,7 @@ const AppHeader = ({ title, breadcrumb, showBack = false, onBack }: AppHeaderPro
                     {breadcrumb}
                   </p>
                 )}
-                <span className="text-xs font-semibold tracking-widest uppercase text-foreground">
+                <span className="text-xs font-semibold tracking-widest uppercase text-foreground truncate max-w-[180px] block">
                   {title}
                 </span>
               </div>
@@ -60,7 +60,7 @@ const AppHeader = ({ title, breadcrumb, showBack = false, onBack }: AppHeaderPro
 
         {/* Right */}
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" onClick={handleLogout}>
+          <Button variant="ghost" size="sm" onClick={handleLogout}>
             <LogOut className="h-5 w-5" />
           </Button>
         </div>

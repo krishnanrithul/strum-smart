@@ -61,14 +61,29 @@ export class MetronomeEngine {
         this.initAudioContext();
         if (!this.audioContext) return;
 
-        if (this.audioContext.state === 'suspended') {
-            this.audioContext.resume();
-        }
+        const doStart = () => {
+            this.isPlaying = true;
+            this.bpm = bpm;
+            this.nextNoteTime = this.audioContext!.currentTime + 0.05;
+            this.scheduler();
+        };
 
-        this.isPlaying = true;
-        this.bpm = bpm;
-        this.nextNoteTime = this.audioContext.currentTime + 0.05;
-        this.scheduler();
+        if (this.audioContext.state === 'suspended') {
+            this.audioContext.resume().then(doStart);
+        } else {
+            doStart();
+        }
+    }
+
+    public unlock() {
+        this.initAudioContext();
+        if (!this.audioContext) return;
+        const buffer = this.audioContext.createBuffer(1, 1, 22050);
+        const source = this.audioContext.createBufferSource();
+        source.buffer = buffer;
+        source.connect(this.audioContext.destination);
+        source.start(0);
+        this.audioContext.resume();
     }
 
     public stop() {

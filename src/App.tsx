@@ -30,10 +30,10 @@ const StudentLayout = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="pb-[72px]">
+      <div style={{ paddingBottom: "calc(72px + env(safe-area-inset-bottom))" }}>
         <Outlet />
       </div>
-      <nav className="fixed bottom-0 left-0 right-0 bg-[#000000] border-t border-[#222222]" style={{ height: "72px" }}>
+      <nav className="fixed bottom-0 left-0 right-0 bg-[#000000] border-t border-[#222222]" style={{ height: "calc(72px + env(safe-area-inset-bottom))", paddingBottom: "env(safe-area-inset-bottom)" }}>
         <div className="container mx-auto px-4 h-full">
           <div className="grid grid-cols-3 gap-2 h-full items-center">
             {navItems.map(({ path, icon: Icon, label }) => {

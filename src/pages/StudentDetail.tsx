@@ -350,7 +350,7 @@ const StudentDetail = () => {
 
         {/* Action buttons */}
         {!isEditing && !isEditingNotes && (
-          <div className="flex items-center justify-end gap-2">
+          <div className="flex flex-wrap items-center justify-end gap-2">
             {ex.is_assigned && confirmRemoveId === ex.id ? (
               <>
                 <button
@@ -418,7 +418,7 @@ const StudentDetail = () => {
 
         {/* Stats Card */}
         <div className="rounded-2xl bg-card p-6" style={glassCard}>
-          <div className="grid grid-cols-4 gap-4 text-center">
+          <div className="grid grid-cols-2 grid-rows-2 gap-4 text-center">
             <div>
               <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">Sessions</p>
               <p className="text-3xl font-bold text-foreground mt-1">{totalSessions}</p>
