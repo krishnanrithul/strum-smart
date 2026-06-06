@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Plus, ChevronRight, ChevronLeft, Pencil, Trash2, CheckCircle2, X } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Plus, ChevronRight, ChevronLeft, Pencil, Trash2, CheckCircle2, X, Bookmark } from "lucide-react";
 import AppHeader from "@/components/AppHeader";
 import MiniLogo from "@/components/MiniLogo";
 import WaveformLoader from "@/components/WaveformLoader";
@@ -42,6 +42,8 @@ const Library = () => {
   const [routineSheetView, setRoutineSheetView] = useState<"list" | "picker">("list");
   const [routinePickerRoutine, setRoutinePickerRoutine] = useState<typeof ROUTINES[0] | null>(null);
   const [pickerSelected, setPickerSelected] = useState<Set<number>>(new Set());
+  const [activeRoutineIndex, setActiveRoutineIndex] = useState(0);
+  const carouselRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -72,6 +74,17 @@ const Library = () => {
     if (routineSheetOpen) setTimeout(() => setRoutineSheetVisible(true), 10);
     else setRoutineSheetVisible(false);
   }, [routineSheetOpen]);
+
+  useEffect(() => {
+    const el = carouselRef.current;
+    if (!el) return;
+    const handleScroll = () => {
+      const idx = Math.round(el.scrollLeft / (el.scrollWidth / ROUTINES.length));
+      setActiveRoutineIndex(Math.max(0, Math.min(ROUTINES.length - 1, idx)));
+    };
+    el.addEventListener("scroll", handleScroll, { passive: true });
+    return () => el.removeEventListener("scroll", handleScroll);
+  }, []);
 
   const myExercises = exercises.filter(e => !e.project_id);
   const activeExercises = myExercises.filter(e => e.status !== "Completed");
@@ -210,7 +223,7 @@ const Library = () => {
       <main className="container mx-auto px-4 py-6 space-y-10">
       
       {/* Stats card */}
-        <div className="rounded-2xl p-5 space-y-4" style={{ border: "1px solid rgba(255,255,255,0.05)", background: "radial-gradient(circle at top right, rgba(34,197,94,0.12) 0%, transparent 60%), hsl(var(--card))" }}>
+        <div className="rounded-2xl p-5 space-y-4" style={{ border: "1px solid rgba(255,255,255,0.05)", background: "radial-gradient(circle at top right, rgba(255,255,255,0.03) 0%, transparent 60%), hsl(var(--card))" }}>
           <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">My Library</p>
           <div className="flex items-end gap-2">
             <span className="text-4xl font-bold text-foreground leading-none">{myExercises.length}</span>
@@ -235,29 +248,100 @@ const Library = () => {
         {/* Routines */}
         <section className="space-y-4">
           <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">Routines</p>
-          <div className="rounded-2xl bg-card divide-y divide-white/5" style={{ border: "1px solid rgba(255,255,255,0.05)" }}>
-            <button
-              onClick={() => { setRoutineSheetOpen(true); setRoutineSheetView("list"); }}
-              className="w-full px-5 py-4 flex items-center justify-between active:bg-white/5 transition-colors"
+
+          {/* Cinematic carousel — bleeds to screen edges */}
+          <div className="-mx-4">
+            <div
+              ref={carouselRef}
+              className="flex overflow-x-auto gap-3 px-4 scrollbar-hide"
+              style={{ scrollSnapType: "x mandatory" }}
             >
-              <span className="text-base font-semibold text-foreground">Routines</span>
-              <div className="flex items-center gap-3 shrink-0">
-                <span className="text-sm text-muted-foreground">{ROUTINES.length}</span>
-                <ChevronRight className="h-4 w-4 text-muted-foreground" />
-              </div>
-            </button>
+              {ROUTINES.map((routine) => {
+                const boldColor = routine.glowColor.replace(/[\d.]+\)$/, "0.55)");
+                return (
+                  <div
+                    key={routine.id}
+                    className="relative rounded-2xl overflow-hidden shrink-0 flex flex-col justify-end"
+                    style={{
+                      width: "85vw",
+                      height: "220px",
+                      scrollSnapAlign: "start",
+                      background: `radial-gradient(ellipse at 80% 20%, ${boldColor} 0%, rgba(8,8,8,1) 65%)`,
+                    }}
+                  >
+                    {/* Large background typography */}
+                    <span
+                      className="absolute inset-0 flex items-center justify-center font-black text-white select-none pointer-events-none overflow-hidden leading-none"
+                      style={{ fontSize: "clamp(80px, 22vw, 120px)", opacity: 0.06 }}
+                    >
+                      {routine.name.split(" ")[0]}
+                    </span>
+
+                    {/* Scrim */}
+                    <div
+                      className="absolute inset-0 pointer-events-none"
+                      style={{ background: "linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 60%)" }}
+                    />
+
+                    {/* Overlay content */}
+                    <div className="relative z-10 p-4">
+                      <p className="text-xl font-bold text-white mb-2">{routine.name}</p>
+                      <div className="flex items-center justify-between">
+                        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${routine.accent} ${routine.labelColor}`}>
+                          {routine.exercises.length} exercises
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => {
+                              setRoutineSheetOpen(true);
+                              setRoutineSheetView("picker");
+                              setRoutinePickerRoutine(routine);
+                              setPickerSelected(new Set(routine.exercises.map((_, i) => i)));
+                            }}
+                            className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:opacity-90 transition-opacity"
+                          >
+                            Start
+                          </button>
+                          <button
+                            className="h-7 w-7 flex items-center justify-center rounded-lg text-white/70 hover:text-white transition-colors"
+                            style={{ background: "rgba(255,255,255,0.1)" }}
+                          >
+                            <Bookmark className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
 
-          {/* Build your own CTA — matches "Start Practice" style */}
+          {/* Dot pagination */}
+          <div className="flex items-center justify-center gap-1.5">
+            {ROUTINES.map((_, idx) => (
+              <div
+                key={idx}
+                className="h-1.5 rounded-full transition-all duration-300"
+                style={{
+                  width: idx === activeRoutineIndex ? "18px" : "6px",
+                  background: idx === activeRoutineIndex ? "rgba(255,255,255,1)" : "rgba(255,255,255,0.3)",
+                }}
+              />
+            ))}
+          </div>
+
+          {/* Build your own CTA */}
           <button
             onClick={() => setBuildModalOpen(true)}
-            className="w-full flex items-center justify-between px-5 py-4 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+            className="w-full flex items-center justify-between rounded-2xl bg-card px-4 py-4 transition-colors hover:bg-white/5"
+            style={{ border: "1px solid rgba(255,255,255,0.05)" }}
           >
             <div className="flex items-center gap-3">
-              <MiniLogo color="#0a0a0a" />
-              <span className="text-base font-medium">Build your own</span>
+              <MiniLogo color="#ffffff" />
+              <span className="text-base font-medium text-white">Build your own</span>
             </div>
-            <ChevronRight className="h-4 w-4 opacity-70" />
+            <ChevronRight className="h-4 w-4 text-muted-foreground" />
           </button>
         </section>
 

@@ -192,7 +192,7 @@ const Index = () => {
                 </div>
                 <p className="text-xs text-muted-foreground mt-0.5">{formatRelativeTime(history.length > 1 ? history[history.length - 1].date : null)}</p>
               </div>
-              <p className="text-xl font-black text-primary leading-none">{lastBpm}</p>
+              <p className="text-xl font-black text-white leading-none">{lastBpm}</p>
             </div>
             {prevBpm !== lastBpm && (
               <div className="flex items-center gap-3">

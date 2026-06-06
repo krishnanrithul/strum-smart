@@ -3,7 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Outlet, useLocation, Link } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation, Link } from "react-router-dom";
 import { Home, Library as LibraryIcon, TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SplashScreen } from '@capacitor/splash-screen';
@@ -33,7 +33,9 @@ const StudentLayout = () => {
   return (
     <div className="min-h-screen bg-background">
       <div style={{ paddingBottom: "calc(72px + env(safe-area-inset-bottom))" }}>
-        <Outlet />
+        <div className={pathname === "/" ? "block" : "hidden"}><Index /></div>
+        <div className={pathname === "/library" ? "block" : "hidden"}><Library /></div>
+        <div className={pathname === "/progress" ? "block" : "hidden"}><Progress /></div>
       </div>
       <nav className="fixed bottom-0 left-0 right-0 bg-[#000000] border-t border-[#222222]" style={{ height: "calc(72px + env(safe-area-inset-bottom))", paddingBottom: "env(safe-area-inset-bottom)" }}>
         <div className="container mx-auto px-4 h-full">

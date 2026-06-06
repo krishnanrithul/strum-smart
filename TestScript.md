@@ -24,8 +24,8 @@ Mark each as ✅ Pass / ❌ Fail / ⚠️ Partial.
 - [Pass] **Expected:** Inline error shown, does not proceed or crash
 
 ### Student Signup — skip invite code
-- [ ] During onboarding, skip the invite code step
-- [ ] **Expected:** Student lands on home with no teacher linked
+- [Pass] During onboarding, skip the invite code step
+- [Pass] **Expected:** Student lands on home with no teacher linked
 
 ---
 
@@ -42,21 +42,21 @@ Mark each as ✅ Pass / ❌ Fail / ⚠️ Partial.
 
 ## 3. Student — Home Page
 
-- [ ] Log in as student
-- [ ] **Expected:** FretGym logo in top left, bottom nav visible with Home/Library/Progress
-- [ ] **Expected:** Today's Peak BPM shows correctly (or 0 if no sessions)
-- [ ] **Expected:** Practice Time shows correctly formatted (e.g. "0m" or "1h 23m")
-- [ ] **Expected:** Total Sessions count is correct
-- [ ] **Expected:** My Exercises list shows all assigned + self-added exercises
+- [Pass] Log in as student
+- [Pass] **Expected:** FretGym logo in top left, bottom nav visible with Home/Library/Progress
+- [Pass] **Expected:** Today's Peak BPM shows correctly (or 0 if no sessions)
+- [Pass] **Expected:** Practice Time shows correctly formatted (e.g. "0m" or "1h 23m")
+- [Pass] **Expected:** Total Sessions count is correct
+- [Pass] **Expected:** My Exercises list shows all assigned + self-added exercises
 - [ ] **Expected:** "FROM TEACHER" badge appears on teacher-assigned exercises
 - [ ] Tap an exercise card
-- [ ] **Expected:** Navigates to Practice screen for that exercise
-- [ ] Tap Library tab
-- [ ] **Expected:** Navigates to Library without losing bottom nav
-- [ ] Tap Progress tab
-- [ ] **Expected:** Navigates to Progress without losing bottom nav
-- [ ] Tap Home tab from Progress
-- [ ] **Expected:** Returns to Home, active tab highlights correctly on each page
+- [Pass] **Expected:** Navigates to Practice screen for that exercise
+- [Pass] Tap Library tab
+- [Pass] **Expected:** Navigates to Library without losing bottom nav
+- [Pass] Tap Progress tab
+- [Pass] **Expected:** Navigates to Progress without losing bottom nav
+- [Pass] Tap Home tab from Progress
+- [Pass] **Expected:** Returns to Home, active tab highlights correctly on each page
 
 ---
 

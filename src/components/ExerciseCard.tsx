@@ -65,15 +65,15 @@ export const ExerciseCard = ({ exercise, onEdit, onDelete }: Props) => {
               {exercise.is_assigned && (
                 <>
                   <span className="text-xs text-muted-foreground"> · </span>
-                  <span className="text-xs font-semibold uppercase tracking-wide text-primary">From Teacher</span>
+                  <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">From Teacher</span>
                 </>
               )}
             </div>
             <p className="text-xs text-muted-foreground mt-0.5">{formatRelativeTime(exercise.history.length > 1 ? exercise.history[exercise.history.length - 1].date : null)}</p>
           </div>
-          <div className="text-right">
-            <p className="text-lg font-black text-primary">{exercise.currentBpm}</p>
-            <p className="text-xs text-muted-foreground">BPM</p>
+          <div className="text-right leading-none">
+            <p className="text-base font-semibold text-white">{exercise.currentBpm}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">BPM</p>
           </div>
         </div>
         {startBpm !== exercise.currentBpm && (
