@@ -39,6 +39,7 @@ const Index = () => {
   const [connectedTeacherName, setConnectedTeacherName] = useState<string | null>(null);
   const [hoveredExerciseId, setHoveredExerciseId] = useState<string | null>(null);
   const [completeConfirmExercise, setCompleteConfirmExercise] = useState<Exercise | null>(null);
+  const [flashingExerciseId, setFlashingExerciseId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!session) {
@@ -128,10 +129,16 @@ const Index = () => {
     loadData();
   }, [session]);
 
-  const handleMarkComplete = async (exercise: Exercise) => {
-    await supabase.from("exercises").update({ status: "Completed" }).eq("id", exercise.id);
-    setRecentExercises(prev => prev.filter(e => e.id !== exercise.id));
+  const handleConfirmComplete = () => {
+    if (!completeConfirmExercise) return;
+    const exerciseId = completeConfirmExercise.id;
     setCompleteConfirmExercise(null);
+    setFlashingExerciseId(exerciseId);
+    setTimeout(async () => {
+      setFlashingExerciseId(null);
+      await supabase.from("exercises").update({ status: "Completed" }).eq("id", exerciseId);
+      setRecentExercises(prev => prev.filter(e => e.id !== exerciseId));
+    }, 400);
   };
 
   const handleLinkToTeacher = async () => {
@@ -176,6 +183,13 @@ const Index = () => {
               background: "linear-gradient(90deg, transparent, rgba(52,211,153,0.6), transparent)",
               opacity: hoveredExerciseId === exercise.id ? 1 : 0,
             }}
+          />
+          <div
+            className="absolute inset-0 rounded-xl pointer-events-none"
+            style={flashingExerciseId === exercise.id
+              ? { background: "rgba(34,197,94,0.25)", animation: "flashPulse 300ms ease-out forwards" }
+              : { opacity: 0 }
+            }
           />
           <div className="relative z-10">
             <div className="flex items-center justify-between mb-3">
@@ -237,11 +251,17 @@ const Index = () => {
 
       <main className="container mx-auto px-4 py-6 space-y-10">
 
-        {firstName && <p className="text-2xl font-bold mb-4">Hey, {firstName}.</p>}
+        {firstName && <p className="text-2xl font-bold text-white mb-4">Hey, {firstName}.</p>}
 
         {/* Hero stat — Today's Max BPM */}
-        <section className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-zinc-900 to-green-950 border border-border p-6 sm:p-8">
-          <div className="absolute -top-10 -right-10 w-48 h-48 rounded-full bg-primary/10 blur-3xl pointer-events-none" />
+        <section
+          className="relative overflow-hidden rounded-2xl p-6 sm:p-8"
+          style={{
+            background: "radial-gradient(circle at top right, rgba(34,197,94,0.15) 0%, transparent 60%), hsl(var(--card))",
+            border: "1px solid rgba(255,255,255,0.05)",
+          }}
+        >
+
           <div className="relative">
             <p className="text-sm font-medium text-muted-foreground uppercase tracking-widest mb-3">Personal Best</p>
             {statsLoading ? (
@@ -262,19 +282,19 @@ const Index = () => {
                   )}
                 </div>
                 {personalBestBpm > 0 && personalBestExercise && (
-                  <p className="text-sm text-muted-foreground mt-2">on {personalBestExercise}</p>
+                  <p className="text-xs text-muted-foreground mt-2">on {personalBestExercise}</p>
                 )}
-                <div className="flex items-center gap-6 mt-8 pt-6 border-t border-border">
+                <div className="flex items-center gap-16 mt-8 pt-6 border-t border-border">
                   <div>
-                    <p className="text-sm text-muted-foreground uppercase tracking-wider">Today</p>
-                    <p className="text-xl font-bold mt-1">
+                    <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">Today</p>
+                    <p className="text-4xl font-black text-white leading-none mt-1">
                       {todayMinutes < 60 ? `${todayMinutes}m` : `${Math.floor(todayMinutes / 60)}h ${todayMinutes % 60}m`}
                     </p>
                   </div>
                   <div className="w-px h-8 bg-border" />
                   <div>
-                    <p className="text-sm text-muted-foreground uppercase tracking-wider">Streak</p>
-                    <p className="text-xl font-bold mt-1">{currentStreak} {currentStreak === 1 ? "day" : "days"}</p>
+                    <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">Streak</p>
+                    <p className="text-4xl font-black text-white leading-none mt-1">{currentStreak} {currentStreak === 1 ? "day" : "days"}</p>
                   </div>
                 </div>
               </>
@@ -347,7 +367,7 @@ const Index = () => {
         <section>
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
-              <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">My Exercises</h2>
+              <h2 className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">My Exercises</h2>
             </div>
             <button
               onClick={() => navigate("/library")}
@@ -405,7 +425,9 @@ const Index = () => {
               This will move <span className="text-foreground font-medium">{completeConfirmExercise.title}</span> to your completed exercises.
             </p>
             <button
-              onClick={() => handleMarkComplete(completeConfirmExercise)}
+              onClick={() => {
+                handleConfirmComplete();
+              }}
               className="w-full py-3 rounded-xl text-sm font-semibold bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
             >
               Complete Exercise
@@ -419,6 +441,7 @@ const Index = () => {
           </div>
         </div>
       )}
+      <style>{`@keyframes flashPulse { 0% { opacity: 1; } 100% { opacity: 0; } }`}</style>
     </div>
   );
 };

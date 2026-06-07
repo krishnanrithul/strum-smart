@@ -43,7 +43,12 @@ const Library = () => {
   const [routinePickerRoutine, setRoutinePickerRoutine] = useState<typeof ROUTINES[0] | null>(null);
   const [pickerSelected, setPickerSelected] = useState<Set<number>>(new Set());
   const [activeRoutineIndex, setActiveRoutineIndex] = useState(0);
+  const [carouselAtEnd, setCarouselAtEnd] = useState(false);
+  const [carouselAtStart, setCarouselAtStart] = useState(true);
+  const [carouselHovered, setCarouselHovered] = useState(false);
+  const [scrollY, setScrollY] = useState(0);
   const carouselRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -81,9 +86,17 @@ const Library = () => {
     const handleScroll = () => {
       const idx = Math.round(el.scrollLeft / (el.scrollWidth / ROUTINES.length));
       setActiveRoutineIndex(Math.max(0, Math.min(ROUTINES.length - 1, idx)));
+      setCarouselAtEnd(el.scrollLeft + el.clientWidth >= el.scrollWidth - 10);
+      setCarouselAtStart(el.scrollLeft <= 10);
     };
     el.addEventListener("scroll", handleScroll, { passive: true });
     return () => el.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  useEffect(() => {
+    const handleWindowScroll = () => setScrollY(window.scrollY);
+    window.addEventListener("scroll", handleWindowScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleWindowScroll);
   }, []);
 
   const myExercises = exercises.filter(e => !e.project_id);
@@ -216,44 +229,54 @@ const Library = () => {
   );
 
   return (
-    <div className="min-h-screen bg-background pb-24">
+    <div ref={containerRef} className="min-h-screen pb-24" style={{ background: "radial-gradient(circle at top right, rgba(34,197,94,0.07) 0%, transparent 50%), hsl(var(--background))" }}>
 
       <AppHeader />
 
       <main className="container mx-auto px-4 py-6 space-y-10">
       
       {/* Stats card */}
-        <div className="rounded-2xl p-5 space-y-4" style={{ border: "1px solid rgba(255,255,255,0.05)", background: "radial-gradient(circle at top right, rgba(255,255,255,0.03) 0%, transparent 60%), hsl(var(--card))" }}>
+        <div className="rounded-2xl p-5 space-y-4" style={{ border: "1px solid rgba(255,255,255,0.05)", background: "radial-gradient(circle at top right, rgba(34,197,94,0.15) 0%, transparent 60%), hsl(var(--card))" }}>
           <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">My Library</p>
           <div className="flex items-end gap-2">
-            <span className="text-4xl font-bold text-foreground leading-none">{myExercises.length}</span>
+            <span className="text-4xl font-bold text-white leading-none">{myExercises.length}</span>
             <span className="text-sm text-muted-foreground mb-1">exercise{myExercises.length !== 1 ? "s" : ""}</span>
           </div>
           <div className="border-t border-white/5 pt-4 grid grid-cols-3 gap-4">
             <div>
               <p className="text-[10px] font-semibold tracking-widest uppercase text-muted-foreground">Routines</p>
-              <p className="text-xl font-bold text-foreground mt-1">{routinesAdded}</p>
+              <p className="text-xl font-bold text-white mt-1">{routinesAdded}</p>
             </div>
             <div>
               <p className="text-[10px] font-semibold tracking-widest uppercase text-muted-foreground">Songs</p>
-              <p className="text-xl font-bold text-foreground mt-1">{projects.length}</p>
+              <p className="text-xl font-bold text-white mt-1">{projects.length}</p>
             </div>
             <div>
               <p className="text-[10px] font-semibold tracking-widest uppercase text-muted-foreground">Available</p>
-              <p className="text-xl font-bold text-foreground mt-1">{ROUTINES.length}</p>
+              <p className="text-xl font-bold text-white mt-1">{ROUTINES.length}</p>
             </div>
           </div>
         </div>
 
         {/* Routines */}
         <section className="space-y-4">
-          <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">Routines</p>
+          <div style={{ position: "sticky", top: 0, zIndex: 10, padding: "8px 0", transition: "all 200ms ease", ...(scrollY > 80 ? { backdropFilter: "blur(12px)", background: "rgba(0,0,0,0.6)" } : {}) }}>
+            <p className={scrollY > 80 ? "text-base font-semibold text-white" : "text-xs font-semibold tracking-widest uppercase text-muted-foreground"}>Routines</p>
+          </div>
 
-          {/* Cinematic carousel — bleeds to screen edges */}
-          <div className="-mx-4">
+          {/* Cinematic carousel */}
+          <div className="relative" onMouseEnter={() => setCarouselHovered(true)} onMouseLeave={() => setCarouselHovered(false)}>
+            {ROUTINES.length > 1 && (
+              <button
+                className={`absolute left-3 top-1/2 -translate-y-1/2 z-10 rounded-full bg-card border border-white/10 p-2 text-white hover:bg-white/10 transition-opacity duration-200 ${carouselHovered ? "opacity-100" : "opacity-0 pointer-events-none"}`}
+                onClick={(e) => { e.stopPropagation(); carouselRef.current?.scrollBy({ left: -(carouselRef.current.offsetWidth * 0.85), behavior: "smooth" }); }}
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+            )}
             <div
               ref={carouselRef}
-              className="flex overflow-x-auto gap-3 px-4 scrollbar-hide"
+              className="flex overflow-x-auto gap-3 scrollbar-hide"
               style={{ scrollSnapType: "x mandatory" }}
             >
               {ROUTINES.map((routine) => {
@@ -261,12 +284,19 @@ const Library = () => {
                 return (
                   <div
                     key={routine.id}
-                    className="relative rounded-2xl overflow-hidden shrink-0 flex flex-col justify-end"
+                    className="relative rounded-2xl overflow-hidden shrink-0 flex flex-col justify-end cursor-pointer"
                     style={{
                       width: "85vw",
-                      height: "220px",
+                      height: scrollY > 80 ? "160px" : "220px",
+                      transition: "height 200ms ease",
                       scrollSnapAlign: "start",
                       background: `radial-gradient(ellipse at 80% 20%, ${boldColor} 0%, rgba(8,8,8,1) 65%)`,
+                    }}
+                    onClick={() => {
+                      setRoutineSheetOpen(true);
+                      setRoutineSheetView("picker");
+                      setRoutinePickerRoutine(routine);
+                      setPickerSelected(new Set(routine.exercises.map((_, i) => i)));
                     }}
                   >
                     {/* Large background typography */}
@@ -292,7 +322,8 @@ const Library = () => {
                         </span>
                         <div className="flex items-center gap-2">
                           <button
-                            onClick={() => {
+                            onClick={(e) => {
+                              e.stopPropagation();
                               setRoutineSheetOpen(true);
                               setRoutineSheetView("picker");
                               setRoutinePickerRoutine(routine);
@@ -315,6 +346,14 @@ const Library = () => {
                 );
               })}
             </div>
+            {!carouselAtEnd && (
+              <button
+                className={`absolute right-3 top-1/2 -translate-y-1/2 z-10 rounded-full bg-card border border-white/10 p-2 text-white hover:bg-white/10 transition-opacity duration-200 ${carouselHovered ? "opacity-100" : "opacity-0 pointer-events-none"}`}
+                onClick={(e) => { e.stopPropagation(); carouselRef.current?.scrollBy({ left: carouselRef.current.offsetWidth * 0.85, behavior: "smooth" }); }}
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            )}
           </div>
 
           {/* Dot pagination */}
@@ -334,14 +373,13 @@ const Library = () => {
           {/* Build your own CTA */}
           <button
             onClick={() => setBuildModalOpen(true)}
-            className="w-full flex items-center justify-between rounded-2xl bg-card px-4 py-4 transition-colors hover:bg-white/5"
-            style={{ border: "1px solid rgba(255,255,255,0.05)" }}
+            className="w-full flex items-center justify-between px-5 py-4 rounded-xl bg-primary text-primary-foreground font-semibold text-base hover:opacity-90 transition-opacity"
           >
-            <div className="flex items-center gap-3">
-              <MiniLogo color="#ffffff" />
-              <span className="text-base font-medium text-white">Build your own</span>
+            <div className="flex items-center gap-2">
+              <MiniLogo color="#0a0a0a" />
+              Build your own
             </div>
-            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            <ChevronRight className="h-5 w-5 opacity-70" />
           </button>
         </section>
 
@@ -431,14 +469,21 @@ const Library = () => {
                 No exercises yet. Add a routine or build your own above.
               </div>
             ) : (
-              activeExercises.map(exercise => (
-                <ExerciseCard
-                  key={exercise.id}
-                  exercise={exercise}
-                  onEdit={handleEditClick}
-                  onDelete={handleDeleteClick}
-                />
-              ))
+              activeExercises.map(exercise => {
+                const borderColor = exercise.category === "Warmup" ? "#eab308"
+                  : exercise.category === "Technical" ? "#3b82f6"
+                  : exercise.category === "Repertoire" ? "#a855f7"
+                  : "rgba(255,255,255,0.1)";
+                return (
+                  <div key={exercise.id} className="rounded-xl overflow-hidden" style={{ borderLeft: `3px solid ${borderColor}` }}>
+                    <ExerciseCard
+                      exercise={exercise}
+                      onEdit={handleEditClick}
+                      onDelete={handleDeleteClick}
+                    />
+                  </div>
+                );
+              })
             )}
           </div>
         </section>

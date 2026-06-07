@@ -71,9 +71,9 @@ export const ExerciseCard = ({ exercise, onEdit, onDelete }: Props) => {
             </div>
             <p className="text-xs text-muted-foreground mt-0.5">{formatRelativeTime(exercise.history.length > 1 ? exercise.history[exercise.history.length - 1].date : null)}</p>
           </div>
-          <div className="text-right leading-none">
-            <p className="text-base font-semibold text-white">{exercise.currentBpm}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">BPM</p>
+          <div className="flex items-end gap-0.5 justify-end">
+            <span className="text-xl font-black text-white">{exercise.currentBpm}</span>
+            <span className="text-xs text-muted-foreground mb-0.5">BPM</span>
           </div>
         </div>
         {startBpm !== exercise.currentBpm && (
