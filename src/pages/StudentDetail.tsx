@@ -1,17 +1,16 @@
 import { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { ChevronRight, ChevronDown, Sparkles } from "lucide-react";
+import { useParams } from "react-router-dom";
+import { ChevronRight, ChevronDown, Sparkles, LayoutDashboard, TrendingUp } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import AppHeader from "@/components/AppHeader";
 import MiniLogo from "@/components/MiniLogo";
 import WaveformLoader from "@/components/WaveformLoader";
 import AssignExerciseModal from "@/components/AssignExerciseModal";
+import { Button } from "@/components/ui/button";
+import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip } from "recharts";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const glassCard = { border: "1px solid rgba(255,255,255,0.05)" };
-const glassCardGlow = {
-  border: "1px solid rgba(255,255,255,0.05)",
-  background: "radial-gradient(circle at top right, rgba(34,197,94,0.12) 0%, transparent 60%), hsl(var(--card))",
-};
 
 const formatMins = (secs: number) => Math.floor(secs / 60);
 
@@ -71,8 +70,8 @@ const callAI = async (prompt: string): Promise<string> => {
 
 const StudentDetail = () => {
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
 
+  const [activeTab, setActiveTab] = useState<"overview" | "progress">("overview");
   const [loading, setLoading] = useState(true);
   const [assignOpen, setAssignOpen] = useState(false);
   const [studentName, setStudentName] = useState("");
@@ -82,6 +81,7 @@ const StudentDetail = () => {
   const [lastActiveDate, setLastActiveDate] = useState<string | null>(null);
   const [exercises, setExercises] = useState<any[]>([]);
   const [recentSessions, setRecentSessions] = useState<any[]>([]);
+  const [selectedExerciseId, setSelectedExerciseId] = useState<string>("");
   const [editingTargetId, setEditingTargetId] = useState<string | null>(null);
   const [editingTargetValue, setEditingTargetValue] = useState("");
   const [confirmRemoveId, setConfirmRemoveId] = useState<string | null>(null);
@@ -93,6 +93,16 @@ const StudentDetail = () => {
   const [aiSuggestionLoading, setAiSuggestionLoading] = useState(false);
   const [summaryExpanded, setSummaryExpanded] = useState(false);
   const [suggestionExpanded, setSuggestionExpanded] = useState(false);
+
+  const selectedExercise = exercises.find(e => e.id === selectedExerciseId);
+  const chartData = selectedExercise?.history?.map((h: any) => ({
+    date: new Date(h.date).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+    bpm: h.bpm,
+  })) || [];
+  const bpmGain = chartData.length >= 2 ? chartData[chartData.length - 1].bpm - chartData[0].bpm : 0;
+  const chartBpms = chartData.map((d: any) => d.bpm);
+  const minBpm = chartBpms.length > 0 ? Math.max(0, Math.min(...chartBpms) - 10) : 0;
+  const maxBpm = chartBpms.length > 0 ? Math.max(...chartBpms) + 10 : 200;
 
   const loadExercises = async () => {
     if (!id) return;
@@ -116,6 +126,7 @@ const StudentDetail = () => {
       return { ...ex, _last_practiced: lastSession?.created_at ?? null };
     });
     setExercises(enriched);
+    if (enriched.length > 0 && !selectedExerciseId) setSelectedExerciseId(enriched[0].id);
     const peak = enriched.reduce((max: number, e: any) => {
       const bpms = (e.history || []).map((h: any) => h.bpm);
       return bpms.length ? Math.max(max, ...bpms) : max;
@@ -134,7 +145,7 @@ const StudentDetail = () => {
   };
 
   const handleUpdateNotes = async (exerciseId: string) => {
-    await supabase
+    await (supabase as any)
       .from("exercises")
       .update({ teacher_notes: editingNotesValue.trim() || null })
       .eq("id", exerciseId);
@@ -210,7 +221,7 @@ const StudentDetail = () => {
           { data: sessionRows },
         ] = await Promise.all([
           (supabase as any).from("profiles").select("full_name").eq("id", id).single(),
-          supabase.from("sessions").select("id, duration, bpm_reached, created_at, exercises").eq("user_id", id).order("created_at", { ascending: false }),
+          supabase.from("sessions").select("id, duration, created_at, exercises").eq("user_id", id).order("created_at", { ascending: false }),
         ]);
 
         setStudentName(profile?.full_name ?? "Student");
@@ -219,7 +230,7 @@ const StudentDetail = () => {
         setTotalSessions(rows.length);
         setTotalMinutes(formatMins(rows.reduce((acc: number, r: any) => acc + (r.duration || 0), 0)));
         setLastActiveDate(rows[0]?.created_at ?? null);
-        setRecentSessions(rows.slice(0, 5));
+        setRecentSessions(rows.slice(0, 10));
 
         await loadExercises();
       } finally {
@@ -245,13 +256,11 @@ const StudentDetail = () => {
     const isEditingNotes = editingNotesId === ex.id;
 
     return (
-      <div key={ex.id} className="rounded-2xl bg-card p-5 space-y-3" style={glassCard}>
-        {/* Top row */}
+      <div key={ex.id} className="rounded-2xl bg-card p-5 space-y-3" style={{ border: "1px solid rgba(255,255,255,0.08)" }}>
         <div className="flex items-start justify-between">
           <div>
             <p className="text-base font-semibold text-foreground">{ex.title}</p>
             <div className="flex items-center gap-2 mt-0.5">
-              <p className="text-xs uppercase text-muted-foreground">{ex.category}</p>
               {ex.is_assigned && (
                 <span className="text-xs font-semibold uppercase tracking-wide text-primary">From Teacher</span>
               )}
@@ -264,7 +273,6 @@ const StudentDetail = () => {
           </div>
         </div>
 
-        {/* START / TARGET row + progress bar */}
         {ex.target_bpm > 0 && (
           <div className="space-y-2">
             <div className="flex items-center justify-between">
@@ -284,12 +292,7 @@ const StudentDetail = () => {
                     autoFocus
                   />
                   <span className="text-xs text-muted-foreground">BPM</span>
-                  <button
-                    onClick={() => handleUpdateTarget(ex.id)}
-                    className="text-primary text-xs ml-1"
-                  >
-                    ✓
-                  </button>
+                  <button onClick={() => handleUpdateTarget(ex.id)} className="text-primary text-xs ml-1">✓</button>
                 </span>
               ) : startBpm === ex.target_bpm ? (
                 <span className="text-xs text-muted-foreground">No target set</span>
@@ -298,18 +301,17 @@ const StudentDetail = () => {
               )}
             </div>
             <div
-              className="w-full rounded-full overflow-hidden"
+              className="w-full max-w-full rounded-full overflow-hidden"
               style={{ height: "3px", background: "rgba(255,255,255,0.08)" }}
             >
               <div
-                className="h-full bg-primary rounded-full transition-all duration-500"
+                className="h-full bg-primary rounded-full transition-all duration-500 max-w-full"
                 style={{ width: `${fillPct}%` }}
               />
             </div>
           </div>
         )}
 
-        {/* Inline notes editor */}
         {isEditingNotes && (
           <div className="space-y-2 pt-1">
             <textarea
@@ -320,9 +322,7 @@ const StudentDetail = () => {
               autoFocus
               className="w-full text-sm bg-transparent rounded-lg p-2 outline-none focus:border-primary text-foreground resize-none"
               style={{ border: "1px solid rgba(255,255,255,0.15)" }}
-              onKeyDown={(e) => {
-                if (e.key === "Escape") setEditingNotesId(null);
-              }}
+              onKeyDown={(e) => { if (e.key === "Escape") setEditingNotesId(null); }}
             />
             <div className="flex items-center justify-end gap-2">
               <button
@@ -341,14 +341,6 @@ const StudentDetail = () => {
           </div>
         )}
 
-        {/* Progress bar */}
-        {ex.target_bpm > startBpm && (
-          <div className="h-1.5 w-full bg-secondary rounded-full overflow-hidden">
-            <div className="h-full bg-primary rounded-full transition-all duration-500" style={{ width: `${fillPct}%` }} />
-          </div>
-        )}
-
-        {/* Action buttons */}
         {!isEditing && !isEditingNotes && (
           <div className="flex flex-wrap items-center justify-end gap-2">
             {ex.is_assigned && confirmRemoveId === ex.id ? (
@@ -388,12 +380,14 @@ const StudentDetail = () => {
                     Edit Notes
                   </button>
                 )}
-                <button
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-sm"
                   onClick={() => { setEditingTargetId(ex.id); setEditingTargetValue(String(ex.target_bpm)); }}
-                  className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
                 >
                   Update Target
-                </button>
+                </Button>
               </>
             )}
           </div>
@@ -411,177 +405,260 @@ const StudentDetail = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-10">
+    <div className="min-h-screen bg-background pb-24">
       <AppHeader title={studentName.toUpperCase()} breadcrumb="My Students" showBack />
 
       <main className="container mx-auto px-4 py-6 space-y-6">
 
-        {/* Stats Card */}
-        <div className="rounded-2xl bg-card p-6" style={glassCard}>
-          <div className="grid grid-cols-2 grid-rows-2 gap-4 text-center">
-            <div>
-              <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">Sessions</p>
-              <p className="text-3xl font-bold text-foreground mt-1">{totalSessions}</p>
-            </div>
-            <div>
-              <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">Practice</p>
-              <p className="text-3xl font-bold text-foreground mt-1">{formatDuration(totalMinutes)}</p>
-            </div>
-            <div>
-              <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">Peak BPM</p>
-              <p className="text-3xl font-bold text-primary mt-1">{totalSessions > 0 && peakBpm > 0 ? peakBpm : "—"}</p>
-            </div>
-            <div>
-              <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">Last Active</p>
-              <p className="text-xl font-bold text-foreground mt-1">
-                {formatRelativeTime(lastActiveDate).replace("Last practiced: ", "").replace("Never practiced", "Never")}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Student Summary */}
-        {(aiSummaryLoading || aiSummary) && (
-          <div className="rounded-2xl bg-card" style={glassCard}>
-            <button
-              onClick={() => setSummaryExpanded(!summaryExpanded)}
-              className="w-full flex items-center justify-between px-5 py-4"
-            >
-              <span className="text-xs font-semibold tracking-widest uppercase text-muted-foreground flex items-center gap-1.5">
-                <Sparkles className="h-4 w-4 text-green-500" /> Student Summary
-              </span>
-              <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${summaryExpanded ? "rotate-180" : ""}`} />
-            </button>
-            <div className={`overflow-hidden transition-all duration-200 ${summaryExpanded ? "max-h-[600px]" : "max-h-0"}`}>
-              <div className="px-5 pb-5">
-                {aiSummaryLoading ? (
-                  <p className="text-sm text-muted-foreground">Generating summary…</p>
-                ) : aiSummary ? (() => {
-                  const insightsIdx = aiSummary.indexOf("Insights:");
-                  const clean = insightsIdx > 0 ? aiSummary.slice(insightsIdx) : aiSummary;
-                  const suggestionIdx = clean.indexOf("Suggestion:");
-                  const insightsPart = (suggestionIdx > -1 ? clean.slice(0, suggestionIdx) : clean).replace(/^Insights:\s*/i, "").trim();
-                  const suggestionPart = suggestionIdx > -1 ? clean.slice(suggestionIdx).replace(/^Suggestion:\s*/i, "").trim() : "";
-                  const insightLines = insightsPart.split("\n").map(l => l.replace(/^[-*•\d.)]+\s*/, "").trim()).filter(Boolean);
-                  return (
-                    <div className="space-y-6">
-                      {insightLines.length > 0 && (
-                        <ul className="space-y-3">
-                          {insightLines.map((line, i) => (
-                            <li key={i} className="flex items-start gap-2.5 text-sm text-foreground leading-relaxed">
-                              <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-primary flex-shrink-0" />
-                              {line}
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                      {suggestionPart && (
-                        <div className="rounded-xl p-4 bg-primary/5" style={{ border: "1px solid rgba(34,197,94,0.15)" }}>
-                          <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground mb-2">Suggestion</p>
-                          <p className="text-sm text-foreground leading-relaxed">{suggestionPart}</p>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })() : null}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Exercise Suggestion */}
-        {(aiSuggestionLoading || aiSuggestion) && (
-          <div className="rounded-2xl bg-card" style={glassCard}>
-            <button
-              onClick={() => setSuggestionExpanded(!suggestionExpanded)}
-              className="w-full flex items-center justify-between px-5 py-4"
-            >
-              <span className="text-xs font-semibold tracking-widest uppercase text-muted-foreground flex items-center gap-1.5">
-                <Sparkles className="h-4 w-4 text-green-500" /> Exercise Suggestion
-              </span>
-              <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${suggestionExpanded ? "rotate-180" : ""}`} />
-            </button>
-            <div className={`overflow-hidden transition-all duration-200 ${suggestionExpanded ? "max-h-[600px]" : "max-h-0"}`}>
-              <div className="px-5 pb-5">
-                {aiSuggestionLoading ? (
-                  <p className="text-sm text-muted-foreground">Thinking…</p>
-                ) : aiSuggestion ? (() => {
-                  const insightsIdx = aiSuggestion.indexOf("Insights:");
-                  const clean = insightsIdx > 0 ? aiSuggestion.slice(insightsIdx) : aiSuggestion;
-                  const suggestionIdx = clean.indexOf("Suggestion:");
-                  const insightsPart = (suggestionIdx > -1 ? clean.slice(0, suggestionIdx) : clean).replace(/^Insights:\s*/i, "").trim();
-                  const suggestionPart = suggestionIdx > -1 ? clean.slice(suggestionIdx).replace(/^Suggestion:\s*/i, "").trim() : "";
-                  const insightLines = insightsPart.split("\n").map(l => l.replace(/^[-*•\d.)]+\s*/, "").trim()).filter(Boolean);
-                  return (
-                    <div className="space-y-6">
-                      {insightLines.length > 0 && (
-                        <ul className="space-y-3">
-                          {insightLines.map((line, i) => (
-                            <li key={i} className="flex items-start gap-2.5 text-sm text-foreground leading-relaxed">
-                              <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-primary flex-shrink-0" />
-                              {line}
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                      {suggestionPart && (
-                        <div className="rounded-xl p-4 bg-primary/5" style={{ border: "1px solid rgba(34,197,94,0.15)" }}>
-                          <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground mb-2">Suggestion</p>
-                          <p className="text-sm text-foreground leading-relaxed">{suggestionPart}</p>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })() : null}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Exercises — Assigned by You */}
-        <section className="space-y-3">
-          <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">Assigned by You</p>
-          {exercises.filter((e) => e.is_assigned).length === 0 ? (
-            <div className="rounded-2xl bg-card p-5 text-center text-sm text-muted-foreground" style={glassCard}>
-              No exercises assigned yet.
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {exercises.filter((e) => e.is_assigned).map(renderExerciseCard)}
-            </div>
-          )}
-        </section>
-
-        {/* Exercises — Student's Own */}
-        {exercises.filter((e) => !e.is_assigned).length > 0 && (
-          <section className="space-y-3">
-            <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">Added By Student</p>
-            <div className="space-y-3">
-              {exercises.filter((e) => !e.is_assigned).map(renderExerciseCard)}
-            </div>
-          </section>
-        )}
-
-        {/* Recent Sessions */}
-        <section>
-          <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground mb-3">Recent Sessions</p>
-          {recentSessions.length === 0 ? (
-            <div className="rounded-2xl bg-card p-5 text-center text-sm text-muted-foreground" style={glassCard}>
-              No sessions yet.
-            </div>
-          ) : (
-            <div className="rounded-2xl bg-card divide-y divide-white/5" style={glassCard}>
-              {recentSessions.map((s, i) => (
-                <div key={i} className="flex items-center justify-between px-5 py-4">
-                  <p className="text-sm text-muted-foreground">{s.created_at ? formatDate(s.created_at) : "—"}</p>
-                  <p className="text-sm font-semibold text-foreground">{formatDuration(formatMins(s.duration || 0))}</p>
+        {activeTab === "overview" && (
+          <>
+            {/* Hero stat block */}
+            <div className="rounded-2xl bg-card p-4" style={{ border: "1px solid rgba(255,255,255,0.08)" }}>
+              <div className="grid grid-cols-2 grid-rows-2 gap-4 text-center">
+                <div>
+                  <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">Sessions</p>
+                  <p className="text-3xl font-bold text-foreground mt-1">{totalSessions}</p>
                 </div>
-              ))}
+                <div>
+                  <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">Practice</p>
+                  <p className="text-3xl font-bold text-foreground mt-1">{formatDuration(totalMinutes)}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">Peak BPM</p>
+                  <p className="text-3xl font-bold text-primary mt-1">{totalSessions > 0 && peakBpm > 0 ? peakBpm : "—"}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">Last Active</p>
+                  <p className="text-xl font-bold text-foreground mt-1">
+                    {formatRelativeTime(lastActiveDate).replace("Last practiced: ", "").replace("Never practiced", "Never")}
+                  </p>
+                </div>
+              </div>
             </div>
-          )}
-        </section>
 
-        {/* Assign Exercise */}
+            {/* Student Summary */}
+            {(aiSummaryLoading || aiSummary) && (
+              <div className="rounded-2xl bg-card" style={glassCard}>
+                <button
+                  onClick={() => setSummaryExpanded(!summaryExpanded)}
+                  className="w-full flex items-center justify-between px-5 py-4"
+                >
+                  <span className="text-xs font-semibold tracking-widest uppercase text-muted-foreground flex items-center gap-1.5">
+                    <Sparkles className="h-4 w-4 text-green-500" /> Student Summary
+                  </span>
+                  <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${summaryExpanded ? "rotate-180" : ""}`} />
+                </button>
+                <div className={`overflow-hidden transition-all duration-200 ${summaryExpanded ? "max-h-[600px]" : "max-h-0"}`}>
+                  <div className="px-5 pb-5">
+                    {aiSummaryLoading ? (
+                      <p className="text-sm text-muted-foreground">Generating summary…</p>
+                    ) : aiSummary ? (() => {
+                      const insightsIdx = aiSummary.indexOf("Insights:");
+                      const clean = insightsIdx > 0 ? aiSummary.slice(insightsIdx) : aiSummary;
+                      const suggestionIdx = clean.indexOf("Suggestion:");
+                      const insightsPart = (suggestionIdx > -1 ? clean.slice(0, suggestionIdx) : clean).replace(/^Insights:\s*/i, "").trim();
+                      const suggestionPart = suggestionIdx > -1 ? clean.slice(suggestionIdx).replace(/^Suggestion:\s*/i, "").trim() : "";
+                      const insightLines = insightsPart.split("\n").map(l => l.replace(/^[-*•\d.)]+\s*/, "").trim()).filter(Boolean);
+                      return (
+                        <div className="space-y-6">
+                          {insightLines.length > 0 && (
+                            <ul className="space-y-3">
+                              {insightLines.map((line, i) => (
+                                <li key={i} className="flex items-start gap-2.5 text-sm text-foreground leading-relaxed">
+                                  <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-primary flex-shrink-0" />
+                                  {line}
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                          {suggestionPart && (
+                            <div className="rounded-xl p-4 bg-primary/5" style={{ border: "1px solid rgba(34,197,94,0.15)" }}>
+                              <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground mb-2">Suggestion</p>
+                              <p className="text-sm text-foreground leading-relaxed">{suggestionPart}</p>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })() : null}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Exercise Suggestion */}
+            {(aiSuggestionLoading || aiSuggestion) && (
+              <div className="rounded-2xl bg-card" style={glassCard}>
+                <button
+                  onClick={() => setSuggestionExpanded(!suggestionExpanded)}
+                  className="w-full flex items-center justify-between px-5 py-4"
+                >
+                  <span className="text-xs font-semibold tracking-widest uppercase text-muted-foreground flex items-center gap-1.5">
+                    <Sparkles className="h-4 w-4 text-green-500" /> Exercise Suggestion
+                  </span>
+                  <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${suggestionExpanded ? "rotate-180" : ""}`} />
+                </button>
+                <div className={`overflow-hidden transition-all duration-200 ${suggestionExpanded ? "max-h-[600px]" : "max-h-0"}`}>
+                  <div className="px-5 pb-5">
+                    {aiSuggestionLoading ? (
+                      <p className="text-sm text-muted-foreground">Thinking…</p>
+                    ) : aiSuggestion ? (() => {
+                      const insightsIdx = aiSuggestion.indexOf("Insights:");
+                      const clean = insightsIdx > 0 ? aiSuggestion.slice(insightsIdx) : aiSuggestion;
+                      const suggestionIdx = clean.indexOf("Suggestion:");
+                      const insightsPart = (suggestionIdx > -1 ? clean.slice(0, suggestionIdx) : clean).replace(/^Insights:\s*/i, "").trim();
+                      const suggestionPart = suggestionIdx > -1 ? clean.slice(suggestionIdx).replace(/^Suggestion:\s*/i, "").trim() : "";
+                      const insightLines = insightsPart.split("\n").map(l => l.replace(/^[-*•\d.)]+\s*/, "").trim()).filter(Boolean);
+                      return (
+                        <div className="space-y-6">
+                          {insightLines.length > 0 && (
+                            <ul className="space-y-3">
+                              {insightLines.map((line, i) => (
+                                <li key={i} className="flex items-start gap-2.5 text-sm text-foreground leading-relaxed">
+                                  <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-primary flex-shrink-0" />
+                                  {line}
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                          {suggestionPart && (
+                            <div className="rounded-xl p-4 bg-primary/5" style={{ border: "1px solid rgba(34,197,94,0.15)" }}>
+                              <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground mb-2">Suggestion</p>
+                              <p className="text-sm text-foreground leading-relaxed">{suggestionPart}</p>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })() : null}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Assigned by You */}
+            <section className="space-y-3">
+              <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">Assigned by You</p>
+              {exercises.filter((e) => e.is_assigned).length === 0 ? (
+                <div className="rounded-2xl bg-card p-4 text-center text-sm text-muted-foreground" style={{ border: "1px solid rgba(255,255,255,0.08)" }}>
+                  No exercises assigned yet.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {exercises.filter((e) => e.is_assigned).map(renderExerciseCard)}
+                </div>
+              )}
+            </section>
+
+            {/* Added by Student */}
+            {exercises.filter((e) => !e.is_assigned).length > 0 && (
+              <section className="space-y-3">
+                <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">Added By Student</p>
+                <div className="space-y-3">
+                  {exercises.filter((e) => !e.is_assigned).map(renderExerciseCard)}
+                </div>
+              </section>
+            )}
+          </>
+        )}
+
+        {activeTab === "progress" && (
+          <>
+            {/* Recent Sessions */}
+            <section className="space-y-3">
+              <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">Recent Sessions</p>
+              {recentSessions.length === 0 ? (
+                <div className="bg-card rounded-2xl px-4 py-3 text-center text-sm text-muted-foreground" style={{ border: "1px solid rgba(255,255,255,0.08)" }}>
+                  No sessions yet.
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {recentSessions.map((s, i) => {
+                    const exerciseTitles = (s.exercises || [])
+                      .map((eid: string) => exercises.find(e => e.id === eid)?.title)
+                      .filter(Boolean)
+                      .join(", ");
+                    return (
+                      <div
+                        key={i}
+                        className="bg-card rounded-2xl px-4 py-3 flex items-center justify-between"
+                        style={{ border: "1px solid rgba(255,255,255,0.08)" }}
+                      >
+                        <div>
+                          <p className="text-sm font-medium text-foreground">{exerciseTitles || "Session"}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">{s.created_at ? formatDate(s.created_at) : "—"}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm font-semibold text-foreground">{formatDuration(formatMins(s.duration || 0))}</p>
+                          <p className="text-xs text-muted-foreground">duration</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </section>
+
+            {/* BPM Progress Chart */}
+            <section className="space-y-4">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">BPM Progress</p>
+                <Select value={selectedExerciseId} onValueChange={setSelectedExerciseId}>
+                  <SelectTrigger className="w-44 h-9 bg-card text-sm" style={{ border: "1px solid rgba(255,255,255,0.05)" }}>
+                    <SelectValue placeholder="Select exercise" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {exercises.map(e => (
+                      <SelectItem key={e.id} value={e.id}>{e.title}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="rounded-2xl p-6 bg-card" style={{ border: "1px solid rgba(255,255,255,0.08)" }}>
+                {chartData.length < 2 ? (
+                  <p className="text-sm text-muted-foreground text-center py-12">No sessions yet for this exercise.</p>
+                ) : (
+                  <>
+                    <div className="h-64">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={chartData}>
+                          <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} />
+                          <YAxis stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} domain={[minBpm, maxBpm]} />
+                          <Tooltip
+                            contentStyle={{
+                              backgroundColor: "hsl(var(--card))",
+                              border: "1px solid rgba(255,255,255,0.05)",
+                              borderRadius: "0.75rem",
+                            }}
+                            formatter={(value) => [`${value} BPM`, "Speed"]}
+                          />
+                          <Line type="monotone" dataKey="bpm" stroke="hsl(var(--primary))" strokeWidth={3} dot={{ fill: "hsl(var(--primary))", r: 4 }} />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                    <div className="mt-4 grid grid-cols-3 gap-4 text-center border-t border-white/5 pt-4">
+                      <div>
+                        <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">Start</p>
+                        <p className="text-4xl font-black text-foreground mt-1">{chartData[0].bpm}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">Gain</p>
+                        <p className={`text-4xl font-black mt-1 ${bpmGain >= 0 ? "text-primary" : "text-destructive"}`}>
+                          {bpmGain >= 0 ? "+" : ""}{bpmGain}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">Now</p>
+                        <p className="text-4xl font-black text-foreground mt-1">{chartData[chartData.length - 1].bpm}</p>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            </section>
+          </>
+        )}
+
+        {/* Assign Exercise — always visible */}
         <button
           className="w-full flex items-center justify-between px-5 py-4 rounded-xl bg-primary text-primary-foreground font-semibold text-base hover:opacity-90 transition-opacity"
           onClick={() => setAssignOpen(true)}
@@ -601,6 +678,35 @@ const StudentDetail = () => {
         studentId={id!}
         studentName={studentName}
       />
+
+      {/* Bottom nav */}
+      <nav
+        className="fixed bottom-0 left-0 right-0 bg-[#000000] border-t border-[#222222] z-50"
+        style={{ height: "calc(72px + env(safe-area-inset-bottom))", paddingBottom: "env(safe-area-inset-bottom)" }}
+      >
+        <div className="container mx-auto px-4 h-full">
+          <div className="grid grid-cols-2 gap-2 h-full items-center">
+            {([
+              { tab: "overview", icon: LayoutDashboard, label: "Overview" },
+              { tab: "progress", icon: TrendingUp, label: "Progress" },
+            ] as const).map(({ tab, icon: Icon, label }) => {
+              const isActive = activeTab === tab;
+              return (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  className={`flex flex-col items-center justify-center py-3 rounded-lg transition-all ${
+                    isActive ? "text-green-500" : "text-[#666666] hover:bg-secondary hover:text-foreground"
+                  }`}
+                >
+                  <Icon className="h-6 w-6 mb-1" fill={isActive ? "currentColor" : "none"} />
+                  <span className="text-xs font-medium">{label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </nav>
     </div>
   );
 };

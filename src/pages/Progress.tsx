@@ -124,7 +124,7 @@ const Progress = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-24">
+    <div className="min-h-screen pb-24" style={{ background: "radial-gradient(circle at top right, rgba(34,197,94,0.07) 0%, transparent 50%), hsl(var(--background))" }}>
 
       <AppHeader />
 
@@ -137,7 +137,7 @@ const Progress = () => {
             <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground flex items-center gap-1.5">
               <TrendingUp className="h-3 w-3" /> This Week
             </p>
-            <p className="text-4xl font-bold text-foreground leading-none mt-3">{thisWeekFormatted}</p>
+            <p className="text-4xl font-black text-foreground leading-none mt-3">{thisWeekFormatted}</p>
             <p className="text-sm text-muted-foreground mt-2">{thisWeekSessions.length} sessions</p>
           </div>
 
@@ -145,7 +145,7 @@ const Progress = () => {
             <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground flex items-center gap-1.5">
               <Calendar className="h-3 w-3" /> Streak
             </p>
-            <p className="text-4xl font-bold text-foreground leading-none mt-3">{streak} days</p>
+            <p className="text-4xl font-black text-foreground leading-none mt-3">{streak} days</p>
             <p className="text-sm text-muted-foreground mt-2">
               {streak > 0 ? "Keep it up!" : "Practice today!"}
             </p>
@@ -168,7 +168,7 @@ const Progress = () => {
             </Select>
           </div>
 
-          <div className="rounded-2xl bg-card p-6" style={glassCard}>
+          <div className="rounded-2xl p-6" style={{ background: "radial-gradient(circle at top right, rgba(34,197,94,0.08) 0%, transparent 60%), hsl(var(--card))", border: "1px solid rgba(255,255,255,0.05)" }}>
             {chartData.length < 2 ? (
               <div className="flex flex-col items-center justify-center gap-4 py-12 text-center">
                 <p className="text-sm text-muted-foreground">No sessions yet. Head to Library to start practicing.</p>
@@ -201,17 +201,17 @@ const Progress = () => {
                 <div className="mt-4 grid grid-cols-3 gap-4 text-center border-t border-white/5 pt-4">
                   <div>
                     <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">Start</p>
-                    <p className="text-2xl font-bold text-foreground mt-1">{chartData[0].bpm}</p>
+                    <p className="text-4xl font-black text-foreground mt-1">{chartData[0].bpm}</p>
                   </div>
                   <div>
                     <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">Gain</p>
-                    <p className={`text-2xl font-bold mt-1 ${bpmGain >= 0 ? "text-primary" : "text-destructive"}`}>
+                    <p className={`text-4xl font-black mt-1 ${bpmGain >= 0 ? "text-primary" : "text-destructive"}`}>
                       {bpmGain >= 0 ? "+" : ""}{bpmGain}
                     </p>
                   </div>
                   <div>
                     <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">Now</p>
-                    <p className="text-2xl font-bold text-foreground mt-1">{chartData[chartData.length - 1].bpm}</p>
+                    <p className="text-4xl font-black text-foreground mt-1">{chartData[chartData.length - 1].bpm}</p>
                   </div>
                 </div>
               </>

@@ -2,10 +2,13 @@ import { useEffect, useRef, useState } from "react";
 import { X, ArrowRight, ArrowLeft, Check, Loader2, Music, Dumbbell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
+import { cn } from "@/lib/utils";
+import { getCategoryBadge } from "@/lib/badges";
 
 type Exercise = {
   id: string;
   title: string;
+  category: string;
   default_bpm: number;
   description: string | null;
   linked_songs: Array<{ title: string; artist: string }>;
@@ -115,7 +118,8 @@ export const BuildYourOwnModal = ({ open, onClose, onAdd }: Props) => {
       <div
         className="relative w-full sm:max-w-lg bg-card border border-border rounded-t-2xl sm:rounded-2xl z-10 flex flex-col"
         style={{
-          maxHeight: "85vh",
+          maxHeight: "90vh",
+          overflow: "hidden",
           transition: "transform 0.3s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.25s ease",
           transform: visible ? "translateY(0)" : "translateY(20px)",
           opacity: visible ? 1 : 0,
@@ -125,15 +129,11 @@ export const BuildYourOwnModal = ({ open, onClose, onAdd }: Props) => {
         <div className="flex items-start justify-between px-6 pt-6 pb-4 border-b border-border shrink-0">
           <div>
             <h2 className="text-base font-semibold text-foreground">Build your own</h2>
-            <div className="flex items-center gap-2 mt-1.5">
-              <div className="flex items-center gap-1.5">
-                <div className="w-2 h-2 rounded-full bg-primary" />
+            <div className="mt-2 space-y-1">
+              <div className="w-full h-1 rounded-full bg-muted">
                 <div
-                  className="w-2 h-2 rounded-full"
-                  style={{
-                    transition: "background-color 0.3s ease",
-                    backgroundColor: step === 2 ? "hsl(var(--primary))" : "hsl(var(--muted-foreground) / 0.3)",
-                  }}
+                  className="h-1 rounded-full bg-primary transition-all duration-300"
+                  style={{ width: step === 1 ? "50%" : "100%" }}
                 />
               </div>
               <span className="text-xs text-muted-foreground">
@@ -147,7 +147,7 @@ export const BuildYourOwnModal = ({ open, onClose, onAdd }: Props) => {
         </div>
 
         {/* Sliding body — two panels side by side, container slides */}
-        <div className="flex-1 overflow-hidden">
+        <div className="flex-1 overflow-hidden min-h-0">
           <div
             className="flex h-full"
             style={{
@@ -157,7 +157,7 @@ export const BuildYourOwnModal = ({ open, onClose, onAdd }: Props) => {
             }}
           >
             {/* Panel 1 — Exercises */}
-            <div className="overflow-y-auto px-6 py-4 space-y-2.5" style={{ width: "50%" }}>
+            <div className="max-h-[55vh] overflow-y-auto px-6 pt-4 pb-24 space-y-2.5" style={{ width: "50%" }}>
               {loading ? (
                 <div className="flex justify-center py-10">
                   <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
@@ -169,28 +169,22 @@ export const BuildYourOwnModal = ({ open, onClose, onAdd }: Props) => {
                     <button
                       key={exercise.id}
                       onClick={() => toggleExercise(exercise.id)}
-                      className={`w-full text-left px-4 py-3.5 rounded-xl border transition-all ${
-                        isSelected
-                          ? "border-primary bg-primary/10"
-                          : "border-border bg-background hover:border-border/60"
-                      }`}
+                      className="w-full text-left px-4 py-3.5 bg-card rounded-2xl transition-all"
+                      style={{ border: "1px solid rgba(255,255,255,0.05)" }}
                     >
                       <div className="flex items-center justify-between gap-3">
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <Dumbbell className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                          <div className="min-w-0">
-                            <p className="text-sm font-medium text-foreground">{exercise.title}</p>
-                            <p className="text-xs text-muted-foreground mt-0.5">
-                              {exercise.default_bpm} BPM &middot; {(exercise.linked_songs || []).length} songs included
-                            </p>
-                          </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-foreground">{exercise.title}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">{exercise.default_bpm} BPM</p>
                         </div>
-                        <div
-                          className={`shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all duration-200 ${
-                            isSelected ? "border-primary bg-primary" : "border-muted-foreground/30"
-                          }`}
-                        >
-                          {isSelected && <Check className="h-3 w-3 text-primary-foreground" />}
+                        <div className={`shrink-0 w-6 h-6 rounded-full flex items-center justify-center transition-all duration-200 ${
+                          isSelected ? "bg-primary border-2 border-primary" : "border-2 border-muted-foreground/40 bg-transparent"
+                        }`}>
+                          {isSelected && (
+                            <svg viewBox="0 0 12 12" className="w-3 h-3">
+                              <polyline points="2,6 5,9 10,3" stroke="white" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
+                          )}
                         </div>
                       </div>
                     </button>
@@ -200,7 +194,7 @@ export const BuildYourOwnModal = ({ open, onClose, onAdd }: Props) => {
             </div>
 
             {/* Panel 2 — Songs */}
-            <div className="overflow-y-auto px-6 py-4 space-y-6" style={{ width: "50%" }}>
+            <div className="overflow-y-auto px-6 pt-4 pb-20 space-y-6" style={{ width: "50%" }}>
               <p className="text-xs text-muted-foreground">
                 Songs matched to your techniques. Deselect any you don't want.
               </p>
@@ -251,7 +245,7 @@ export const BuildYourOwnModal = ({ open, onClose, onAdd }: Props) => {
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-border shrink-0">
+        <div className="px-6 py-4 border-t border-white/5 bg-card shrink-0">
           {step === 1 ? (
             <div className="flex gap-3">
               <Button variant="ghost" onClick={onClose} className="flex-1">Cancel</Button>
