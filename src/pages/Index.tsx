@@ -315,7 +315,7 @@ const Index = () => {
                   <div className="w-px h-8 bg-border" />
                   <div>
                     <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">Streak</p>
-                    <p className="text-4xl font-black text-white leading-none mt-1">{currentStreak} {currentStreak === 1 ? "day" : "days"}</p>
+                    <p className="text-3xl font-black text-white leading-none mt-1">{currentStreak} {currentStreak === 1 ? "day" : "days"}</p>
                   </div>
                 </div>
               </>
