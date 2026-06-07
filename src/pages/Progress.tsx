@@ -5,7 +5,7 @@ import MiniLogo from "@/components/MiniLogo";
 import WaveformLoader from "@/components/WaveformLoader";
 import { Link } from "react-router-dom";
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip } from "recharts";
-import { StorageService, Exercise, Session } from "@/lib/storage";
+import { StorageService, Exercise, Session, clearCache } from "@/lib/storage";
 import { generateInsights } from "@/lib/insights";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/contexts/AuthContext";
@@ -32,6 +32,7 @@ const Progress = () => {
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
+      clearCache();
       try {
         const [fetchedExercises, fetchedSessions] = await Promise.all([
           StorageService.getExercises(),

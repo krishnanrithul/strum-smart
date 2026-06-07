@@ -47,14 +47,17 @@ const StudentLayout = () => {
                   key={path}
                   to={path}
                   className={cn(
-                    "flex flex-col items-center justify-center py-3 rounded-lg transition-all",
-                    isActive
-                      ? "text-green-500"
-                      : "text-[#666666] hover:bg-secondary hover:text-foreground"
+                    "flex flex-col items-center justify-center py-3 transition-all",
+                    isActive ? "text-green-500" : "text-[#666666]"
                   )}
                 >
-                  <Icon className="h-6 w-6 mb-1" fill={isActive ? "currentColor" : "none"} />
-                  <span className="text-xs font-medium">{label}</span>
+                  <div className={cn(
+                    "flex flex-col items-center transition-all",
+                    isActive ? "rounded-xl bg-secondary px-6 py-2" : ""
+                  )}>
+                    <Icon className="h-6 w-6 mb-1" fill={isActive ? "currentColor" : "none"} />
+                    <span className="text-xs font-medium">{label}</span>
+                  </div>
                 </Link>
               );
             })}

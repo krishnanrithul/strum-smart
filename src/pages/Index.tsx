@@ -3,16 +3,28 @@ import { ChevronRight } from "lucide-react";
 import AppHeader from "@/components/AppHeader";
 import MiniLogo from "@/components/MiniLogo";
 import WaveformLoader from "@/components/WaveformLoader";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { StorageService, Exercise, clearCache } from "@/lib/storage";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { redeemInviteCode } from "@/hooks/useInviteCode";
 
 
+const formatRelativeTime = (iso: string): string => {
+  const diffDays = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
+  if (diffDays === 0) return "Practiced today";
+  if (diffDays === 1) return "Practiced yesterday";
+  if (diffDays < 7) return `Practiced ${diffDays} days ago`;
+  if (diffDays < 14) return "Practiced 1 week ago";
+  if (diffDays < 30) return `Practiced ${Math.floor(diffDays / 7)} weeks ago`;
+  if (diffDays < 60) return "Practiced 1 month ago";
+  return `Practiced ${Math.floor(diffDays / 30)} months ago`;
+};
+
 const Index = () => {
   const { session } = useAuth();
   const navigate = useNavigate();
+  const { pathname } = useLocation();
   const [statsLoading, setStatsLoading] = useState(true);
   const [firstName, setFirstName] = useState<string | null>(null);
   const [personalBestBpm, setPersonalBestBpm] = useState(0);
@@ -62,13 +74,15 @@ const Index = () => {
         setPersonalBestExercise(null);
         setRecentExercises([]);
       } else {
-        // Personal Best BPM — highest currentBpm among practiced exercises only
-        const practicedExercises = exercises.filter(e => e.history.length > 1);
-        const bestExerciseObj = practicedExercises.reduce<Exercise | null>(
-          (best, e) => (e.currentBpm > (best?.currentBpm ?? 0) ? e : best),
+        const activeExercises = exercises.filter(e => e.status !== "Completed" && e.history.length >= 2);
+        const bestExerciseObj = activeExercises.reduce<{ title: string; bpm: number } | null>(
+          (best, e) => {
+            const maxBpm = Math.max(...e.history.map(h => h.bpm));
+            return maxBpm > (best?.bpm ?? 0) ? { title: e.title, bpm: maxBpm } : best;
+          },
           null
         );
-        setPersonalBestBpm(bestExerciseObj?.currentBpm ?? 0);
+        setPersonalBestBpm(bestExerciseObj?.bpm ?? 0);
         setPersonalBestExercise(bestExerciseObj?.title ?? null);
 
         const inProgress = exercises
@@ -118,6 +132,10 @@ const Index = () => {
   useEffect(() => {
     loadData();
   }, [session]);
+
+  useEffect(() => {
+    if (pathname === "/") loadData();
+  }, [pathname]);
 
 
   const handleConfirmComplete = () => {
@@ -234,8 +252,8 @@ const Index = () => {
           <div>
             <h3 className="text-base font-bold text-white leading-tight">{exercise.title}</h3>
             <p className="text-xs text-muted-foreground mt-0.5">{exercise.category}</p>
-            {exercise.is_assigned && (
-              <p className="text-xs text-muted-foreground">FROM TEACHER</p>
+            {exercise.history[exercise.history.length - 1]?.date && (
+              <p className="text-xs text-muted-foreground">{formatRelativeTime(exercise.history[exercise.history.length - 1].date)}</p>
             )}
           </div>
           <div className="flex flex-col items-end">

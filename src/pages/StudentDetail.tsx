@@ -126,7 +126,11 @@ const StudentDetail = () => {
       return { ...ex, _last_practiced: lastSession?.created_at ?? null };
     });
     setExercises(enriched);
-    if (enriched.length > 0 && !selectedExerciseId) setSelectedExerciseId(enriched[0].id);
+    if (enriched.length > 0 && !selectedExerciseId) {
+      const withTwoPlus = enriched.find((e: any) => (e.history || []).length >= 2);
+      const withOnePlus = enriched.find((e: any) => (e.history || []).length >= 1);
+      setSelectedExerciseId((withTwoPlus ?? withOnePlus ?? enriched[0]).id);
+    }
     const peak = enriched.reduce((max: number, e: any) => {
       const bpms = (e.history || []).map((h: any) => h.bpm);
       return bpms.length ? Math.max(max, ...bpms) : max;
@@ -135,11 +139,10 @@ const StudentDetail = () => {
   };
 
   const handleRemove = async (exerciseId: string) => {
-    await (supabase as any)
-      .from("assigned_exercises")
-      .delete()
-      .eq("exercise_id", exerciseId)
-      .eq("student_id", id);
+    await Promise.all([
+      (supabase as any).from("assigned_exercises").delete().eq("exercise_id", exerciseId).eq("student_id", id),
+      supabase.from("exercises").delete().eq("id", exerciseId),
+    ]);
     setExercises((prev) => prev.filter((e: any) => e.id !== exerciseId));
     setConfirmRemoveId(null);
   };
@@ -685,7 +688,7 @@ const StudentDetail = () => {
         style={{ height: "calc(72px + env(safe-area-inset-bottom))", paddingBottom: "env(safe-area-inset-bottom)" }}
       >
         <div className="container mx-auto px-4 h-full">
-          <div className="grid grid-cols-2 gap-2 h-full items-center">
+          <div className="flex flex-row h-full items-center justify-around">
             {([
               { tab: "overview", icon: LayoutDashboard, label: "Overview" },
               { tab: "progress", icon: TrendingUp, label: "Progress" },
@@ -695,12 +698,16 @@ const StudentDetail = () => {
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
-                  className={`flex flex-col items-center justify-center py-3 rounded-lg transition-all ${
-                    isActive ? "text-green-500" : "text-[#666666] hover:bg-secondary hover:text-foreground"
+                  className={`flex flex-col items-center justify-center py-3 transition-all ${
+                    isActive ? "text-green-500" : "text-[#666666]"
                   }`}
                 >
-                  <Icon className="h-6 w-6 mb-1" fill={isActive ? "currentColor" : "none"} />
-                  <span className="text-xs font-medium">{label}</span>
+                  <div className={`flex flex-col items-center transition-all ${
+                    isActive ? "rounded-xl bg-secondary px-6 py-2" : ""
+                  }`}>
+                    <Icon className="h-6 w-6 mb-1" fill={isActive ? "currentColor" : "none"} />
+                    <span className="text-xs font-medium">{label}</span>
+                  </div>
                 </button>
               );
             })}
