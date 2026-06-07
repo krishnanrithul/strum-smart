@@ -7,7 +7,7 @@ let cachedUserId: string | null = null;
 let cacheTimestamp: number | null = null;
 const CACHE_TTL = 30000; // 30 seconds
 
-const clearCache = () => {
+export const clearCache = () => {
     exerciseCache = null;
     templateCache = null;
     cacheTimestamp = null;

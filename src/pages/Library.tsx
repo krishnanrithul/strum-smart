@@ -46,6 +46,7 @@ const Library = () => {
   const [carouselAtEnd, setCarouselAtEnd] = useState(false);
   const [carouselAtStart, setCarouselAtStart] = useState(true);
   const [carouselHovered, setCarouselHovered] = useState(false);
+  const [hoveredExerciseId, setHoveredExerciseId] = useState<string | null>(null);
   const [scrollY, setScrollY] = useState(0);
   const carouselRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -222,6 +223,17 @@ const Library = () => {
 
   const routinesAdded = ROUTINES.filter(r => isRoutineAdded(r)).length;
 
+  const getBpmProgress = (exercise: Exercise) => {
+    const current = exercise.currentBpm;
+    const target = exercise.targetBpm;
+    const initial = exercise.history[0]?.bpm ?? current;
+    if (current <= initial) return 0;
+    if (!target || target <= initial) {
+      return Math.min(100, Math.round(((current - initial) / initial) * 100));
+    }
+    return Math.min(100, Math.round(((current - initial) / (target - initial)) * 100));
+  };
+
   if (loading) return (
     <div className="min-h-screen bg-background flex items-center justify-center">
       <WaveformLoader />
@@ -291,6 +303,7 @@ const Library = () => {
                       transition: "height 200ms ease",
                       scrollSnapAlign: "start",
                       background: `radial-gradient(ellipse at 80% 20%, ${boldColor} 0%, rgba(8,8,8,1) 65%)`,
+                      border: "1px solid rgba(255,255,255,0.1)",
                     }}
                     onClick={() => {
                       setRoutineSheetOpen(true);
@@ -470,17 +483,81 @@ const Library = () => {
               </div>
             ) : (
               activeExercises.map(exercise => {
-                const borderColor = exercise.category === "Warmup" ? "#eab308"
+                const isHovered = hoveredExerciseId === exercise.id;
+                const categoryGradient = exercise.category === "Warmup"
+                  ? `radial-gradient(circle at top right, rgba(234,179,8,${isHovered ? 0.4 : 0.3}) 0%, rgba(0,0,0,0.8) 60%)`
+                  : exercise.category === "Technical"
+                  ? `radial-gradient(circle at top right, rgba(59,130,246,${isHovered ? 0.4 : 0.3}) 0%, rgba(0,0,0,0.8) 60%)`
+                  : exercise.category === "Repertoire"
+                  ? `radial-gradient(circle at top right, rgba(168,85,247,${isHovered ? 0.4 : 0.3}) 0%, rgba(0,0,0,0.8) 60%)`
+                  : `radial-gradient(circle at top right, rgba(255,255,255,${isHovered ? 0.2 : 0.1}) 0%, rgba(0,0,0,0.8) 60%)`;
+                const categoryColor = exercise.category === "Warmup" ? "#eab308"
                   : exercise.category === "Technical" ? "#3b82f6"
                   : exercise.category === "Repertoire" ? "#a855f7"
-                  : "rgba(255,255,255,0.1)";
+                  : "#22c55e";
                 return (
-                  <div key={exercise.id} className="rounded-xl overflow-hidden" style={{ borderLeft: `3px solid ${borderColor}` }}>
-                    <ExerciseCard
-                      exercise={exercise}
-                      onEdit={handleEditClick}
-                      onDelete={handleDeleteClick}
+                  <div
+                    key={exercise.id}
+                    className="rounded-2xl overflow-hidden relative cursor-pointer group"
+                    style={{
+                      height: "120px",
+                      background: categoryGradient,
+                      border: isHovered ? "1px solid rgba(255,255,255,0.15)" : "1px solid rgba(255,255,255,0.08)",
+                      transform: isHovered ? "translateY(-2px)" : "translateY(0)",
+                      boxShadow: isHovered ? "0 8px 24px rgba(0,0,0,0.4)" : "none",
+                      transition: "all 200ms ease",
+                    }}
+                    onClick={() => navigate(`/practice/${exercise.id}`)}
+                    onMouseEnter={() => setHoveredExerciseId(exercise.id)}
+                    onMouseLeave={() => setHoveredExerciseId(null)}
+                  >
+                    {/* Ghost text */}
+                    <span
+                      className="absolute font-black text-white select-none pointer-events-none leading-none"
+                      style={{ fontSize: "64px", opacity: 0.04, top: "-8px", right: "-4px" }}
+                    >
+                      {exercise.category}
+                    </span>
+
+                    {/* Right scrim */}
+                    <div
+                      className="absolute right-0 top-0 bottom-0 w-32 pointer-events-none z-10"
+                      style={{ background: "linear-gradient(to left, rgba(0,0,0,0.6) 0%, transparent 100%)" }}
                     />
+
+                    {/* Progress bar */}
+                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-white/10 z-30">
+                      <div
+                        className="h-full transition-all duration-500"
+                        style={{ width: `${getBpmProgress(exercise)}%`, background: categoryColor }}
+                      />
+                    </div>
+
+                    {/* Content */}
+                    <div className="absolute bottom-0 left-0 right-0 p-4 flex items-end justify-between z-20">
+                      <div>
+                        <h3 className="text-base font-bold text-white leading-tight">{exercise.title}</h3>
+                        <p className="text-xs text-muted-foreground mt-0.5">{exercise.category}</p>
+                      </div>
+                      <div className="flex flex-col items-end">
+                        <span className="text-2xl font-black text-white leading-none">{exercise.currentBpm}</span>
+                        <span className="text-xs text-muted-foreground leading-none mt-0.5">BPM</span>
+                      </div>
+                    </div>
+
+                    {/* Edit / Delete */}
+                    <button
+                      className="absolute z-30 top-3 right-10 h-8 w-8 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-white/50 hover:text-white"
+                      onClick={(e) => handleEditClick(exercise, e)}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </button>
+                    <button
+                      className="absolute z-30 top-3 right-2 h-8 w-8 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-white/50 hover:text-destructive"
+                      onClick={(e) => handleDeleteClick(exercise, e)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
                   </div>
                 );
               })

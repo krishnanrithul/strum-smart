@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
-import { TrendingUp, Calendar, Sparkles } from "lucide-react";
+import { TrendingUp, Calendar } from "lucide-react";
 import AppHeader from "@/components/AppHeader";
 import MiniLogo from "@/components/MiniLogo";
 import WaveformLoader from "@/components/WaveformLoader";
 import { Link } from "react-router-dom";
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip } from "recharts";
 import { StorageService, Exercise, Session } from "@/lib/storage";
+import { generateInsights } from "@/lib/insights";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -19,9 +20,6 @@ const glassCardWithGlow = {
   background: "radial-gradient(circle at top right, rgba(34,197,94,0.12) 0%, transparent 60%), hsl(var(--card))",
 };
 
-const INSIGHTS_TEXT_KEY = "fretgym_insights";
-const INSIGHTS_TS_KEY = "fretgym_insights_timestamp";
-const INSIGHTS_TTL = 24 * 60 * 60 * 1000;
 
 const Progress = () => {
   const { session } = useAuth();
@@ -29,16 +27,7 @@ const Progress = () => {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [selectedExerciseId, setSelectedExerciseId] = useState<string>("");
   const [loading, setLoading] = useState(true);
-  const [insightText, setInsightText] = useState<string | null>(() => {
-    try {
-      const text = localStorage.getItem(INSIGHTS_TEXT_KEY);
-      const ts = localStorage.getItem(INSIGHTS_TS_KEY);
-      if (text && ts && Date.now() - Number(ts) < INSIGHTS_TTL) return text;
-    } catch {}
-    return null;
-  });
-  const [insightLoading, setInsightLoading] = useState(false);
-  const [insightError, setInsightError] = useState(false);
+  const [insights, setInsights] = useState<string[]>([]);
 
   useEffect(() => {
     const loadData = async () => {
@@ -53,6 +42,24 @@ const Progress = () => {
         if (fetchedExercises.length > 0) {
           setSelectedExerciseId(fetchedExercises[0].id);
         }
+
+        const todayStr = new Date().toLocaleDateString("en-CA");
+        const todayMins = Math.floor(
+          fetchedSessions
+            .filter(s => new Date(s.date).toLocaleDateString("en-CA") === todayStr)
+            .reduce((acc, s) => acc + s.duration, 0) / 60
+        );
+        const uniqueDays = [...new Set(fetchedSessions.map(s => s.date.split("T")[0]))].sort().reverse();
+        let computedStreak = 0;
+        let cur = todayStr;
+        for (const day of uniqueDays) {
+          if (day === cur) {
+            computedStreak++;
+            const d = new Date(cur); d.setDate(d.getDate() - 1);
+            cur = d.toISOString().split("T")[0];
+          } else break;
+        }
+        setInsights(generateInsights(fetchedExercises, fetchedSessions, computedStreak, todayMins));
       } catch (error) {
         console.error("Failed to load progress data:", error);
       } finally {
@@ -62,99 +69,6 @@ const Progress = () => {
     loadData();
   }, []);
 
-  const loadInsights = async () => {
-    if (!session) return;
-
-    try {
-      const cachedText = localStorage.getItem(INSIGHTS_TEXT_KEY);
-      const cachedTs = localStorage.getItem(INSIGHTS_TS_KEY);
-      if (cachedText && cachedTs && Date.now() - Number(cachedTs) < INSIGHTS_TTL) {
-        setInsightText(cachedText);
-        return;
-      }
-    } catch {}
-
-    setInsightLoading(true);
-    setInsightError(false);
-    setInsightText(null);
-
-    try {
-      const oneWeekAgo = new Date();
-      oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-      const weekMins = Math.floor(
-        sessions.filter(s => new Date(s.date) >= oneWeekAgo).reduce((acc, s) => acc + s.duration, 0) / 60
-      );
-
-      const uniqueDays = [...new Set(sessions.map(s => s.date.split("T")[0]))].sort().reverse();
-      const todayISO = new Date().toISOString().split("T")[0];
-      let streakDays = 0;
-      let cur = todayISO;
-      for (const day of uniqueDays) {
-        if (day === cur) {
-          streakDays++;
-          const d = new Date(cur); d.setDate(d.getDate() - 1);
-          cur = d.toISOString().split("T")[0];
-        } else break;
-      }
-
-      const exerciseSummary = exercises
-        .map(e => {
-          const startBpm = e.history[0]?.bpm ?? e.currentBpm;
-          const gain = e.currentBpm - startBpm;
-          return `${e.title}: ${e.currentBpm} BPM (${gain >= 0 ? "+" : ""}${gain} from start, target ${e.targetBpm} BPM)`;
-        })
-        .join("; ");
-
-      const prompt = `You are a guitar practice coach. Here is a student's recent practice data: current streak ${streakDays} days, practice time this week ${weekMins} minutes, exercises: ${exerciseSummary || "none yet"}. Give 2-3 short, specific, encouraging insights and one concrete suggestion. Format your response exactly like this — no other text:\nInsights:\n- point one\n- point two\nSuggestion:\nOne paragraph here.`;
-
-      let text: string;
-
-      if (import.meta.env.DEV) {
-        const res = await fetch("http://localhost:11434/api/chat", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            model: "llama3.1",
-            messages: [{ role: "user", content: prompt }],
-            stream: false,
-          }),
-        });
-        if (!res.ok) throw new Error("api_error");
-        const json = await res.json();
-        text = (json.message?.content || "").trim();
-      } else {
-        const res = await fetch("https://api.anthropic.com/v1/messages", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-api-key": import.meta.env.VITE_ANTHROPIC_API_KEY,
-            "anthropic-version": "2023-06-01",
-          },
-          body: JSON.stringify({
-            model: "claude-sonnet-4-20250514",
-            messages: [{ role: "user", content: prompt }],
-            max_tokens: 500,
-          }),
-        });
-        if (!res.ok) throw new Error("api_error");
-        const json = await res.json();
-        text = (json.content?.[0]?.text || "").trim();
-      }
-
-      if (!text) throw new Error("empty_response");
-      localStorage.setItem(INSIGHTS_TEXT_KEY, text);
-      localStorage.setItem(INSIGHTS_TS_KEY, String(Date.now()));
-      setInsightText(text);
-    } catch {
-      setInsightError(true);
-    } finally {
-      setInsightLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (!loading) loadInsights();
-  }, [loading]);
 
   const selectedExercise = exercises.find(e => e.id === selectedExerciseId);
 
@@ -305,56 +219,22 @@ const Progress = () => {
           </div>
         </section>
 
-        {/* Training Notes */}
-        <section className="space-y-4">
-          <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground flex items-center gap-1.5">
-            <Sparkles className="h-4 w-4 text-green-500" /> Training Notes
-          </p>
-          <div className="rounded-2xl bg-card p-6" style={glassCard}>
-            {insightLoading ? (
-              <p className="text-sm text-muted-foreground">Generating insights…</p>
-            ) : insightError ? (
-              <p className="text-sm text-muted-foreground">Couldn't generate insights right now. Try again later.</p>
-            ) : insightText ? (
-              <>
-                {(() => {
-                  const insightsIdx = insightText.indexOf("Insights:");
-                  const clean = insightsIdx > 0 ? insightText.slice(insightsIdx) : insightText;
-                  const suggestionIdx = clean.indexOf("Suggestion:");
-                  const insightsPart = (suggestionIdx > -1 ? clean.slice(0, suggestionIdx) : clean)
-                    .replace(/^Insights:\s*/i, "").trim();
-                  const suggestionPart = suggestionIdx > -1
-                    ? clean.slice(suggestionIdx).replace(/^Suggestion:\s*/i, "").trim()
-                    : "";
-                  const insightLines = insightsPart
-                    .split("\n")
-                    .map(l => l.replace(/^[-*•\d.)]+\s*/, "").trim())
-                    .filter(Boolean);
-                  return (
-                    <div className="space-y-6">
-                      {insightLines.length > 0 && (
-                        <ul className="space-y-3">
-                          {insightLines.map((line, i) => (
-                            <li key={i} className="flex items-start gap-2.5 text-sm text-foreground leading-relaxed">
-                              <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-primary flex-shrink-0" />
-                              {line}
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                      {suggestionPart && (
-                        <div className="rounded-xl p-4 bg-primary/5" style={{ border: "1px solid rgba(34,197,94,0.15)" }}>
-                          <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground mb-2">Suggestion</p>
-                          <p className="text-sm text-foreground leading-relaxed">{suggestionPart}</p>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })()}
-              </>
-            ) : null}
-          </div>
-        </section>
+        {insights.length > 0 && (
+          <section className="space-y-4">
+            <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">Insights</p>
+            <div className="space-y-3">
+              {insights.map((insight, i) => (
+                <div
+                  key={i}
+                  className="rounded-xl p-4"
+                  style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}
+                >
+                  <p className="text-sm text-white">💡 {insight}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
 
       </main>
     </div>

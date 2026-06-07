@@ -1,25 +1,14 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { ChevronRight } from "lucide-react";
 import AppHeader from "@/components/AppHeader";
 import MiniLogo from "@/components/MiniLogo";
 import WaveformLoader from "@/components/WaveformLoader";
 import { Link, useNavigate } from "react-router-dom";
-import { StorageService, Exercise } from "@/lib/storage";
+import { StorageService, Exercise, clearCache } from "@/lib/storage";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { redeemInviteCode } from "@/hooks/useInviteCode";
 
-const formatRelativeTime = (iso: string | null): string => {
-  if (!iso) return "Never practiced";
-  const diffDays = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
-  if (diffDays === 0) return "Last practiced: Today";
-  if (diffDays === 1) return "Last practiced: Yesterday";
-  if (diffDays < 7) return `Last practiced: ${diffDays} days ago`;
-  if (diffDays < 14) return "Last practiced: 1 week ago";
-  if (diffDays < 30) return `Last practiced: ${Math.floor(diffDays / 7)} weeks ago`;
-  if (diffDays < 60) return "Last practiced: 1 month ago";
-  return `Last practiced: ${Math.floor(diffDays / 30)} months ago`;
-};
 
 const Index = () => {
   const { session } = useAuth();
@@ -37,78 +26,50 @@ const Index = () => {
   const [codeError, setCodeError] = useState("");
   const [codeSubmitting, setCodeSubmitting] = useState(false);
   const [connectedTeacherName, setConnectedTeacherName] = useState<string | null>(null);
-  const [hoveredExerciseId, setHoveredExerciseId] = useState<string | null>(null);
   const [completeConfirmExercise, setCompleteConfirmExercise] = useState<Exercise | null>(null);
   const [flashingExerciseId, setFlashingExerciseId] = useState<string | null>(null);
+  const [hoveredExerciseId, setHoveredExerciseId] = useState<string | null>(null);
+  const longPressTimer = useRef<number | null>(null);
 
-  useEffect(() => {
+  const loadData = async () => {
     if (!session) {
       setStatsLoading(false);
       return;
     }
+    clearCache();
+    setStatsLoading(true);
+    try {
+      const [{ data: sessionRows }, exercises, { data: profile }] = await Promise.all([
+        supabase
+          .from("sessions")
+          .select("duration, created_at")
+          .eq("user_id", session.user.id),
+        StorageService.getExercises(),
+        (supabase as any)
+          .from("profiles")
+          .select("teacher_id, full_name")
+          .eq("id", session.user.id)
+          .single(),
+      ]);
+      setTeacherId(profile?.teacher_id ?? null);
+      const fullName: string | null = profile?.full_name ?? null;
+      setFirstName(fullName ? fullName.split(" ")[0] : null);
 
-    const loadData = async () => {
-      setStatsLoading(true);
-      try {
-        const [{ data: sessionRows }, exercises, { data: profile }] = await Promise.all([
-          supabase
-            .from("sessions")
-            .select("duration, created_at")
-            .eq("user_id", session.user.id),
-          StorageService.getExercises(),
-          (supabase as any)
-            .from("profiles")
-            .select("teacher_id, full_name")
-            .eq("id", session.user.id)
-            .single(),
-        ]);
-        setTeacherId(profile?.teacher_id ?? null);
-        const fullName: string | null = profile?.full_name ?? null;
-        setFirstName(fullName ? fullName.split(" ")[0] : null);
+      const rows = sessionRows || [];
 
-        const rows = sessionRows || [];
-
-        // Personal Best BPM — max across session history entries (skip index 0, which is the creation entry)
-        let bestBpm = 0;
-        let bestExercise: string | null = null;
-        for (const e of exercises) {
-          for (const h of e.history.slice(1)) {
-            if (h.bpm > bestBpm) {
-              bestBpm = h.bpm;
-              bestExercise = e.title;
-            }
-          }
-        }
-
-        // Today's practice time (local timezone)
-        const todayStr = new Date().toLocaleDateString("en-CA");
-        const todaySecs = rows
-          .filter((r) => new Date(r.created_at).toLocaleDateString("en-CA") === todayStr)
-          .reduce((acc, r) => acc + (r.duration || 0), 0);
-
-        // Current streak
-        const uniqueDays = [...new Set(
-          rows.map((r) => new Date(r.created_at).toLocaleDateString("en-CA"))
-        )].sort().reverse();
-        const now = new Date();
-        const yesterdayStr = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1)
-          .toLocaleDateString("en-CA");
-        let streak = 0;
-        if (uniqueDays.includes(todayStr) || uniqueDays.includes(yesterdayStr)) {
-          const startDate = new Date(
-            uniqueDays.includes(todayStr) ? todayStr : yesterdayStr
-          );
-          let check = new Date(startDate);
-          while (uniqueDays.includes(check.toLocaleDateString("en-CA"))) {
-            streak++;
-            check.setDate(check.getDate() - 1);
-          }
-        }
-
-        setPersonalBestBpm(bestBpm);
-        setPersonalBestExercise(bestExercise);
-        setTodayMinutes(Math.floor(todaySecs / 60));
-        setCurrentStreak(streak);
+      if (exercises.length === 0) {
+        setPersonalBestBpm(0);
+        setPersonalBestExercise(null);
+        setRecentExercises([]);
+      } else {
+        // Personal Best BPM — highest currentBpm among practiced exercises only
+        const practicedExercises = exercises.filter(e => e.history.length > 1);
+        const bestExerciseObj = practicedExercises.reduce<Exercise | null>(
+          (best, e) => (e.currentBpm > (best?.currentBpm ?? 0) ? e : best),
+          null
+        );
+        setPersonalBestBpm(bestExerciseObj?.currentBpm ?? 0);
+        setPersonalBestExercise(bestExerciseObj?.title ?? null);
 
         const inProgress = exercises
           .filter((e) => e.status === "In Progress" || e.status === "New")
@@ -119,15 +80,45 @@ const Index = () => {
             return new Date(lastB).getTime() - new Date(lastA).getTime();
           })
           .slice(0, 5);
-
         setRecentExercises(inProgress);
-      } finally {
-        setStatsLoading(false);
       }
-    };
 
+      // Today's practice time (local timezone)
+      const todayStr = new Date().toLocaleDateString("en-CA");
+      const todaySecs = rows
+        .filter((r) => new Date(r.created_at).toLocaleDateString("en-CA") === todayStr)
+        .reduce((acc, r) => acc + (r.duration || 0), 0);
+
+      // Current streak
+      const uniqueDays = [...new Set(
+        rows.map((r) => new Date(r.created_at).toLocaleDateString("en-CA"))
+      )].sort().reverse();
+      const now = new Date();
+      const yesterdayStr = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1)
+        .toLocaleDateString("en-CA");
+      let streak = 0;
+      if (uniqueDays.includes(todayStr) || uniqueDays.includes(yesterdayStr)) {
+        const startDate = new Date(
+          uniqueDays.includes(todayStr) ? todayStr : yesterdayStr
+        );
+        let check = new Date(startDate);
+        while (uniqueDays.includes(check.toLocaleDateString("en-CA"))) {
+          streak++;
+          check.setDate(check.getDate() - 1);
+        }
+      }
+
+      setTodayMinutes(Math.floor(todaySecs / 60));
+      setCurrentStreak(streak);
+    } finally {
+      setStatsLoading(false);
+    }
+  };
+
+  useEffect(() => {
     loadData();
   }, [session]);
+
 
   const handleConfirmComplete = () => {
     if (!completeConfirmExercise) return;
@@ -156,94 +147,106 @@ const Index = () => {
     }
   };
 
-  const renderExerciseCard = (exercise: Exercise) => {
-    const history = exercise.history;
-    const lastBpm = history.length > 0 ? history[history.length - 1].bpm : exercise.currentBpm;
-    const prevBpm = history.length > 1 ? history[history.length - 2].bpm : lastBpm;
-    const progress = getBpmProgress(exercise);
-    return (
-      <Link key={exercise.id} to={`/practice/${exercise.id}`} className="block">
-        <div
-          className="rounded-xl p-4 cursor-pointer relative overflow-hidden transition-all duration-300"
-          onMouseEnter={() => setHoveredExerciseId(exercise.id)}
-          onMouseLeave={() => setHoveredExerciseId(null)}
-          style={{
-            background: hoveredExerciseId === exercise.id
-              ? "linear-gradient(135deg, rgba(52,211,153,0.18) 0%, rgba(255,255,255,0.03) 100%)"
-              : "rgba(255,255,255,0.03)",
-            border: `1px solid ${hoveredExerciseId === exercise.id ? "rgba(52,211,153,0.4)" : "rgba(255,255,255,0.06)"}`,
-            transform: hoveredExerciseId === exercise.id ? "translateY(-2px)" : "translateY(0)",
-            boxShadow: hoveredExerciseId === exercise.id ? "0 8px 24px rgba(52,211,153,0.18)" : "none",
-            backdropFilter: "blur(12px)",
-          }}
-        >
-          <div
-            className="absolute top-0 left-0 right-0 h-px transition-opacity duration-300"
-            style={{
-              background: "linear-gradient(90deg, transparent, rgba(52,211,153,0.6), transparent)",
-              opacity: hoveredExerciseId === exercise.id ? 1 : 0,
-            }}
-          />
-          <div
-            className="absolute inset-0 rounded-xl pointer-events-none"
-            style={flashingExerciseId === exercise.id
-              ? { background: "rgba(34,197,94,0.25)", animation: "flashPulse 300ms ease-out forwards" }
-              : { opacity: 0 }
-            }
-          />
-          <div className="relative z-10">
-            <div className="flex items-center justify-between mb-3">
-              <div>
-                <h3 className="font-semibold text-base">{exercise.title}</h3>
-                <div className="flex items-center gap-1 mt-0.5">
-                  <span className="text-sm text-muted-foreground">{exercise.category}</span>
-                  {exercise.is_assigned && (
-                    <>
-                      <span className="text-xs text-muted-foreground"> · </span>
-                      <span className="text-xs font-semibold uppercase tracking-wide text-primary">From Teacher</span>
-                    </>
-                  )}
-                </div>
-                <p className="text-xs text-muted-foreground mt-0.5">{formatRelativeTime(history.length > 1 ? history[history.length - 1].date : null)}</p>
-              </div>
-              <p className="text-xl font-black text-white leading-none">{lastBpm}</p>
-            </div>
-            {prevBpm !== lastBpm && (
-              <div className="flex items-center gap-3">
-                <div className="flex-1 h-1.5 bg-secondary rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-primary rounded-full transition-all duration-500"
-                    style={{ width: `${progress}%` }}
-                  />
-                </div>
-                <div className="flex items-center gap-0.5 text-xs">
-                  <span className="text-muted-foreground">{prevBpm} →&nbsp;</span>
-                  <span className="text-foreground font-semibold">{lastBpm}</span>
-                  <span className="text-muted-foreground">&nbsp;BPM</span>
-                </div>
-              </div>
-            )}
-            <div className="flex justify-end mt-2">
-              <button
-                onClick={(e) => { e.preventDefault(); e.stopPropagation(); setCompleteConfirmExercise(exercise); }}
-                className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-              >
-                Mark complete
-              </button>
-            </div>
-          </div>
-        </div>
-      </Link>
-    );
-  };
-
   const getBpmProgress = (exercise: Exercise) => {
     const current = exercise.currentBpm;
     const target = exercise.targetBpm;
     const initial = exercise.history[0]?.bpm ?? current;
-    if (target <= initial) return 0;
+    if (current <= initial) return 0;
+    if (!target || target <= initial) {
+      return Math.min(100, Math.round(((current - initial) / initial) * 100));
+    }
     return Math.min(100, Math.round(((current - initial) / (target - initial)) * 100));
   };
+
+  const renderExerciseCard = (exercise: Exercise) => {
+    const isHovered = hoveredExerciseId === exercise.id;
+    const categoryGradient =
+      exercise.category === "Warmup"
+        ? `radial-gradient(circle at top right, rgba(234,179,8,${isHovered ? 0.4 : 0.3}) 0%, rgba(0,0,0,0.8) 60%)`
+        : exercise.category === "Technical"
+        ? `radial-gradient(circle at top right, rgba(59,130,246,${isHovered ? 0.4 : 0.3}) 0%, rgba(0,0,0,0.8) 60%)`
+        : exercise.category === "Repertoire"
+        ? `radial-gradient(circle at top right, rgba(168,85,247,${isHovered ? 0.4 : 0.3}) 0%, rgba(0,0,0,0.8) 60%)`
+        : `radial-gradient(circle at top right, rgba(255,255,255,${isHovered ? 0.2 : 0.1}) 0%, rgba(0,0,0,0.8) 60%)`;
+
+    return (
+      <div
+        key={exercise.id}
+        className="rounded-2xl overflow-hidden relative cursor-pointer"
+        style={{
+          height: "120px",
+          background: categoryGradient,
+          border: isHovered ? "1px solid rgba(255,255,255,0.15)" : "1px solid rgba(255,255,255,0.08)",
+          transform: isHovered ? "translateY(-2px)" : "translateY(0)",
+          boxShadow: isHovered ? "0 8px 24px rgba(0,0,0,0.4)" : "none",
+          transition: "all 200ms ease",
+        }}
+        onClick={() => navigate(`/practice/${exercise.id}`)}
+        onMouseEnter={() => setHoveredExerciseId(exercise.id)}
+        onMouseDown={() => {
+          longPressTimer.current = window.setTimeout(() => setCompleteConfirmExercise(exercise), 500);
+        }}
+        onMouseUp={() => { if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; } }}
+        onMouseLeave={() => {
+          setHoveredExerciseId(null);
+          if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; }
+        }}
+      >
+        {/* Ghost text */}
+        <span
+          className="absolute font-black text-white select-none pointer-events-none leading-none"
+          style={{ fontSize: "64px", opacity: 0.04, top: "-8px", right: "-4px" }}
+        >
+          {exercise.category}
+        </span>
+
+        {/* Right scrim behind BPM */}
+        <div
+          className="absolute right-0 top-0 bottom-0 w-32 z-10 pointer-events-none"
+          style={{ background: "linear-gradient(to left, rgba(0,0,0,0.6) 0%, transparent 100%)" }}
+        />
+
+        {/* Flash overlay */}
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={flashingExerciseId === exercise.id
+            ? { background: "rgba(34,197,94,0.25)", animation: "flashPulse 300ms ease-out forwards" }
+            : { opacity: 0 }
+          }
+        />
+
+        {/* Content */}
+        {/* Progress bar */}
+        <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-white/10 z-30">
+          <div
+            className="h-full transition-all duration-500"
+            style={{
+              width: `${getBpmProgress(exercise)}%`,
+              background: exercise.category === "Warmup" ? "#eab308"
+                : exercise.category === "Technical" ? "#3b82f6"
+                : exercise.category === "Repertoire" ? "#a855f7"
+                : "#22c55e",
+            }}
+          />
+        </div>
+
+        <div className="absolute bottom-0 left-0 right-0 p-4 flex items-end justify-between z-20">
+          <div>
+            <h3 className="text-base font-bold text-white leading-tight">{exercise.title}</h3>
+            <p className="text-xs text-muted-foreground mt-0.5">{exercise.category}</p>
+            {exercise.is_assigned && (
+              <p className="text-xs text-muted-foreground">FROM TEACHER</p>
+            )}
+          </div>
+          <div className="flex flex-col items-end">
+            <span className="text-2xl font-black text-white leading-none">{exercise.currentBpm}</span>
+            <span className="text-xs text-muted-foreground leading-none mt-0.5">BPM</span>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
 
   return (
     <div className="min-h-screen bg-background">
@@ -408,6 +411,7 @@ const Index = () => {
             </div>
           )}
         </section>
+
       </main>
 
       {completeConfirmExercise && (
