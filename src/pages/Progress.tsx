@@ -146,7 +146,7 @@ const Progress = () => {
             <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground flex items-center gap-1.5">
               <Calendar className="h-3 w-3" /> Streak
             </p>
-            <p className="text-4xl font-black text-foreground leading-none mt-3">{streak} days</p>
+            <p className="text-4xl font-black text-foreground leading-none mt-3 whitespace-nowrap">{streak} days</p>
             <p className="text-sm text-muted-foreground mt-2">
               {streak > 0 ? "Keep it up!" : "Practice today!"}
             </p>

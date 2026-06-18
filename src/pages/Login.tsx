@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { useNavigate } from "react-router-dom";
-import { Loader2 } from "lucide-react";
+import { Loader2, ArrowLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 const FretGymLogo = () => (
@@ -177,6 +177,16 @@ export default function Login() {
     return (
         <div className="min-h-screen flex items-center justify-center bg-background p-4">
             <Card className="w-full max-w-md p-8 space-y-6 border-border bg-card">
+                {isSignUp && (
+                    <button
+                        type="button"
+                        onClick={() => setView("role-select")}
+                        className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors text-sm"
+                    >
+                        <ArrowLeft className="h-4 w-4" />
+                        Back
+                    </button>
+                )}
                 <div className="text-center space-y-2">
                     <FretGymLogo />
                     <p className="text-muted-foreground">

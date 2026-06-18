@@ -121,7 +121,7 @@ export const BuildYourOwnModal = ({ open, onClose, onAdd }: Props) => {
           maxHeight: "90vh",
           overflow: "hidden",
           transition: "transform 0.3s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.25s ease",
-          transform: visible ? "translateY(0)" : "translateY(20px)",
+          transform: visible ? "translateY(0)" : "translateY(100%)",
           opacity: visible ? 1 : 0,
         }}
       >
