@@ -9,9 +9,10 @@ interface AppHeaderProps {
   breadcrumb?: string;
   showBack?: boolean;
   onBack?: () => void;
+  titleAccessory?: React.ReactNode;
 }
 
-const AppHeader = ({ title, breadcrumb, showBack = false, onBack }: AppHeaderProps) => {
+const AppHeader = ({ title, breadcrumb, showBack = false, onBack, titleAccessory }: AppHeaderProps) => {
   const navigate = useNavigate();
 
   const handleBack = () => {
@@ -43,8 +44,11 @@ const AppHeader = ({ title, breadcrumb, showBack = false, onBack }: AppHeaderPro
                     {breadcrumb}
                   </p>
                 )}
-                <span className="text-xs font-semibold tracking-widest uppercase text-foreground truncate max-w-[180px] block">
-                  {title}
+                <span className="flex items-center gap-1.5">
+                  <span className="text-xs font-semibold tracking-widest uppercase text-foreground truncate max-w-[180px] block">
+                    {title}
+                  </span>
+                  {titleAccessory}
                 </span>
               </div>
             )}

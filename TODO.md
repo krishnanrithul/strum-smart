@@ -36,3 +36,40 @@
 - BPM → BPM progress row hidden when no progress
 - Metronome auto-starts with timer
 - Routine exercise selection — checklist before adding
+
+
+Library screen → Spotify
+
+Cinematic routine cards ✓ already done
+Shared element transition when tapping a routine → expands into practice screen (big effort, high impact)
+Scroll-linked header — "ROUTINES" label compresses as you scroll down
+Exercise cards get slightly richer — subtle left border accent in the category color
+
+
+Home screen → Fitness+
+
+TODAY and STREAK numbers go massive — text-4xl font-black
+Personal Best BPM already large, but make the supporting text smaller and more muted to increase contrast
+"Hey, akanksha." greeting goes bolder — text-2xl font-bold
+Completion flash when marking exercise complete — brief green overlay pulse on the card, 300ms
+
+
+Practice screen → Fitness+
+
+BPM counter during practice should be the biggest element on screen, heavy weight
+Timer numbers bold and large
+Session end screen gets a proper completion moment — not complex, just the stats animating up with a green accent
+
+
+Student detail screen (teacher view) → Spotify
+
+Student progress cards get gradient treatment similar to routine cards
+Scrolling compresses the student header
+
+
+Priority order to implement:
+
+Home screen typography (Fitness+) — highest impact, lowest effort
+Completion flash on exercise cards — high emotional impact
+Library exercise card left border accents — quick win
+Shared element transition — high effort, do last

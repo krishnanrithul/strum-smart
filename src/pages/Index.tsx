@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, Play } from "lucide-react";
 import AppHeader from "@/components/AppHeader";
 import MiniLogo from "@/components/MiniLogo";
 import WaveformLoader from "@/components/WaveformLoader";
@@ -8,6 +8,7 @@ import { StorageService, Exercise, clearCache } from "@/lib/storage";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { redeemInviteCode } from "@/hooks/useInviteCode";
+import { useCountUp } from "@/hooks/useCountUp";
 
 
 const formatRelativeTime = (iso: string): string => {
@@ -176,15 +177,28 @@ const Index = () => {
     return Math.min(100, Math.round(((current - initial) / (target - initial)) * 100));
   };
 
-  const renderExerciseCard = (exercise: Exercise) => {
+  // Up next — teacher-assigned & never practiced wins, else least recently practiced
+  const upNextExercise = (() => {
+    if (recentExercises.length === 0) return null;
+    const unpracticedAssigned = recentExercises.find(e => e.is_assigned && e.history.length <= 1);
+    if (unpracticedAssigned) return unpracticedAssigned;
+    return [...recentExercises].sort((a, b) => {
+      const lastA = a.history[a.history.length - 1]?.date ?? "";
+      const lastB = b.history[b.history.length - 1]?.date ?? "";
+      return new Date(lastA).getTime() - new Date(lastB).getTime();
+    })[0];
+  })();
+
+  const renderExerciseCard = (exercise: Exercise, featured = false) => {
     const isHovered = hoveredExerciseId === exercise.id;
+    const alpha = featured ? (isHovered ? 0.55 : 0.45) : (isHovered ? 0.4 : 0.3);
     const categoryGradient =
       exercise.category === "Warmup"
-        ? `radial-gradient(circle at top right, rgba(234,179,8,${isHovered ? 0.4 : 0.3}) 0%, rgba(0,0,0,0.8) 60%)`
+        ? `radial-gradient(circle at top right, rgba(234,179,8,${alpha}) 0%, rgba(0,0,0,0.8) 60%)`
         : exercise.category === "Technical"
-        ? `radial-gradient(circle at top right, rgba(59,130,246,${isHovered ? 0.4 : 0.3}) 0%, rgba(0,0,0,0.8) 60%)`
+        ? `radial-gradient(circle at top right, rgba(59,130,246,${alpha}) 0%, rgba(0,0,0,0.8) 60%)`
         : exercise.category === "Repertoire"
-        ? `radial-gradient(circle at top right, rgba(168,85,247,${isHovered ? 0.4 : 0.3}) 0%, rgba(0,0,0,0.8) 60%)`
+        ? `radial-gradient(circle at top right, rgba(168,85,247,${alpha}) 0%, rgba(0,0,0,0.8) 60%)`
         : `radial-gradient(circle at top right, rgba(255,255,255,${isHovered ? 0.2 : 0.1}) 0%, rgba(0,0,0,0.8) 60%)`;
 
     return (
@@ -192,7 +206,7 @@ const Index = () => {
         key={exercise.id}
         className="rounded-2xl overflow-hidden relative cursor-pointer"
         style={{
-          height: "120px",
+          height: featured ? "180px" : "120px",
           background: categoryGradient,
           border: isHovered ? "1px solid rgba(255,255,255,0.15)" : "1px solid rgba(255,255,255,0.08)",
           transform: isHovered ? "translateY(-2px)" : "translateY(0)",
@@ -218,6 +232,25 @@ const Index = () => {
           {exercise.category}
         </span>
 
+        {featured && (
+          <span className="absolute top-3 left-4 z-20 text-[10px] font-semibold tracking-widest uppercase text-primary">
+            Suggested
+          </span>
+        )}
+
+        {featured && (
+          <div
+            className="absolute right-4 top-1/2 z-20 w-12 h-12 rounded-full bg-primary flex items-center justify-center pointer-events-none"
+            style={{
+              transform: `translateY(-50%) scale(${isHovered ? 1.12 : 1})`,
+              boxShadow: "0 4px 16px rgba(34,197,94,0.4)",
+              transition: "transform 200ms ease",
+            }}
+          >
+            <Play className="h-5 w-5 text-primary-foreground ml-0.5" fill="currentColor" />
+          </div>
+        )}
+
         {/* Right scrim behind BPM */}
         <div
           className="absolute right-0 top-0 bottom-0 w-32 z-10 pointer-events-none"
@@ -235,7 +268,7 @@ const Index = () => {
 
         {/* Content */}
         {/* Progress bar */}
-        <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-white/10 z-30">
+        <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-white/10 z-30 overflow-hidden">
           <div
             className="h-full transition-all duration-500"
             style={{
@@ -246,11 +279,19 @@ const Index = () => {
                 : "#22c55e",
             }}
           />
+          {/* One-time shimmer sweep */}
+          <div
+            className="absolute inset-y-0 left-0 w-2/5 pointer-events-none"
+            style={{
+              background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.6), transparent)",
+              animation: "shimmer 1.2s ease-out 500ms 1 both",
+            }}
+          />
         </div>
 
         <div className="absolute bottom-0 left-0 right-0 p-4 flex items-end justify-between z-20">
           <div>
-            <h3 className="text-base font-bold text-white leading-tight">{exercise.title}</h3>
+            <h3 className={`${featured ? "text-xl" : "text-base"} font-bold text-white leading-tight`}>{exercise.title}</h3>
             <p className="text-xs text-muted-foreground mt-0.5">{exercise.category}</p>
             {exercise.history[exercise.history.length - 1]?.date && (
               <p className="text-xs text-muted-foreground">{formatRelativeTime(exercise.history[exercise.history.length - 1].date)}</p>
@@ -266,66 +307,117 @@ const Index = () => {
   };
 
 
+  const heroValue = useCountUp(todayMinutes > 0 ? todayMinutes : currentStreak, !statsLoading);
+
   return (
     <div className="min-h-screen bg-background">
       <AppHeader />
 
       <main className="container mx-auto px-4 py-6 space-y-10">
 
-        {firstName && <p className="text-2xl font-bold text-white mb-4">Hey, {firstName}.</p>}
+        {firstName && (
+          <p className="text-2xl font-bold text-white mb-4" style={{ animation: "fadeUp 400ms ease-out both" }}>
+            {(() => {
+              const hour = new Date().getHours();
+              return hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+            })()}, {firstName}.
+          </p>
+        )}
 
         {/* Hero stat — Today's Max BPM */}
         <section
           className="relative overflow-hidden rounded-2xl p-6 sm:p-8"
           style={{
-            background: "radial-gradient(circle at top right, rgba(34,197,94,0.15) 0%, transparent 60%), hsl(var(--card))",
+            background: "hsl(var(--card))",
             border: "1px solid rgba(255,255,255,0.05)",
+            animation: "fadeUp 400ms ease-out both",
+            animationDelay: "70ms",
           }}
         >
+          {/* Ambient drifting glow */}
+          <div
+            className="absolute pointer-events-none"
+            style={{
+              inset: "-40%",
+              background: "radial-gradient(circle at 70% 25%, rgba(34,197,94,0.22) 0%, transparent 55%)",
+              animation: "heroDrift 9s ease-in-out infinite alternate",
+            }}
+          />
 
           <div className="relative">
-            <p className="text-sm font-medium text-muted-foreground uppercase tracking-widest mb-3">Personal Best</p>
             {statsLoading ? (
               <div className="flex items-center py-4">
                 <WaveformLoader />
               </div>
-            ) : (
+            ) : todayMinutes > 0 ? (
               <>
+                <p className="text-sm font-medium text-muted-foreground uppercase tracking-widest mb-3">Today</p>
                 <div className="flex items-end gap-3">
                   <span
                     className="text-6xl sm:text-8xl font-black text-primary leading-none"
                     style={{ textShadow: "0 0 40px hsl(var(--primary) / 0.4)" }}
                   >
-                    {personalBestBpm > 0 ? personalBestBpm : "—"}
+                    {heroValue < 60 ? heroValue : `${Math.floor(heroValue / 60)}h ${heroValue % 60}`}
                   </span>
-                  {personalBestBpm > 0 && (
-                    <span className="text-2xl font-semibold text-muted-foreground mb-3">BPM</span>
+                  <span className="text-2xl font-semibold text-muted-foreground mb-3">min</span>
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">Great work — keep it going.</p>
+              </>
+            ) : (
+              <>
+                <p className="text-sm font-medium text-muted-foreground uppercase tracking-widest mb-3">Streak</p>
+                <div className="flex items-end gap-3">
+                  <span
+                    className="text-6xl sm:text-8xl font-black text-primary leading-none"
+                    style={{ textShadow: "0 0 40px hsl(var(--primary) / 0.4)" }}
+                  >
+                    {heroValue}
+                  </span>
+                  <span className="text-2xl font-semibold text-muted-foreground mb-3">{currentStreak === 1 ? "day" : "days"}</span>
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  {currentStreak > 0
+                    ? "You haven't practiced today — keep your streak alive."
+                    : "Practice today to start a streak."}
+                </p>
+              </>
+            )}
+            {!statsLoading && (
+              <div className="flex items-center gap-10 mt-8 pt-6 border-t border-border">
+                <div>
+                  <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">Personal Best</p>
+                  <p className="text-3xl font-black text-white leading-none mt-1 whitespace-nowrap">
+                    {personalBestBpm > 0 ? `${personalBestBpm} BPM` : "—"}
+                  </p>
+                  {personalBestBpm > 0 && personalBestExercise && (
+                    <p className="text-xs text-muted-foreground mt-1">on {personalBestExercise}</p>
                   )}
                 </div>
-                {personalBestBpm > 0 && personalBestExercise && (
-                  <p className="text-xs text-muted-foreground mt-2">on {personalBestExercise}</p>
-                )}
-                <div className="flex items-center gap-16 mt-8 pt-6 border-t border-border">
-                  <div>
-                    <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">Today</p>
-                    <p className="text-4xl font-black text-white leading-none mt-1">
-                      {todayMinutes < 60 ? `${todayMinutes}m` : `${Math.floor(todayMinutes / 60)}h ${todayMinutes % 60}m`}
-                    </p>
-                  </div>
-                  <div className="w-px h-8 bg-border" />
-                  <div>
-                    <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">Streak</p>
-                    <p className="text-3xl font-black text-white leading-none mt-1 whitespace-nowrap">{currentStreak} {currentStreak === 1 ? "day" : "days"}</p>
-                  </div>
+                <div className="w-px h-8 bg-border" />
+                <div>
+                  {todayMinutes > 0 ? (
+                    <>
+                      <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">Streak</p>
+                      <p className="text-3xl font-black text-white leading-none mt-1 whitespace-nowrap">{currentStreak} {currentStreak === 1 ? "day" : "days"}</p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">Today</p>
+                      <p className="text-3xl font-black text-white leading-none mt-1 whitespace-nowrap">0m</p>
+                    </>
+                  )}
                 </div>
-              </>
+              </div>
             )}
           </div>
         </section>
 
         {/* CTA */}
-        <Link to="/practice/free">
-          <button className="w-full flex items-center justify-between px-5 py-4 rounded-xl bg-primary text-primary-foreground font-semibold text-base hover:opacity-90 transition-opacity">
+        <Link to="/practice/free" style={{ display: "block", animation: "fadeUp 400ms ease-out both", animationDelay: "140ms" }}>
+          <button
+            className="w-full flex items-center justify-between px-5 py-4 rounded-xl bg-primary text-primary-foreground font-semibold text-base hover:opacity-90 transition-opacity"
+            style={{ animation: "ctaBreathe 3s ease-in-out infinite" }}
+          >
             <div className="flex items-center gap-2">
               <MiniLogo color="#0a0a0a" />
               Start Practice
@@ -338,14 +430,20 @@ const Index = () => {
         {teacherId === null && (
           <div
             className="rounded-2xl p-4"
-            style={{ border: "1px solid rgba(255,255,255,0.06)", background: "rgba(255,255,255,0.03)" }}
+            style={{
+              border: "1px solid rgba(255,255,255,0.06)",
+              background: "rgba(255,255,255,0.03)",
+              animation: "fadeUp 400ms ease-out both",
+              animationDelay: "210ms",
+            }}
           >
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium text-muted-foreground">Have a teacher?</span>
               {!bannerExpanded && (
                 <button
                   onClick={() => setBannerExpanded(true)}
-                  className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:opacity-90 transition-opacity"
+                  className="px-3 py-1.5 rounded-lg text-xs font-semibold text-foreground hover:bg-white/5 transition-colors"
+                  style={{ border: "1px solid rgba(255,255,255,0.15)" }}
                 >
                   Enter Code
                 </button>
@@ -385,16 +483,16 @@ const Index = () => {
         )}
 
         {/* My Exercises */}
-        <section>
+        <section style={{ animation: "fadeUp 400ms ease-out both", animationDelay: "280ms" }}>
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <h2 className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">My Exercises</h2>
             </div>
             <button
               onClick={() => navigate("/library")}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:opacity-90 transition-opacity"
+              className="flex items-center gap-0.5 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
             >
-              See All
+              See All <ChevronRight className="h-3.5 w-3.5" />
             </button>
           </div>
 
@@ -405,24 +503,30 @@ const Index = () => {
             </div>
           ) : (
             <div className="space-y-8">
-              {recentExercises.filter(e => e.is_assigned).length > 0 && (
+              {upNextExercise && (
+                <div>
+                  <p className="text-xs font-semibold tracking-widest uppercase text-primary mb-4">Up Next</p>
+                  {renderExerciseCard(upNextExercise, true)}
+                </div>
+              )}
+              {recentExercises.filter(e => e.is_assigned && e.id !== upNextExercise?.id).length > 0 && (
                 <div>
                   <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground mb-4">From Your Teacher</p>
                   <div className="space-y-4">
-                    {recentExercises.filter(e => e.is_assigned).map(renderExerciseCard)}
+                    {recentExercises.filter(e => e.is_assigned && e.id !== upNextExercise?.id).map(e => renderExerciseCard(e))}
                   </div>
                 </div>
               )}
-              {recentExercises.filter(e => !e.is_assigned).length > 0 && (
+              {recentExercises.filter(e => !e.is_assigned && e.id !== upNextExercise?.id).length > 0 && (
                 <div>
                   <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground mb-4">Added By You</p>
                   <div className="space-y-4">
                     {(() => {
                       const categoryOrder: Record<string, number> = { Warmup: 0, Technical: 1, Repertoire: 2 };
                       return recentExercises
-                        .filter(e => !e.is_assigned)
+                        .filter(e => !e.is_assigned && e.id !== upNextExercise?.id)
                         .sort((a, b) => (categoryOrder[a.category] ?? 99) - (categoryOrder[b.category] ?? 99));
-                    })().map(renderExerciseCard)}
+                    })().map(e => renderExerciseCard(e))}
                   </div>
                 </div>
               )}
@@ -463,7 +567,19 @@ const Index = () => {
           </div>
         </div>
       )}
-      <style>{`@keyframes flashPulse { 0% { opacity: 1; } 100% { opacity: 0; } }`}</style>
+      <style>{`
+        @keyframes flashPulse { 0% { opacity: 1; } 100% { opacity: 0; } }
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes heroDrift { from { transform: translate(0, 0); } to { transform: translate(-6%, 5%); } }
+        @keyframes ctaBreathe {
+          0%, 100% { box-shadow: 0 0 0px rgba(34,197,94,0); }
+          50% { box-shadow: 0 0 24px rgba(34,197,94,0.35); }
+        }
+        @keyframes shimmer { from { transform: translateX(-100%); } to { transform: translateX(350%); } }
+        @media (prefers-reduced-motion: reduce) {
+          main *, main { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; }
+        }
+      `}</style>
     </div>
   );
 };

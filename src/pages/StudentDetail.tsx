@@ -7,10 +7,17 @@ import MiniLogo from "@/components/MiniLogo";
 import WaveformLoader from "@/components/WaveformLoader";
 import AssignExerciseModal from "@/components/AssignExerciseModal";
 import { Button } from "@/components/ui/button";
-import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip } from "recharts";
+import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip } from "recharts";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useCountUp } from "@/hooks/useCountUp";
 
-const glassCard = { border: "1px solid rgba(255,255,255,0.05)" };
+const daysSince = (iso: string | null): number =>
+  iso === null ? Number.MAX_SAFE_INTEGER : Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
+
+const aiCardGlow = {
+  border: "1px solid rgba(255,255,255,0.05)",
+  background: "radial-gradient(circle at top right, rgba(34,197,94,0.08) 0%, transparent 60%), hsl(var(--card))",
+};
 
 const formatMins = (secs: number) => Math.floor(secs / 60);
 
@@ -82,6 +89,7 @@ const StudentDetail = () => {
   const [exercises, setExercises] = useState<any[]>([]);
   const [recentSessions, setRecentSessions] = useState<any[]>([]);
   const [selectedExerciseId, setSelectedExerciseId] = useState<string>("");
+  const [hoveredCardId, setHoveredCardId] = useState<string | null>(null);
   const [editingTargetId, setEditingTargetId] = useState<string | null>(null);
   const [editingTargetValue, setEditingTargetValue] = useState("");
   const [confirmRemoveId, setConfirmRemoveId] = useState<string | null>(null);
@@ -100,6 +108,8 @@ const StudentDetail = () => {
     bpm: h.bpm,
   })) || [];
   const bpmGain = chartData.length >= 2 ? chartData[chartData.length - 1].bpm - chartData[0].bpm : 0;
+  const animatedPeak = useCountUp(peakBpm, !loading);
+  const activityDays = daysSince(lastActiveDate);
   const chartBpms = chartData.map((d: any) => d.bpm);
   const minBpm = chartBpms.length > 0 ? Math.max(0, Math.min(...chartBpms) - 10) : 0;
   const maxBpm = chartBpms.length > 0 ? Math.max(...chartBpms) + 10 : 200;
@@ -257,61 +267,101 @@ const StudentDetail = () => {
       : 0;
     const isEditing = editingTargetId === ex.id;
     const isEditingNotes = editingNotesId === ex.id;
+    const isHovered = hoveredCardId === ex.id;
+
+    const categoryGradient =
+      ex.category === "Warmup"
+        ? `radial-gradient(circle at top right, rgba(234,179,8,${isHovered ? 0.4 : 0.3}) 0%, rgba(0,0,0,0.8) 60%)`
+        : ex.category === "Technical"
+        ? `radial-gradient(circle at top right, rgba(59,130,246,${isHovered ? 0.4 : 0.3}) 0%, rgba(0,0,0,0.8) 60%)`
+        : ex.category === "Repertoire"
+        ? `radial-gradient(circle at top right, rgba(168,85,247,${isHovered ? 0.4 : 0.3}) 0%, rgba(0,0,0,0.8) 60%)`
+        : `radial-gradient(circle at top right, rgba(255,255,255,${isHovered ? 0.2 : 0.1}) 0%, rgba(0,0,0,0.8) 60%)`;
+    const categoryColor =
+      ex.category === "Warmup" ? "#eab308"
+        : ex.category === "Technical" ? "#3b82f6"
+        : ex.category === "Repertoire" ? "#a855f7"
+        : "#22c55e";
 
     return (
-      <div key={ex.id} className="rounded-2xl bg-card p-5 space-y-3" style={{ border: "1px solid rgba(255,255,255,0.08)" }}>
-        <div className="flex items-start justify-between">
-          <div>
-            <p className="text-base font-semibold text-foreground">{ex.title}</p>
-            <div className="flex items-center gap-2 mt-0.5">
-              {ex.is_assigned && (
-                <span className="text-xs font-semibold uppercase tracking-wide text-primary">From Teacher</span>
-              )}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">{formatRelativeTime(ex._last_practiced)}</p>
+      <div
+        key={ex.id}
+        className="rounded-2xl overflow-hidden bg-card"
+        style={{
+          border: isHovered ? "1px solid rgba(255,255,255,0.15)" : "1px solid rgba(255,255,255,0.08)",
+          transform: isHovered ? "translateY(-2px)" : "translateY(0)",
+          boxShadow: isHovered ? "0 8px 24px rgba(0,0,0,0.4)" : "none",
+          transition: "all 200ms ease",
+        }}
+        onMouseEnter={() => setHoveredCardId(ex.id)}
+        onMouseLeave={() => setHoveredCardId(null)}
+      >
+        {/* Cinematic face */}
+        <div className="relative" style={{ height: "110px", background: categoryGradient }}>
+          {/* Ghost text */}
+          <span
+            className="absolute font-black text-white select-none pointer-events-none leading-none"
+            style={{ fontSize: "56px", opacity: 0.04, top: "-6px", right: "-4px" }}
+          >
+            {ex.category}
+          </span>
+
+          {/* Right scrim behind BPM */}
+          <div
+            className="absolute right-0 top-0 bottom-0 w-32 z-10 pointer-events-none"
+            style={{ background: "linear-gradient(to left, rgba(0,0,0,0.6) 0%, transparent 100%)" }}
+          />
+
+          {/* Progress bar */}
+          <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-white/10 z-30 overflow-hidden">
+            <div
+              className="h-full transition-all duration-500 max-w-full"
+              style={{ width: `${fillPct}%`, background: categoryColor }}
+            />
           </div>
-          <div className="text-right flex-shrink-0">
-            <p className="text-2xl font-mono font-bold text-foreground tabular-nums leading-none">{ex.current_bpm}</p>
-            <p className="text-xs text-muted-foreground mt-1">BPM</p>
+
+          <div className="absolute bottom-0 left-0 right-0 p-4 flex items-end justify-between z-20">
+            <div>
+              <h3 className="text-base font-bold text-white leading-tight">{ex.title}</h3>
+              {ex.is_assigned && (
+                <p className="text-[10px] font-semibold tracking-widest uppercase text-primary mt-0.5">From Teacher</p>
+              )}
+              <p className="text-xs text-muted-foreground mt-0.5">{formatRelativeTime(ex._last_practiced)}</p>
+            </div>
+            <div className="flex flex-col items-end">
+              <span className="text-2xl font-black text-white leading-none">{ex.current_bpm}</span>
+              <span className="text-xs text-muted-foreground leading-none mt-0.5">BPM</span>
+            </div>
           </div>
         </div>
 
+        {/* Teacher controls */}
+        <div className="p-4 space-y-3">
         {ex.target_bpm > 0 && (
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-muted-foreground">START: {startBpm} BPM</span>
-              {isEditing ? (
-                <span className="flex items-center gap-1">
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    value={editingTargetValue}
-                    onChange={(e) => setEditingTargetValue(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") handleUpdateTarget(ex.id);
-                      if (e.key === "Escape") setEditingTargetId(null);
-                    }}
-                    className="w-12 text-xs text-right bg-transparent border-b border-white/20 outline-none focus:border-primary text-foreground"
-                    autoFocus
-                  />
-                  <span className="text-xs text-muted-foreground">BPM</span>
-                  <button onClick={() => handleUpdateTarget(ex.id)} className="text-primary text-xs ml-1">✓</button>
-                </span>
-              ) : startBpm === ex.target_bpm ? (
-                <span className="text-xs text-muted-foreground">No target set</span>
-              ) : (
-                <span className="text-xs text-muted-foreground">TARGET: {ex.target_bpm} BPM</span>
-              )}
-            </div>
-            <div
-              className="w-full max-w-full rounded-full overflow-hidden"
-              style={{ height: "3px", background: "rgba(255,255,255,0.08)" }}
-            >
-              <div
-                className="h-full bg-primary rounded-full transition-all duration-500 max-w-full"
-                style={{ width: `${fillPct}%` }}
-              />
-            </div>
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-muted-foreground">START: {startBpm} BPM</span>
+            {isEditing ? (
+              <span className="flex items-center gap-1">
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={editingTargetValue}
+                  onChange={(e) => setEditingTargetValue(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleUpdateTarget(ex.id);
+                    if (e.key === "Escape") setEditingTargetId(null);
+                  }}
+                  className="w-12 text-xs text-right bg-transparent border-b border-white/20 outline-none focus:border-primary text-foreground"
+                  autoFocus
+                />
+                <span className="text-xs text-muted-foreground">BPM</span>
+                <button onClick={() => handleUpdateTarget(ex.id)} className="text-primary text-xs ml-1">✓</button>
+              </span>
+            ) : startBpm === ex.target_bpm ? (
+              <span className="text-xs text-muted-foreground">No target set</span>
+            ) : (
+              <span className="text-xs text-muted-foreground">TARGET: {ex.target_bpm} BPM</span>
+            )}
           </div>
         )}
 
@@ -395,6 +445,7 @@ const StudentDetail = () => {
             )}
           </div>
         )}
+        </div>
       </div>
     );
   };
@@ -409,45 +460,97 @@ const StudentDetail = () => {
 
   return (
     <div className="min-h-screen bg-background pb-24">
-      <AppHeader title={studentName.toUpperCase()} breadcrumb="My Students" showBack />
+      <AppHeader
+        title={studentName.toUpperCase()}
+        breadcrumb="My Students"
+        showBack
+        titleAccessory={activityDays <= 2 && totalSessions > 0 ? (
+          <span
+            className="h-2 w-2 rounded-full bg-primary shrink-0"
+            style={{ animation: "pulseDot 2s ease-in-out infinite" }}
+          />
+        ) : undefined}
+      />
 
       <main className="container mx-auto px-4 py-6 space-y-6">
 
         {activeTab === "overview" && (
           <>
-            {/* Hero stat block */}
-            <div className="rounded-2xl bg-card p-4" style={{ border: "1px solid rgba(255,255,255,0.08)" }}>
-              <div className="grid grid-cols-2 grid-rows-2 gap-4 text-center">
-                <div>
-                  <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">Sessions</p>
-                  <p className="text-3xl font-bold text-foreground mt-1">{totalSessions}</p>
+            {/* Student pulse hero */}
+            <section
+              className="relative overflow-hidden rounded-2xl p-6 sm:p-8"
+              style={{
+                background: "hsl(var(--card))",
+                border: "1px solid rgba(255,255,255,0.05)",
+                animation: "fadeUp 400ms ease-out both",
+              }}
+            >
+              {/* Ambient drifting glow */}
+              <div
+                className="absolute pointer-events-none"
+                style={{
+                  inset: "-40%",
+                  background: "radial-gradient(circle at 70% 25%, rgba(34,197,94,0.22) 0%, transparent 55%)",
+                  animation: "heroDrift 9s ease-in-out infinite alternate",
+                }}
+              />
+              <div className="relative">
+                <p className="text-sm font-medium text-muted-foreground uppercase tracking-widest mb-3">Peak BPM</p>
+                <div className="flex items-end gap-3">
+                  <span
+                    className="text-6xl sm:text-8xl font-black text-primary leading-none"
+                    style={{ textShadow: "0 0 40px hsl(var(--primary) / 0.4)" }}
+                  >
+                    {peakBpm > 0 ? animatedPeak : "—"}
+                  </span>
+                  {peakBpm > 0 && (
+                    <span className="text-2xl font-semibold text-muted-foreground mb-3">BPM</span>
+                  )}
                 </div>
-                <div>
-                  <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">Practice</p>
-                  <p className="text-3xl font-bold text-foreground mt-1">{formatDuration(totalMinutes)}</p>
-                </div>
-                <div>
-                  <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">Peak BPM</p>
-                  <p className="text-3xl font-bold text-primary mt-1">{totalSessions > 0 && peakBpm > 0 ? peakBpm : "—"}</p>
-                </div>
-                <div>
-                  <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">Last Active</p>
-                  <p className="text-xl font-bold text-foreground mt-1">
-                    {formatRelativeTime(lastActiveDate).replace("Last practiced: ", "").replace("Never practiced", "Never")}
-                  </p>
+                <p className={`text-xs mt-2 ${activityDays > 2 && totalSessions > 0 ? "text-amber-500" : "text-muted-foreground"}`}>
+                  {totalSessions === 0
+                    ? "No sessions yet — assign something to get started."
+                    : activityDays === 0
+                    ? "Practiced today — momentum is good."
+                    : activityDays <= 2
+                    ? "Practiced recently — momentum is good."
+                    : activityDays <= 7
+                    ? "Going quiet — a nudge might help."
+                    : `Quiet for ${activityDays} days — worth a check-in.`}
+                </p>
+                <div className="flex items-center gap-8 mt-8 pt-6 border-t border-border">
+                  <div>
+                    <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">Sessions</p>
+                    <p className="text-2xl font-black text-white leading-none mt-1">{totalSessions}</p>
+                  </div>
+                  <div className="w-px h-8 bg-border" />
+                  <div>
+                    <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">Practice</p>
+                    <p className="text-2xl font-black text-white leading-none mt-1 whitespace-nowrap">{formatDuration(totalMinutes)}</p>
+                  </div>
+                  <div className="w-px h-8 bg-border" />
+                  <div>
+                    <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">Last Active</p>
+                    <p className="text-2xl font-black text-white leading-none mt-1 whitespace-nowrap">
+                      {formatRelativeTime(lastActiveDate).replace("Last practiced: ", "").replace("Never practiced", "Never")}
+                    </p>
+                  </div>
                 </div>
               </div>
-            </div>
+            </section>
 
             {/* Student Summary */}
             {(aiSummaryLoading || aiSummary) && (
-              <div className="rounded-2xl bg-card" style={glassCard}>
+              <div className="rounded-2xl" style={{ ...aiCardGlow, animation: "fadeUp 400ms ease-out both", animationDelay: "70ms" }}>
                 <button
                   onClick={() => setSummaryExpanded(!summaryExpanded)}
                   className="w-full flex items-center justify-between px-5 py-4"
                 >
                   <span className="text-xs font-semibold tracking-widest uppercase text-muted-foreground flex items-center gap-1.5">
-                    <Sparkles className="h-4 w-4 text-green-500" /> Student Summary
+                    <Sparkles
+                      className="h-4 w-4 text-green-500"
+                      style={aiSummaryLoading ? { animation: "sparklePulse 1.5s ease-in-out infinite" } : undefined}
+                    /> Student Summary
                   </span>
                   <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${summaryExpanded ? "rotate-180" : ""}`} />
                 </button>
@@ -490,13 +593,16 @@ const StudentDetail = () => {
 
             {/* Exercise Suggestion */}
             {(aiSuggestionLoading || aiSuggestion) && (
-              <div className="rounded-2xl bg-card" style={glassCard}>
+              <div className="rounded-2xl" style={{ ...aiCardGlow, animation: "fadeUp 400ms ease-out both", animationDelay: "140ms" }}>
                 <button
                   onClick={() => setSuggestionExpanded(!suggestionExpanded)}
                   className="w-full flex items-center justify-between px-5 py-4"
                 >
                   <span className="text-xs font-semibold tracking-widest uppercase text-muted-foreground flex items-center gap-1.5">
-                    <Sparkles className="h-4 w-4 text-green-500" /> Exercise Suggestion
+                    <Sparkles
+                      className="h-4 w-4 text-green-500"
+                      style={aiSuggestionLoading ? { animation: "sparklePulse 1.5s ease-in-out infinite" } : undefined}
+                    /> Exercise Suggestion
                   </span>
                   <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${suggestionExpanded ? "rotate-180" : ""}`} />
                 </button>
@@ -538,7 +644,7 @@ const StudentDetail = () => {
             )}
 
             {/* Assigned by You */}
-            <section className="space-y-3">
+            <section className="space-y-3" style={{ animation: "fadeUp 400ms ease-out both", animationDelay: "210ms" }}>
               <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">Assigned by You</p>
               {exercises.filter((e) => e.is_assigned).length === 0 ? (
                 <div className="rounded-2xl bg-card p-4 text-center text-sm text-muted-foreground" style={{ border: "1px solid rgba(255,255,255,0.08)" }}>
@@ -553,7 +659,7 @@ const StudentDetail = () => {
 
             {/* Added by Student */}
             {exercises.filter((e) => !e.is_assigned).length > 0 && (
-              <section className="space-y-3">
+              <section className="space-y-3" style={{ animation: "fadeUp 400ms ease-out both", animationDelay: "280ms" }}>
                 <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">Added By Student</p>
                 <div className="space-y-3">
                   {exercises.filter((e) => !e.is_assigned).map(renderExerciseCard)}
@@ -566,32 +672,37 @@ const StudentDetail = () => {
         {activeTab === "progress" && (
           <>
             {/* Recent Sessions */}
-            <section className="space-y-3">
+            <section className="space-y-3" style={{ animation: "fadeUp 400ms ease-out both" }}>
               <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">Recent Sessions</p>
               {recentSessions.length === 0 ? (
                 <div className="bg-card rounded-2xl px-4 py-3 text-center text-sm text-muted-foreground" style={{ border: "1px solid rgba(255,255,255,0.08)" }}>
                   No sessions yet.
                 </div>
               ) : (
-                <div className="space-y-2">
+                <div className="border-l border-white/10 ml-1.5 pl-4 space-y-3">
                   {recentSessions.map((s, i) => {
                     const exerciseTitles = (s.exercises || [])
                       .map((eid: string) => exercises.find(e => e.id === eid)?.title)
                       .filter(Boolean)
                       .join(", ");
                     return (
-                      <div
-                        key={i}
-                        className="bg-card rounded-2xl px-4 py-3 flex items-center justify-between"
-                        style={{ border: "1px solid rgba(255,255,255,0.08)" }}
-                      >
-                        <div>
-                          <p className="text-sm font-medium text-foreground">{exerciseTitles || "Session"}</p>
-                          <p className="text-xs text-muted-foreground mt-0.5">{s.created_at ? formatDate(s.created_at) : "—"}</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-sm font-semibold text-foreground">{formatDuration(formatMins(s.duration || 0))}</p>
-                          <p className="text-xs text-muted-foreground">duration</p>
+                      <div key={i} className="relative">
+                        <span
+                          className="absolute top-4 h-2.5 w-2.5 rounded-full bg-primary"
+                          style={{ left: "-21.5px", boxShadow: "0 0 8px rgba(34,197,94,0.5)" }}
+                        />
+                        <div
+                          className="bg-card rounded-2xl px-4 py-3 flex items-center justify-between"
+                          style={{ border: "1px solid rgba(255,255,255,0.08)" }}
+                        >
+                          <div>
+                            <p className="text-sm font-medium text-foreground">{exerciseTitles || "Session"}</p>
+                            <p className="text-xs text-muted-foreground mt-0.5">{s.created_at ? formatDate(s.created_at) : "—"}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-sm font-semibold text-foreground">{formatDuration(formatMins(s.duration || 0))}</p>
+                            <p className="text-xs text-muted-foreground">duration</p>
+                          </div>
                         </div>
                       </div>
                     );
@@ -601,7 +712,7 @@ const StudentDetail = () => {
             </section>
 
             {/* BPM Progress Chart */}
-            <section className="space-y-4">
+            <section className="space-y-4" style={{ animation: "fadeUp 400ms ease-out both", animationDelay: "70ms" }}>
               <div className="flex items-center justify-between">
                 <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">BPM Progress</p>
                 <Select value={selectedExerciseId} onValueChange={setSelectedExerciseId}>
@@ -623,7 +734,13 @@ const StudentDetail = () => {
                   <>
                     <div className="h-64">
                       <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={chartData}>
+                        <AreaChart data={chartData}>
+                          <defs>
+                            <linearGradient id="bpmGlow" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="0%" stopColor="#22c55e" stopOpacity={0.3} />
+                              <stop offset="100%" stopColor="#22c55e" stopOpacity={0} />
+                            </linearGradient>
+                          </defs>
                           <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} />
                           <YAxis stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} domain={[minBpm, maxBpm]} />
                           <Tooltip
@@ -634,8 +751,8 @@ const StudentDetail = () => {
                             }}
                             formatter={(value) => [`${value} BPM`, "Speed"]}
                           />
-                          <Line type="monotone" dataKey="bpm" stroke="hsl(var(--primary))" strokeWidth={3} dot={{ fill: "hsl(var(--primary))", r: 4 }} />
-                        </LineChart>
+                          <Area type="monotone" dataKey="bpm" stroke="hsl(var(--primary))" strokeWidth={3} fill="url(#bpmGlow)" dot={{ fill: "hsl(var(--primary))", r: 4 }} />
+                        </AreaChart>
                       </ResponsiveContainer>
                     </div>
                     <div className="mt-4 grid grid-cols-3 gap-4 text-center border-t border-white/5 pt-4">
@@ -664,6 +781,7 @@ const StudentDetail = () => {
         {/* Assign Exercise — always visible */}
         <button
           className="w-full flex items-center justify-between px-5 py-4 rounded-xl bg-primary text-primary-foreground font-semibold text-base hover:opacity-90 transition-opacity"
+          style={{ animation: "fadeUp 400ms ease-out both", animationDelay: "350ms" }}
           onClick={() => setAssignOpen(true)}
         >
           <div className="flex items-center gap-2">
@@ -714,6 +832,22 @@ const StudentDetail = () => {
           </div>
         </div>
       </nav>
+
+      <style>{`
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes heroDrift { from { transform: translate(0, 0); } to { transform: translate(-6%, 5%); } }
+        @keyframes pulseDot {
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50% { opacity: 0.4; transform: scale(0.75); }
+        }
+        @keyframes sparklePulse {
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50% { opacity: 0.4; transform: scale(0.85); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          main *, main, header * { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; }
+        }
+      `}</style>
     </div>
   );
 };
