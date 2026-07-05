@@ -370,9 +370,25 @@ const StudentDetail = () => {
                 <button onClick={() => handleUpdateTarget(ex.id)} className="text-primary text-xs ml-1">✓</button>
               </span>
             ) : startBpm === ex.target_bpm ? (
-              <span className="text-xs text-muted-foreground">No target set</span>
+              <span
+                onClick={() => {
+                  setEditingTargetId(ex.id);
+                  setEditingTargetValue(String(ex.target_bpm));
+                }}
+                className="text-xs text-muted-foreground hover:text-primary cursor-pointer transition-colors"
+              >
+                No target set
+              </span>
             ) : (
-              <span className="text-xs text-muted-foreground">TARGET: {ex.target_bpm} BPM</span>
+              <span
+                onClick={() => {
+                  setEditingTargetId(ex.id);
+                  setEditingTargetValue(String(ex.target_bpm));
+                }}
+                className="text-xs text-muted-foreground hover:text-primary cursor-pointer transition-colors"
+              >
+                TARGET: {ex.target_bpm} BPM
+              </span>
             )}
           </div>
         )}
