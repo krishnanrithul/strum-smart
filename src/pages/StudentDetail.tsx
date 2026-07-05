@@ -130,7 +130,7 @@ const StudentDetail = () => {
         .eq("user_id", id),
       supabase
         .from("sessions")
-        .select("id, exercises, created_at, feedback, feedback_created_at")
+        .select("id, exercises, created_at")
         .eq("user_id", id)
         .order("created_at", { ascending: false }),
     ]);
@@ -241,7 +241,7 @@ const StudentDetail = () => {
           { data: sessionRows },
         ] = await Promise.all([
           (supabase as any).from("profiles").select("full_name").eq("id", id).single(),
-          supabase.from("sessions").select("id, duration, created_at, exercises, feedback, feedback_created_at").eq("user_id", id).order("created_at", { ascending: false }),
+          supabase.from("sessions").select("id, duration, created_at, exercises").eq("user_id", id).order("created_at", { ascending: false }),
         ]);
 
         setStudentName(profile?.full_name ?? "Student");
