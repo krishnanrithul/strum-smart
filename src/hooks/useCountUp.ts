@@ -3,7 +3,10 @@ import { useEffect, useState } from "react";
 export const useCountUp = (target: number, enabled: boolean, duration = 800) => {
   const [value, setValue] = useState(0);
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled || target === 0) {
+      setValue(target);
+      return;
+    }
     let raf: number;
     const start = performance.now();
     const tick = (now: number) => {

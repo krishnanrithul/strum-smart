@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { ChevronRight, ChevronDown, Sparkles, LayoutDashboard, TrendingUp } from "lucide-react";
+import { ChevronRight, ChevronDown, Sparkles, LayoutDashboard, TrendingUp, MessageSquare, Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import AppHeader from "@/components/AppHeader";
 import MiniLogo from "@/components/MiniLogo";
 import WaveformLoader from "@/components/WaveformLoader";
 import AssignExerciseModal from "@/components/AssignExerciseModal";
+import SessionFeedbackModal from "@/components/SessionFeedbackModal";
+import CreateCustomExerciseModal from "@/components/CreateCustomExerciseModal";
 import { Button } from "@/components/ui/button";
 import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip } from "recharts";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -101,6 +103,11 @@ const StudentDetail = () => {
   const [aiSuggestionLoading, setAiSuggestionLoading] = useState(false);
   const [summaryExpanded, setSummaryExpanded] = useState(false);
   const [suggestionExpanded, setSuggestionExpanded] = useState(false);
+  const [createExerciseOpen, setCreateExerciseOpen] = useState(false);
+  const [feedbackModalOpen, setFeedbackModalOpen] = useState(false);
+  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
+  const [selectedSessionDate, setSelectedSessionDate] = useState<string | null>(null);
+  const [selectedSessionFeedback, setSelectedSessionFeedback] = useState<{ feedback: string; feedback_created_at: string } | null>(null);
 
   const selectedExercise = exercises.find(e => e.id === selectedExerciseId);
   const chartData = selectedExercise?.history?.map((h: any) => ({
@@ -119,11 +126,11 @@ const StudentDetail = () => {
     const [{ data }, { data: sessionData }] = await Promise.all([
       supabase
         .from("exercises")
-        .select("id, title, category, current_bpm, target_bpm, history, is_assigned, teacher_notes")
+        .select("id, title, category, current_bpm, target_bpm, history, is_assigned, teacher_notes, is_custom, custom_description")
         .eq("user_id", id),
       supabase
         .from("sessions")
-        .select("exercises, created_at")
+        .select("id, exercises, created_at, feedback, feedback_created_at")
         .eq("user_id", id)
         .order("created_at", { ascending: false }),
     ]);
@@ -234,7 +241,7 @@ const StudentDetail = () => {
           { data: sessionRows },
         ] = await Promise.all([
           (supabase as any).from("profiles").select("full_name").eq("id", id).single(),
-          supabase.from("sessions").select("id, duration, created_at, exercises").eq("user_id", id).order("created_at", { ascending: false }),
+          supabase.from("sessions").select("id, duration, created_at, exercises, feedback, feedback_created_at").eq("user_id", id).order("created_at", { ascending: false }),
         ]);
 
         setStudentName(profile?.full_name ?? "Student");
@@ -323,9 +330,14 @@ const StudentDetail = () => {
           <div className="absolute bottom-0 left-0 right-0 p-4 flex items-end justify-between z-20">
             <div>
               <h3 className="text-base font-bold text-white leading-tight">{ex.title}</h3>
-              {ex.is_assigned && (
-                <p className="text-[10px] font-semibold tracking-widest uppercase text-primary mt-0.5">From Teacher</p>
-              )}
+              <div className="flex items-center gap-2 mt-0.5">
+                {ex.is_custom && (
+                  <p className="text-[10px] font-semibold tracking-widest uppercase text-blue-400">Custom</p>
+                )}
+                {ex.is_assigned && (
+                  <p className="text-[10px] font-semibold tracking-widest uppercase text-primary">From Teacher</p>
+                )}
+              </div>
               <p className="text-xs text-muted-foreground mt-0.5">{formatRelativeTime(ex._last_practiced)}</p>
             </div>
             <div className="flex flex-col items-end">
@@ -645,7 +657,16 @@ const StudentDetail = () => {
 
             {/* Assigned by You */}
             <section className="space-y-3" style={{ animation: "fadeUp 400ms ease-out both", animationDelay: "210ms" }}>
-              <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">Assigned by You</p>
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">Assigned by You</p>
+                <button
+                  onClick={() => setCreateExerciseOpen(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
+                >
+                  <Plus className="h-4 w-4" />
+                  Create
+                </button>
+              </div>
               {exercises.filter((e) => e.is_assigned).length === 0 ? (
                 <div className="rounded-2xl bg-card p-4 text-center text-sm text-muted-foreground" style={{ border: "1px solid rgba(255,255,255,0.08)" }}>
                   No exercises assigned yet.
@@ -692,16 +713,27 @@ const StudentDetail = () => {
                           style={{ left: "-21.5px", boxShadow: "0 0 8px rgba(34,197,94,0.5)" }}
                         />
                         <div
-                          className="bg-card rounded-2xl px-4 py-3 flex items-center justify-between"
-                          style={{ border: "1px solid rgba(255,255,255,0.08)" }}
+                          onClick={() => {
+                            setSelectedSessionId(s.id);
+                            setSelectedSessionDate(s.created_at);
+                            setSelectedSessionFeedback(s.feedback ? { feedback: s.feedback, feedback_created_at: s.feedback_created_at } : null);
+                            setFeedbackModalOpen(true);
+                          }}
+                          className="bg-card rounded-2xl px-4 py-3 flex items-center justify-between cursor-pointer hover:border-white/15 transition-all"
+                          style={{ border: s.feedback ? "1px solid rgba(34,197,94,0.2)" : "1px solid rgba(255,255,255,0.08)" }}
                         >
-                          <div>
+                          <div className="flex-1">
                             <p className="text-sm font-medium text-foreground">{exerciseTitles || "Session"}</p>
                             <p className="text-xs text-muted-foreground mt-0.5">{s.created_at ? formatDate(s.created_at) : "—"}</p>
                           </div>
-                          <div className="text-right">
-                            <p className="text-sm font-semibold text-foreground">{formatDuration(formatMins(s.duration || 0))}</p>
-                            <p className="text-xs text-muted-foreground">duration</p>
+                          <div className="flex items-center gap-3">
+                            <div className="text-right">
+                              <p className="text-sm font-semibold text-foreground">{formatDuration(formatMins(s.duration || 0))}</p>
+                              <p className="text-xs text-muted-foreground">duration</p>
+                            </div>
+                            {s.feedback && (
+                              <MessageSquare className="h-4 w-4 text-primary flex-shrink-0" />
+                            )}
                           </div>
                         </div>
                       </div>
@@ -798,6 +830,29 @@ const StudentDetail = () => {
         onClose={() => setAssignOpen(false)}
         studentId={id!}
         studentName={studentName}
+      />
+
+      <CreateCustomExerciseModal
+        isOpen={createExerciseOpen}
+        onClose={() => setCreateExerciseOpen(false)}
+        studentId={id!}
+        onExerciseCreated={() => {
+          setCreateExerciseOpen(false);
+          loadExercises();
+        }}
+      />
+
+      <SessionFeedbackModal
+        isOpen={feedbackModalOpen}
+        onClose={() => setFeedbackModalOpen(false)}
+        sessionId={selectedSessionId!}
+        studentId={id!}
+        sessionDate={selectedSessionDate!}
+        existingFeedback={selectedSessionFeedback}
+        onFeedbackSaved={() => {
+          setFeedbackModalOpen(false);
+          loadData();
+        }}
       />
 
       {/* Bottom nav */}
