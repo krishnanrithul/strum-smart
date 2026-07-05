@@ -447,10 +447,10 @@ const Practice = () => {
               navigate("/");
             } else {
               // Check if milestone reached
-              if (exercise && bpm >= exercise.target_bpm) {
+              if (exercise && bpm >= exercise.targetBpm) {
                 setMilestoneData({
                   exerciseTitle: exercise.title,
-                  targetBpm: exercise.target_bpm,
+                  targetBpm: exercise.targetBpm,
                   achievedBpm: bpm,
                 });
                 setShowMilestoneModal(true);

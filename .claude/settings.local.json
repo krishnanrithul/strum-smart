@@ -3,7 +3,9 @@
     "allow": [
       "Bash(git add *)",
       "Bash(git commit -m 'Add '\\\\''Edit Target'\\\\'' button for students in Practice page *)",
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "Bash(npm run *)",
+      "Bash(git commit -m 'Fix: Use correct property name for milestone check \\(targetBpm not target_bpm\\) *)"
     ]
   }
 }
