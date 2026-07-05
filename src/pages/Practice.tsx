@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { StorageService, Exercise } from "@/lib/storage";
 import { supabase } from "@/integrations/supabase/client";
 import { SessionCompleteDialog } from "@/components/SessionCompleteDialog";
+import GoalMilestoneModal from "@/components/GoalMilestoneModal";
 import { MetronomeEngine } from "@/lib/audio";
 import WaveformLoader from "@/components/WaveformLoader";
 import { useAuth } from "@/contexts/AuthContext";
@@ -31,6 +32,8 @@ const Practice = () => {
   const [diagramExpanded, setDiagramExpanded] = useState(false);
   const [showTargetReached, setShowTargetReached] = useState(false);
   const [showMarkCompleteModal, setShowMarkCompleteModal] = useState(false);
+  const [showMilestoneModal, setShowMilestoneModal] = useState(false);
+  const [milestoneData, setMilestoneData] = useState<{ exerciseTitle: string; targetBpm: number; achievedBpm: number } | null>(null);
   const metronomeRef = useRef<MetronomeEngine | null>(null);
   const targetTriggeredRef = useRef(false);
   const initialBpmRef = useRef(0);
@@ -377,7 +380,22 @@ const Practice = () => {
               setIsMetronomeActive(false);
             }
             setIsPlaying(false);
-            if (isFree) { navigate("/"); } else { setShowCompleteDialog(true); }
+
+            if (isFree) {
+              navigate("/");
+            } else {
+              // Check if milestone reached
+              if (exercise && bpm >= exercise.target_bpm) {
+                setMilestoneData({
+                  exerciseTitle: exercise.title,
+                  targetBpm: exercise.target_bpm,
+                  achievedBpm: bpm,
+                });
+                setShowMilestoneModal(true);
+              } else {
+                setShowCompleteDialog(true);
+              }
+            }
           }}
         >
           <div className="flex items-center gap-2">
@@ -387,6 +405,19 @@ const Practice = () => {
         </button>
 
       </main>
+
+      {milestoneData && (
+        <GoalMilestoneModal
+          isOpen={showMilestoneModal}
+          onClose={() => {
+            setShowMilestoneModal(false);
+            setShowCompleteDialog(true);
+          }}
+          exerciseTitle={milestoneData.exerciseTitle}
+          targetBpm={milestoneData.targetBpm}
+          achievedBpm={milestoneData.achievedBpm}
+        />
+      )}
 
       {exercise && (
         <SessionCompleteDialog
