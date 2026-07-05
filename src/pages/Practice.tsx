@@ -34,6 +34,8 @@ const Practice = () => {
   const [showMarkCompleteModal, setShowMarkCompleteModal] = useState(false);
   const [showMilestoneModal, setShowMilestoneModal] = useState(false);
   const [milestoneData, setMilestoneData] = useState<{ exerciseTitle: string; targetBpm: number; achievedBpm: number } | null>(null);
+  const [editingTargetBpm, setEditingTargetBpm] = useState(false);
+  const [editingTargetValue, setEditingTargetValue] = useState("");
   const metronomeRef = useRef<MetronomeEngine | null>(null);
   const targetTriggeredRef = useRef(false);
   const initialBpmRef = useRef(0);
@@ -121,6 +123,22 @@ const Practice = () => {
     setIsPlaying(false);
   };
 
+  const handleSaveTargetBpm = async () => {
+    if (!exercise) return;
+    const newTarget = Math.max(20, Math.min(240, parseInt(editingTargetValue) || 80));
+    try {
+      await supabase
+        .from("exercises")
+        .update({ target_bpm: newTarget })
+        .eq("id", exercise.id);
+      setExercise({ ...exercise, targetBpm: newTarget });
+      setEditingTargetBpm(false);
+    } catch (error) {
+      console.error("Failed to save target BPM:", error);
+      toast({ description: "Failed to save target BPM", variant: "destructive" });
+    }
+  };
+
   const hasReferenceMaterials = exercise?.songsterrUrl || exercise?.ultimateGuitarUrl || exercise?.tutorialUrl || exercise?.diagramUrl;
 
   if (loading) {
@@ -196,22 +214,66 @@ const Practice = () => {
         {!isFree && exercise && (
           <div className="rounded-2xl bg-card px-5 py-4" style={glassCard}>
             <div className="flex items-start justify-between gap-3">
-              <div>
+              <div className="flex-1">
                 <p className="text-base font-semibold text-foreground">{exercise.title}</p>
-                {exercise.targetBpm > 0 && (
-                  <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground mt-1">
+                {editingTargetBpm ? (
+                  <div className="flex items-center gap-2 mt-2">
+                    <input
+                      type="number"
+                      value={editingTargetValue}
+                      onChange={(e) => setEditingTargetValue(e.target.value)}
+                      placeholder="BPM"
+                      min="20"
+                      max="240"
+                      className="w-16 px-2 py-1 text-xs rounded bg-secondary border border-white/10 text-foreground"
+                      autoFocus
+                    />
+                    <button
+                      onClick={handleSaveTargetBpm}
+                      className="text-xs px-2 py-1 rounded text-primary hover:opacity-80 transition-opacity"
+                    >
+                      ✓
+                    </button>
+                    <button
+                      onClick={() => setEditingTargetBpm(false)}
+                      className="text-xs px-2 py-1 rounded text-muted-foreground hover:opacity-80 transition-opacity"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ) : exercise.targetBpm > 0 ? (
+                  <p
+                    onClick={() => {
+                      setEditingTargetBpm(true);
+                      setEditingTargetValue(String(exercise.targetBpm));
+                    }}
+                    className="text-xs font-semibold tracking-widest uppercase text-muted-foreground mt-1 cursor-pointer hover:text-primary transition-colors"
+                  >
                     Target: {exercise.targetBpm} BPM
                   </p>
-                )}
+                ) : null}
               </div>
               {exercise.status !== "Completed" && (
-                <button
-                  onClick={() => setShowMarkCompleteModal(true)}
-                  className="text-xs font-medium px-3 py-1 rounded-full shrink-0 transition-colors hover:bg-green-500/10"
-                  style={{ border: "1px solid #22c55e", color: "#22c55e", background: "transparent" }}
-                >
-                  Mark as Complete
-                </button>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    onClick={() => {
+                      setEditingTargetBpm(true);
+                      setEditingTargetValue(String(exercise.targetBpm || 80));
+                    }}
+                    className="text-xs font-medium px-3 py-1 rounded-full transition-colors hover:bg-blue-500/10"
+                    style={{ border: "1px solid #3b82f6", color: "#3b82f6", background: "transparent" }}
+                    title="Edit target BPM"
+                  >
+                    Edit Target
+                  </button>
+                  <button
+                    onClick={() => setShowMarkCompleteModal(true)}
+                    className="text-xs font-medium px-3 py-1 rounded-full shrink-0 transition-colors hover:bg-green-500/10"
+                    style={{ border: "1px solid #22c55e", color: "#22c55e", background: "transparent" }}
+                  >
+                    Mark as Complete
+                  </button>
+                </div>
               )}
             </div>
           </div>
