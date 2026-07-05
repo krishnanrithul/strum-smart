@@ -1,8 +1,8 @@
 # Implementation Plan: Session Notes & Exercise Difficulty Levels
 
-**Scope:** Student-facing features to improve practice reflection and structured progression  
-**Effort Estimate:** 17-20 hours total (3-4 days of focused work)  
-**Breakdown:** Session Notes (3-4 hrs) + Difficulty Levels (14-16 hrs)  
+**Scope:** Student-facing features to improve practice reflection and exercise organization  
+**Effort Estimate:** 7-9 hours total (1-2 days of focused work)  
+**Breakdown:** Session Notes (3-4 hrs) + Difficulty Levels—Simple (4-5 hrs)  
 **Priority:** Medium (both enhance core practice experience)
 
 ---
@@ -119,82 +119,44 @@ onNotesAdded={() => {
 
 ---
 
-## Feature 2: Exercise Difficulty Levels
+## Feature 2: Exercise Difficulty Levels (Simple Version)
 
 ### Overview
-Structure practice progression: Beginner → Intermediate → Advanced. Teachers assign difficulty, students unlock progression.
+Add difficulty labels (Beginner/Intermediate/Advanced) to exercises. Teachers assign on creation, students see and can filter by difficulty. No progression/unlocking—just organization and filtering.
 
 ### User Flow
 
 **Student:**
 1. Library → **Filter by difficulty** (All / Beginner / Intermediate / Advanced)
 2. See difficulty badge on each exercise card
-3. Practice → reach BPM target → **"Ready for next level?" prompt**
-4. Click unlock → exercise moves to next difficulty
-5. Teacher can see progression in StudentDetail
+3. Home page exercises show difficulty badges
+4. Practice page shows difficulty of current exercise
 
 **Teacher:**
-1. Assign exercise → **pick difficulty level**
-2. StudentDetail → see student's current difficulty on each exercise
-3. Manually unlock next level if needed (optional)
-4. Dashboard could show "X students ready to level up"
+1. When assigning exercise → pick difficulty level
+2. StudentDetail → see difficulty badge on each exercise
+3. Filter student's exercises by difficulty (optional)
 
-### Database Design
+### Database Changes
 
-**Option A: Simple (Global difficulty per exercise)**
+**Simple approach:**
 ```sql
 ALTER TABLE exercises
 ADD COLUMN difficulty TEXT DEFAULT 'Intermediate' 
   CHECK (difficulty IN ('Beginner', 'Intermediate', 'Advanced'));
 ```
-Pros: Simple, clean  
-Cons: Can't customize per student
 
-**Option B: Per-student progression (Recommended)**
-```sql
-CREATE TABLE exercise_progression (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  student_id UUID NOT NULL REFERENCES profiles(id),
-  exercise_id UUID NOT NULL REFERENCES exercises(id),
-  current_difficulty TEXT NOT NULL DEFAULT 'Beginner'
-    CHECK (current_difficulty IN ('Beginner', 'Intermediate', 'Advanced')),
-  unlocked_difficulties TEXT[] DEFAULT ARRAY['Beginner'],
-  -- Tracks which levels they've completed
-  unlocked_at TIMESTAMP,
-  created_at TIMESTAMP DEFAULT now(),
-  UNIQUE(student_id, exercise_id)
-);
-```
-Pros: Per-student tracking, can show progression  
-Cons: More complex queries
-
-**Recommendation:** Use Option B (per-student), allows for future "achievement" features.
+That's it. One column, persists on the exercise record.
 
 ### Component Changes
 
-#### 1. Update AssignExerciseModal
-Add difficulty selector:
-```tsx
-<select value={selectedDifficulty} onChange={(e) => setSelectedDifficulty(e.target.value)}>
-  <option value="Beginner">Beginner</option>
-  <option value="Intermediate">Intermediate</option>
-  <option value="Advanced">Advanced</option>
-</select>
-
-// When saving exercise:
-await supabase.from("exercise_progression").insert({
-  student_id: studentId,
-  exercise_id: exercise.id,
-  current_difficulty: selectedDifficulty,
-  unlocked_difficulties: [selectedDifficulty],
-});
-```
-
-#### 2. Difficulty Badge Component
-Use on exercise cards throughout app:
+#### 1. DifficultyBadge Component
+Reusable badge for all exercise cards:
 
 ```tsx
-const DifficultyBadge = ({ difficulty }: { difficulty: string }) => {
+const DifficultyBadge = ({ difficulty }: { difficulty?: string }) => {
+  if (!difficulty) return null;
+  
   const colors = {
     Beginner: "bg-green-500/20 text-green-400",
     Intermediate: "bg-yellow-500/20 text-yellow-400",
@@ -202,21 +164,34 @@ const DifficultyBadge = ({ difficulty }: { difficulty: string }) => {
   };
   
   return (
-    <span className={`text-xs font-semibold px-2 py-1 rounded ${colors[difficulty]}`}>
+    <span className={`text-xs font-semibold px-2 py-1 rounded ${colors[difficulty] || colors.Intermediate}`}>
       {difficulty}
     </span>
   );
 };
 ```
 
+#### 2. Update AssignExerciseModal
+Add difficulty dropdown when assigning:
+
+```tsx
+<select value={selectedDifficulty} onChange={(e) => setSelectedDifficulty(e.target.value)}>
+  <option value="Beginner">Beginner</option>
+  <option value="Intermediate">Intermediate</option>
+  <option value="Advanced">Advanced</option>
+</select>
+
+// When saving, set difficulty on the exercise
+```
+
 #### 3. Library Filter
-In Library.tsx, add difficulty tabs:
+Add tabs to filter by difficulty:
 
 ```tsx
 const [selectedDifficulty, setSelectedDifficulty] = useState<string | null>(null);
 
 const filtered = exercises.filter(e =>
-  !selectedDifficulty || e.current_difficulty === selectedDifficulty
+  !selectedDifficulty || e.difficulty === selectedDifficulty
 );
 
 <div className="flex gap-2 mb-4">
@@ -224,7 +199,7 @@ const filtered = exercises.filter(e =>
     <button
       key={diff}
       onClick={() => setSelectedDifficulty(diff === "All" ? null : diff)}
-      className={`px-4 py-2 rounded ${
+      className={`px-4 py-2 rounded text-sm font-medium ${
         (diff === "All" ? !selectedDifficulty : selectedDifficulty === diff)
           ? "bg-primary text-primary-foreground"
           : "bg-secondary text-muted-foreground"
@@ -236,118 +211,55 @@ const filtered = exercises.filter(e =>
 </div>
 ```
 
-#### 4. Progression Unlock Modal
-After reaching target BPM, show:
-
-```tsx
-interface DifficultyUnlockModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  exerciseTitle: string;
-  currentDifficulty: "Beginner" | "Intermediate";
-  nextDifficulty: "Intermediate" | "Advanced";
-  onUnlock: () => void;
-}
-
-// Modal shows:
-// "You've mastered [Exercise] at Beginner level!"
-// "Ready for Intermediate? It starts at 140 BPM..."
-// [Unlock] [Later]
-```
-
-When unlocking:
-```typescript
-const handleUnlock = async () => {
-  await supabase
-    .from("exercise_progression")
-    .update({
-      current_difficulty: nextDifficulty,
-      unlocked_difficulties: [...unlockedDifficulties, nextDifficulty],
-    })
-    .eq("student_id", userId)
-    .eq("exercise_id", exerciseId);
-};
-```
-
-#### 5. StudentDetail Exercise Display
-Show difficulty on each exercise card:
+#### 4. Display on Exercise Cards
+Add badge to Library, Home, Practice, StudentDetail:
 
 ```tsx
 <div className="flex items-center gap-2">
   <h3>{exercise.title}</h3>
-  <DifficultyBadge difficulty={exercise.current_difficulty} />
-  {exercise.unlocked_difficulties?.includes("Advanced") && (
-    <span className="text-xs text-primary">✓ All levels unlocked</span>
-  )}
-</div>
-```
-
-### Display in Progress Tab
-Optional: Show progression bar
-
-```tsx
-<div className="mt-2">
-  <p className="text-xs text-muted-foreground mb-1">Progression</p>
-  <div className="flex items-center gap-2">
-    {["Beginner", "Intermediate", "Advanced"].map((level) => (
-      <div
-        key={level}
-        className={`flex-1 h-2 rounded ${
-          unlockedDifficulties.includes(level)
-            ? "bg-primary"
-            : "bg-secondary"
-        }`}
-      />
-    ))}
-  </div>
+  {exercise.difficulty && <DifficultyBadge difficulty={exercise.difficulty} />}
 </div>
 ```
 
 ### Implementation Checklist
 
-- [ ] Create migration: `exercise_progression` table
-- [ ] Update `AssignExerciseModal` with difficulty selector
+- [ ] Create migration: add `difficulty` column to exercises table
 - [ ] Create `DifficultyBadge` component
-- [ ] Create `DifficultyUnlockModal` component
+- [ ] Update `AssignExerciseModal` with difficulty selector
 - [ ] Add difficulty filter to `Library.tsx`
-- [ ] Update `StudentDetail.tsx` to show progression
-- [ ] Update `Practice.tsx` to detect target reach & show unlock prompt
-- [ ] Add progression bar to StudentDetail
-- [ ] Update queries in `StorageService` to fetch progression data
-- [ ] Teacher Dashboard: optional "Ready to level up" indicator
-- [ ] Testing across student + teacher flows
+- [ ] Display badge on exercise cards (Library, Home, Practice, StudentDetail)
+- [ ] Update `StorageService` queries to include difficulty
+- [ ] Testing: filter works, badges display correctly
 
-### Effort: 14-16 hours
-- Database schema: 1 hour
-- DifficultyBadge component: 1 hour
-- AssignExerciseModal update: 2-3 hours
-- Library filter UI: 2-3 hours
-- DifficultyUnlockModal: 3-4 hours
-- Practice.tsx integration: 2-3 hours
-- StudentDetail updates: 2-3 hours
-- Query/storage updates: 2-3 hours
-- Testing: 2-3 hours
+### Effort: 4-5 hours
+- Migration + schema: 10 min
+- DifficultyBadge component: 30 min
+- AssignExerciseModal update: 1 hour
+- Library filter UI: 1-1.5 hours
+- Display on cards (4 places): 1 hour
+- StorageService queries: 30 min
+- Testing: 30 min
 
 ---
 
 ## Combined Implementation Timeline
 
 ### Session Notes: 1 Day (3-4 hours)
-Quick win—do this first to build momentum:
-- Morning: Database migration + SessionNotesModal
+Quick win—do this first:
+- Morning: Database migration + SessionNotesModal component
 - Afternoon: Practice.tsx integration + StudentDetail display + testing
 - Done before EOD
 
-### Exercise Difficulty Levels: 2-3 Days (14-16 hours)
-Follows naturally after Session Notes:
-- Day 1: Database + components (DifficultyBadge, DifficultyUnlockModal)
-- Day 2: AssignExerciseModal + Library filter + Practice integration
-- Day 3: StudentDetail updates, queries, testing
+### Exercise Difficulty Levels: Half day (4-5 hours)
+Simple feature, quick turnaround:
+- 1-2 hours: Migration + DifficultyBadge component
+- 1-2 hours: AssignExerciseModal + Library filter
+- 1 hour: Display badges on cards + testing
 
-### Optional Polish (Week 2)
-- Progression bars, teacher dashboard "ready to level up" indicator
-- Celebration animations on unlock
-- Mobile responsiveness refinement
+### Both together: 1-2 days, ~7-9 hours
+- Day 1 morning: Session Notes
+- Day 1 afternoon: Difficulty Levels
+- Done by EOD Day 1 or early Day 2
 
 ---
 
@@ -415,12 +327,21 @@ export const getStudentDifficultiesUnlocked = async (studentId: string) => {
 ## Future Enhancements
 
 ### Phase 2 (After both complete)
-- Voice notes for sessions (Capacitor Media plugin)
+**Difficulty Progression System (unlock-on-target-reached):**
+- Track which difficulty levels each student has unlocked
+- "Ready for next level?" modal when target BPM reached
+- Unlock animation + celebration
+- Show progression bar (Beginner ✓ → Intermediate ✓ → Advanced)
+
+**Session Notes Enhancements:**
+- Voice notes (Capacitor Media plugin)
+- Teacher responses to student notes
+- Notes sentiment tracking (mood emoji)
+
+**Other:**
 - Difficulty-specific targets (Beginner: 80 BPM, Intermediate: 120 BPM, Advanced: 160 BPM)
-- "Mastery" system (1000 points per difficulty = unlock next)
-- Progress animations on unlock (confetti, glow effect)
-- Teacher approval for unlocking (optional mode)
 - Leaderboards by difficulty level
+- Achievement badges for unlocking all levels
 
 ---
 
