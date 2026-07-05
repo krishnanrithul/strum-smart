@@ -126,7 +126,7 @@ const StudentDetail = () => {
     const [{ data }, { data: sessionData }] = await Promise.all([
       supabase
         .from("exercises")
-        .select("id, title, category, current_bpm, target_bpm, history, is_assigned, teacher_notes, is_custom, custom_description")
+        .select("id, title, category, current_bpm, target_bpm, history, is_assigned, teacher_notes")
         .eq("user_id", id),
       supabase
         .from("sessions")
