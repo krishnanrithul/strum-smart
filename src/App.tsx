@@ -18,6 +18,7 @@ import TeacherDashboard from "./pages/TeacherDashboard";
 import StudentDetail from "./pages/StudentDetail";
 import SongPractice from "./pages/SongPractice";
 import Onboarding from "./pages/Onboarding";
+import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
@@ -96,6 +97,8 @@ function App() {
               <Route path="/practice/:id" element={<Practice />} />
               <Route path="/song/:id" element={<SongPractice />} />
             </Route>
+
+            <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
       </TooltipProvider>

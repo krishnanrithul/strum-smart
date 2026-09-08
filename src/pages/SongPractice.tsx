@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { ArrowLeft, Play, Pause, RotateCcw, Plus, Minus, ChevronRight, Loader2 } from "lucide-react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
@@ -13,6 +13,7 @@ const glassCard = { border: "1px solid rgba(255,255,255,0.05)" };
 
 const SongPractice = () => {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
   const [bpm, setBpm] = useState(80);
@@ -21,6 +22,7 @@ const SongPractice = () => {
   const [seconds, setSeconds] = useState(0);
   const [loggedBpm, setLoggedBpm] = useState<number | null>(null);
   const [notes, setNotes] = useState("");
+  const [savingSession, setSavingSession] = useState(false);
   const metronomeRef = useRef<MetronomeEngine | null>(null);
 
   useEffect(() => {
@@ -82,6 +84,30 @@ const SongPractice = () => {
     if (!id) return;
     localStorage.setItem(`song_bpm_${id}`, String(bpm));
     setLoggedBpm(bpm);
+  };
+
+  const handleSaveSession = async () => {
+    if (!id) return;
+    setSavingSession(true);
+    try {
+      if (isMetronomeActive && metronomeRef.current) {
+        metronomeRef.current.stop();
+        setIsMetronomeActive(false);
+      }
+      setIsPlaying(false);
+
+      await StorageService.saveSession({
+        date: new Date().toISOString(),
+        duration: seconds,
+        exercises: [id],
+      });
+
+      await StorageService.updateExerciseBpm(id, bpm);
+
+      navigate("/");
+    } finally {
+      setSavingSession(false);
+    }
   };
 
   if (loading) {
@@ -241,6 +267,18 @@ const SongPractice = () => {
             style={glassCard}
           />
         </section>
+
+        {/* Save Session */}
+        <button
+          onClick={handleSaveSession}
+          disabled={savingSession}
+          className="w-full flex items-center justify-between px-5 py-4 rounded-xl bg-primary text-primary-foreground font-semibold text-base hover:opacity-90 transition-opacity disabled:opacity-50"
+        >
+          <div className="flex items-center gap-2">
+            {savingSession ? <Loader2 className="h-5 w-5 animate-spin" /> : <span>💾</span>}
+            {savingSession ? "Saving…" : "Save Session"}
+          </div>
+        </button>
 
       </main>
     </div>

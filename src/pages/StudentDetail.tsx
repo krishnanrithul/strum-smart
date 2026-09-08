@@ -58,22 +58,7 @@ const callAI = async (prompt: string): Promise<string> => {
     const json = await res.json();
     return (json.message?.content || "").trim();
   } else {
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": import.meta.env.VITE_ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
-        messages: [{ role: "user", content: prompt }],
-        max_tokens: 300,
-      }),
-    });
-    if (!res.ok) throw new Error("api_error");
-    const json = await res.json();
-    return (json.content?.[0]?.text || "").trim();
+    throw new Error("ai_disabled");
   }
 };
 
@@ -230,35 +215,35 @@ const StudentDetail = () => {
     } catch { /* show nothing */ } finally { setAiSuggestionLoading(false); }
   };
 
+  const loadData = async () => {
+    if (!id) return;
+    setLoading(true);
+    try {
+      const [
+        { data: profile },
+        { data: sessionRows },
+      ] = await Promise.all([
+        (supabase as any).from("profiles").select("full_name").eq("id", id).single(),
+        supabase.from("sessions").select("id, duration, created_at, exercises").eq("user_id", id).order("created_at", { ascending: false }),
+      ]);
+
+      setStudentName(profile?.full_name ?? "Student");
+
+      const rows = sessionRows || [];
+      setTotalSessions(rows.length);
+      setTotalMinutes(formatMins(rows.reduce((acc: number, r: any) => acc + (r.duration || 0), 0)));
+      setLastActiveDate(rows[0]?.created_at ?? null);
+      setRecentSessions(rows.slice(0, 10));
+
+      await loadExercises();
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (!id) return;
-
-    const load = async () => {
-      setLoading(true);
-      try {
-        const [
-          { data: profile },
-          { data: sessionRows },
-        ] = await Promise.all([
-          (supabase as any).from("profiles").select("full_name").eq("id", id).single(),
-          supabase.from("sessions").select("id, duration, created_at, exercises").eq("user_id", id).order("created_at", { ascending: false }),
-        ]);
-
-        setStudentName(profile?.full_name ?? "Student");
-
-        const rows = sessionRows || [];
-        setTotalSessions(rows.length);
-        setTotalMinutes(formatMins(rows.reduce((acc: number, r: any) => acc + (r.duration || 0), 0)));
-        setLastActiveDate(rows[0]?.created_at ?? null);
-        setRecentSessions(rows.slice(0, 10));
-
-        await loadExercises();
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    load();
+    loadData();
   }, [id]);
 
   useEffect(() => {

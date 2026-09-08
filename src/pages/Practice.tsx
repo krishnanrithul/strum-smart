@@ -542,7 +542,20 @@ const Practice = () => {
             </p>
             <button
               onClick={async () => {
+                const completedAt = new Date().toISOString();
+                await StorageService.saveSession({
+                  date: completedAt,
+                  duration: seconds,
+                  exercises: [exercise.id],
+                });
+                await StorageService.updateExerciseBpm(exercise.id, bpm);
                 await supabase.from("exercises").update({ status: "Completed" }).eq("id", exercise.id);
+                setExercise({
+                  ...exercise,
+                  currentBpm: bpm,
+                  status: "Completed",
+                  history: [...exercise.history, { date: completedAt, bpm }],
+                });
                 setShowTargetReached(false);
               }}
               className="w-full py-3 rounded-xl text-sm font-semibold bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
