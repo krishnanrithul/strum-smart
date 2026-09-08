@@ -48,6 +48,7 @@ const AssignExerciseModal = ({ open, onClose, studentId, studentName }: Props) =
   const [selectedTemplate, setSelectedTemplate] = useState<SelectedTemplate | null>(null);
   const [customCategory, setCustomCategory] = useState<ExerciseCategory>("Technical");
   const [targetBpm, setTargetBpm] = useState("80");
+  const [difficulty, setDifficulty] = useState("Intermediate");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
   const [assignError, setAssignError] = useState<string | null>(null);
@@ -131,6 +132,7 @@ const AssignExerciseModal = ({ open, onClose, studentId, studentName }: Props) =
       category,
       current_bpm: bpm,
       target_bpm: bpm,
+      difficulty: difficulty,
       status: "New",
       history: [{ date: new Date().toISOString(), bpm }],
       assigned_by: session.user.id,
@@ -401,6 +403,23 @@ const AssignExerciseModal = ({ open, onClose, studentId, studentName }: Props) =
                     {bpmButton("+5", () => adjustBpm(5))}
                   </div>
                 </div>
+              </div>
+
+              {/* Difficulty */}
+              <div>
+                <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground mb-3">
+                  Difficulty Level
+                </p>
+                <select
+                  value={difficulty}
+                  onChange={(e) => setDifficulty(e.target.value)}
+                  className="w-full rounded-xl px-4 py-3 text-sm text-foreground bg-card outline-none"
+                  style={{ border: "1px solid rgba(255,255,255,0.08)" }}
+                >
+                  <option value="Beginner">Beginner</option>
+                  <option value="Intermediate">Intermediate</option>
+                  <option value="Advanced">Advanced</option>
+                </select>
               </div>
 
               {/* Notes */}
