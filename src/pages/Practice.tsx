@@ -72,14 +72,11 @@ const Practice = () => {
   }, [id]);
 
   useEffect(() => {
-    let interval: ReturnType<typeof setInterval>;
-    if (isPlaying) {
-      interval = setInterval(() => {
-        setSeconds((s) => s + 1);
-      }, 1000);
-    }
+    const interval = setInterval(() => {
+      setSeconds((s) => s + 1);
+    }, 1000);
     return () => clearInterval(interval);
-  }, [isPlaying]);
+  }, []);
 
   useEffect(() => {
     if (metronomeRef.current) {
