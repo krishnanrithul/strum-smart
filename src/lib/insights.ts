@@ -1,8 +1,8 @@
-import { Exercise } from "./storage";
+import { Exercise, Session } from "./storage";
 
 export function generateInsights(
   exercises: Exercise[],
-  sessions: any[],
+  sessions: Session[],
   streakDays: number,
   todayMinutes: number
 ): string[] {
@@ -22,7 +22,7 @@ export function generateInsights(
     insights.push(`${streakDays} days in a row — you're building a real habit.`);
   } else if (streakDays === 0 && sessions.length > 0) {
     const lastSession = sessions
-      .map(s => new Date(s.created_at).getTime())
+      .map(s => new Date(s.date).getTime())
       .sort((a, b) => b - a)[0];
     const daysSince = Math.floor((Date.now() - lastSession) / 86400000);
     if (daysSince > 3) {
@@ -64,8 +64,8 @@ export function generateInsights(
     const sevenDaysAgo = Date.now() - 7 * 86400000;
     const recentSessionDates = new Set(
       sessions
-        .filter(s => new Date(s.created_at).getTime() >= sevenDaysAgo)
-        .map(s => s.created_at)
+        .filter(s => new Date(s.date).getTime() >= sevenDaysAgo)
+        .map(s => s.date)
     );
     if (recentSessionDates.size > 0) {
       const allCategories = [...new Set(exercises.map(e => e.category))];

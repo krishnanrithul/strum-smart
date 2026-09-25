@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { StorageService, Project } from "@/lib/storage";
 import { getStatusColor } from "@/lib/badges";
 import { MetronomeEngine } from "@/lib/audio";
+import { useElapsedSeconds } from "@/hooks/useElapsedSeconds";
 
 const glassCard = { border: "1px solid rgba(255,255,255,0.05)" };
 
@@ -19,7 +20,7 @@ const SongPractice = () => {
   const [bpm, setBpm] = useState(80);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMetronomeActive, setIsMetronomeActive] = useState(false);
-  const [seconds, setSeconds] = useState(0);
+  const [seconds, setSeconds] = useElapsedSeconds(isPlaying);
   const [loggedBpm, setLoggedBpm] = useState<number | null>(null);
   const [notes, setNotes] = useState("");
   const [savingSession, setSavingSession] = useState(false);
@@ -42,12 +43,6 @@ const SongPractice = () => {
     };
     load();
   }, [id]);
-
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (isPlaying) interval = setInterval(() => setSeconds(s => s + 1), 1000);
-    return () => clearInterval(interval);
-  }, [isPlaying]);
 
   useEffect(() => {
     metronomeRef.current?.setBpm(bpm);

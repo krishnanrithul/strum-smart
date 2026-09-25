@@ -12,6 +12,7 @@ import { MetronomeEngine } from "@/lib/audio";
 import WaveformLoader from "@/components/WaveformLoader";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { useElapsedSeconds } from "@/hooks/useElapsedSeconds";
 
 const glassCard = { border: "1px solid rgba(255,255,255,0.05)" };
 
@@ -26,7 +27,7 @@ const Practice = () => {
   const [bpmInput, setBpmInput] = useState("120");
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMetronomeActive, setIsMetronomeActive] = useState(false);
-  const [seconds, setSeconds] = useState(0);
+  const [seconds, setSeconds] = useElapsedSeconds(isPlaying);
   const [showCompleteDialog, setShowCompleteDialog] = useState(false);
   const [loading, setLoading] = useState(true);
   const [diagramExpanded, setDiagramExpanded] = useState(false);
@@ -70,13 +71,6 @@ const Practice = () => {
     };
     loadExercise();
   }, [id]);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setSeconds((s) => s + 1);
-    }, 1000);
-    return () => clearInterval(interval);
-  }, []);
 
   useEffect(() => {
     if (metronomeRef.current) {

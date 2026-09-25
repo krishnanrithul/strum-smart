@@ -107,15 +107,28 @@ const Library = () => {
   const handleAddRoutine = async (routine: typeof ROUTINES[0], exercisesToAdd: typeof routine.exercises) => {
     setAddingRoutineId(routine.id);
     try {
-      for (const ex of exercisesToAdd) {
-        await StorageService.addExercise({
+      const { added, skipped } = await StorageService.addExercisesIfNew(
+        exercisesToAdd.map(ex => ({
           title: ex.title,
           category: ex.category,
           currentBpm: ex.bpm,
-          status: "New",
+          status: "New" as const,
+        })),
+      );
+
+      if (added.length === 0) {
+        toast({
+          title: "Already in your library",
+          description: `Every exercise in ${routine.name} is already added.`,
+        });
+      } else {
+        toast({
+          title: `${routine.name} routine added!`,
+          description: skipped.length > 0
+            ? `${added.length} added, ${skipped.length} already in your library.`
+            : `${added.length} exercise${added.length !== 1 ? "s" : ""} added.`,
         });
       }
-      toast({ title: `${routine.name} routine added!`, description: `${exercisesToAdd.length} exercises added.` });
       setRoutinePickerRoutine(null);
       setSelectedRoutine(null);
       setRoutineSheetOpen(false);
@@ -130,16 +143,34 @@ const Library = () => {
 
   const handleBuildOwn = async (selectedExercises: any[], selectedSongs: Array<{ title: string; artist: string }>) => {
     try {
-      for (const ex of selectedExercises) {
-        await StorageService.addExercise({ title: ex.title, category: ex.category, currentBpm: ex.default_bpm, status: "New" });
+      const { added, skipped } = await StorageService.addExercisesIfNew([
+        ...selectedExercises.map(ex => ({
+          title: ex.title,
+          category: ex.category,
+          currentBpm: ex.default_bpm,
+          status: "New" as const,
+        })),
+        ...selectedSongs.map(song => ({
+          title: song.title,
+          category: "Repertoire" as const,
+          currentBpm: 60,
+          status: "New" as const,
+        })),
+      ]);
+
+      if (added.length === 0) {
+        toast({
+          title: "Already in your library",
+          description: "Everything you picked is already added.",
+        });
+      } else {
+        toast({
+          title: "Added!",
+          description: skipped.length > 0
+            ? `${added.length} added, ${skipped.length} already in your library.`
+            : `${added.length} item${added.length !== 1 ? "s" : ""} added.`,
+        });
       }
-      for (const song of selectedSongs) {
-        await StorageService.addExercise({ title: song.title, category: "Repertoire", currentBpm: 60, status: "New" });
-      }
-      toast({
-        title: "Added!",
-        description: `${selectedExercises.length} exercise${selectedExercises.length !== 1 ? "s" : ""} + ${selectedSongs.length} song${selectedSongs.length !== 1 ? "s" : ""} added.`,
-      });
       loadData();
     } catch {
       toast({ title: "Error", description: "Failed to add items.", variant: "destructive" });

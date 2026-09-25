@@ -7,6 +7,7 @@ import { Link } from "react-router-dom";
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip } from "recharts";
 import { StorageService, Exercise, Session, clearCache } from "@/lib/storage";
 import { generateInsights } from "@/lib/insights";
+import { computeStreak, minutesPracticedOn } from "@/lib/streak";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -44,23 +45,14 @@ const Progress = () => {
           setSelectedExerciseId(fetchedExercises[0].id);
         }
 
-        const todayStr = new Date().toLocaleDateString("en-CA");
-        const todayMins = Math.floor(
-          fetchedSessions
-            .filter(s => new Date(s.date).toLocaleDateString("en-CA") === todayStr)
-            .reduce((acc, s) => acc + s.duration, 0) / 60
+        setInsights(
+          generateInsights(
+            fetchedExercises,
+            fetchedSessions,
+            computeStreak(fetchedSessions),
+            minutesPracticedOn(fetchedSessions),
+          )
         );
-        const uniqueDays = [...new Set(fetchedSessions.map(s => s.date.split("T")[0]))].sort().reverse();
-        let computedStreak = 0;
-        let cur = todayStr;
-        for (const day of uniqueDays) {
-          if (day === cur) {
-            computedStreak++;
-            const d = new Date(cur); d.setDate(d.getDate() - 1);
-            cur = d.toISOString().split("T")[0];
-          } else break;
-        }
-        setInsights(generateInsights(fetchedExercises, fetchedSessions, computedStreak, todayMins));
       } catch (error) {
         console.error("Failed to load progress data:", error);
       } finally {
@@ -91,25 +83,7 @@ const Progress = () => {
     ? `${thisWeekMins}m`
     : `${Math.floor(thisWeekMins / 60)}h ${thisWeekMins % 60}m`;
 
-  const calculateStreak = () => {
-    if (sessions.length === 0) return 0;
-    const uniqueDays = [...new Set(sessions.map(s => s.date.split("T")[0]))].sort().reverse();
-    let streak = 0;
-    const today = new Date().toISOString().split("T")[0];
-    let currentDate = today;
-    for (const day of uniqueDays) {
-      if (day === currentDate) {
-        streak++;
-        const d = new Date(currentDate);
-        d.setDate(d.getDate() - 1);
-        currentDate = d.toISOString().split("T")[0];
-      } else {
-        break;
-      }
-    }
-    return streak;
-  };
-  const streak = calculateStreak();
+  const streak = computeStreak(sessions);
 
 
   const bpms = chartData.map(d => d.bpm);

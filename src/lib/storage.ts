@@ -61,6 +61,9 @@ export interface ExerciseTemplate {
     tutorial_url?: string;
 }
 
+/** Titles are compared ignoring case and surrounding whitespace. */
+const normaliseTitle = (title: string) => title.trim().toLowerCase();
+
 const mapExercise = (row: any): Exercise => ({
     id: row.id,
     project_id: row.project_id,
@@ -211,6 +214,39 @@ export const StorageService = {
         clearCache();
         return mapExercise(data);
     },
+
+    /**
+     * Add several exercises, skipping any the user already has.
+     *
+     * Routines and the build-your-own picker both add in bulk from more than
+     * one entry point, so the guard lives here rather than in each screen.
+     * Titles are matched loosely (trimmed, case-insensitive) because that is
+     * how someone reads their own library — two cards both saying "Blackbird"
+     * are a duplicate whatever category they sit in. Duplicates inside the
+     * incoming batch are collapsed too.
+     */
+    addExercisesIfNew: async (
+        items: Array<Omit<Exercise, "id" | "history" | "targetBpm">>,
+    ): Promise<{ added: Exercise[]; skipped: string[] }> => {
+        const existing = await StorageService.getExercises();
+        const seen = new Set(existing.map((e) => normaliseTitle(e.title)));
+
+        const added: Exercise[] = [];
+        const skipped: string[] = [];
+
+        for (const item of items) {
+            const key = normaliseTitle(item.title);
+            if (seen.has(key)) {
+                skipped.push(item.title);
+                continue;
+            }
+            seen.add(key);
+            added.push(await StorageService.addExercise(item));
+        }
+
+        return { added, skipped };
+    },
+
     updateExerciseBpm: async (id: string, newBpm: number) => {
         const exercise = await StorageService.getExercise(id);
         if (!exercise) return;
