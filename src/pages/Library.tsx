@@ -6,7 +6,7 @@ import WaveformLoader from "@/components/WaveformLoader";
 import { useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { StorageService, Exercise, Project } from "@/lib/storage";
+import { StorageService, Exercise, Project, normaliseTitle } from "@/lib/storage";
 import { AddExerciseDialog } from "@/components/AddExerciseDialog";
 import { AddProjectDialog } from "@/components/AddProjectDialog";
 import { ExerciseCard } from "@/components/ExerciseCard";
@@ -197,8 +197,21 @@ const Library = () => {
     setReactivateConfirmExercise(null);
   };
 
+  // Matched the same way StorageService.addExercisesIfNew matches, so what
+  // the picker shows and what actually gets written can't disagree.
+  const ownedTitles = new Set(exercises.map(e => normaliseTitle(e.title)));
+  const isAlreadyAdded = (title: string) => ownedTitles.has(normaliseTitle(title));
+
+  /** Indices of the routine's exercises the user doesn't already have. */
+  const unaddedIndices = (routine: typeof ROUTINES[0]) =>
+    new Set(
+      routine.exercises
+        .map((ex, i) => (isAlreadyAdded(ex.title) ? -1 : i))
+        .filter(i => i !== -1),
+    );
+
   const isRoutineAdded = (routine: typeof ROUTINES[0]) =>
-    routine.exercises.every(ex => exercises.some(e => e.title === ex.title));
+    routine.exercises.every(ex => isAlreadyAdded(ex.title));
 
   const handleDeleteClick = (exercise: Exercise, e: React.MouseEvent) => {
     e.preventDefault(); e.stopPropagation();
@@ -340,7 +353,7 @@ const Library = () => {
                       setRoutineSheetOpen(true);
                       setRoutineSheetView("picker");
                       setRoutinePickerRoutine(routine);
-                      setPickerSelected(new Set(routine.exercises.map((_, i) => i)));
+                      setPickerSelected(unaddedIndices(routine));
                     }}
                   >
                     {/* Large background typography */}
@@ -371,7 +384,7 @@ const Library = () => {
                               setRoutineSheetOpen(true);
                               setRoutineSheetView("picker");
                               setRoutinePickerRoutine(routine);
-                              setPickerSelected(new Set(routine.exercises.map((_, i) => i)));
+                              setPickerSelected(unaddedIndices(routine));
                             }}
                             className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:opacity-90 transition-opacity"
                           >
@@ -705,7 +718,7 @@ const Library = () => {
                       key={routine.id}
                       onClick={() => {
                         setRoutinePickerRoutine(routine);
-                        setPickerSelected(new Set(routine.exercises.map((_, i) => i)));
+                        setPickerSelected(unaddedIndices(routine));
                         setRoutineSheetView("picker");
                       }}
                       className="w-full py-4 flex items-center justify-between active:bg-white/5 transition-colors"
@@ -736,31 +749,39 @@ const Library = () => {
                   </button>
                 </div>
                 <div className="space-y-3 mb-6">
-                  {routinePickerRoutine.exercises.map((ex, i) => (
-                    <button
-                      key={i}
-                      onClick={() => setPickerSelected(prev => {
-                        const next = new Set(prev);
-                        if (next.has(i)) next.delete(i); else next.add(i);
-                        return next;
-                      })}
-                      className="w-full flex items-center gap-3 text-left"
-                    >
-                      <div
-                        className="h-5 w-5 rounded flex items-center justify-center shrink-0 transition-colors"
-                        style={{
-                          background: pickerSelected.has(i) ? "hsl(var(--primary))" : "transparent",
-                          border: `1px solid ${pickerSelected.has(i) ? "hsl(var(--primary))" : "rgba(255,255,255,0.2)"}`,
-                        }}
+                  {routinePickerRoutine.exercises.map((ex, i) => {
+                    const added = isAlreadyAdded(ex.title);
+                    return (
+                      <button
+                        key={i}
+                        disabled={added}
+                        onClick={() => setPickerSelected(prev => {
+                          const next = new Set(prev);
+                          if (next.has(i)) next.delete(i); else next.add(i);
+                          return next;
+                        })}
+                        className="w-full flex items-center gap-3 text-left disabled:cursor-default"
                       >
-                        {pickerSelected.has(i) && <span className="text-[10px] text-primary-foreground font-bold leading-none">✓</span>}
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-foreground">{ex.title}</p>
-                        <p className="text-xs text-muted-foreground">{ex.category}</p>
-                      </div>
-                    </button>
-                  ))}
+                        <div
+                          className="h-5 w-5 rounded flex items-center justify-center shrink-0 transition-colors"
+                          style={{
+                            background: pickerSelected.has(i) ? "hsl(var(--primary))" : "transparent",
+                            border: `1px solid ${pickerSelected.has(i) ? "hsl(var(--primary))" : "rgba(255,255,255,0.2)"}`,
+                            opacity: added ? 0.35 : 1,
+                          }}
+                        >
+                          {pickerSelected.has(i) && <span className="text-[10px] text-primary-foreground font-bold leading-none">✓</span>}
+                        </div>
+                        <div className="flex-1 min-w-0" style={{ opacity: added ? 0.45 : 1 }}>
+                          <p className="text-sm font-medium text-foreground">{ex.title}</p>
+                          <p className="text-xs text-muted-foreground">{ex.category}</p>
+                        </div>
+                        {added && (
+                          <span className="text-xs font-medium text-muted-foreground shrink-0">Added</span>
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
                 <button
                   onClick={() => handleAddRoutine(
@@ -772,7 +793,9 @@ const Library = () => {
                 >
                   {addingRoutineId === routinePickerRoutine.id
                     ? "Adding…"
-                    : `Add ${pickerSelected.size} exercise${pickerSelected.size !== 1 ? "s" : ""}`}
+                    : pickerSelected.size === 0
+                      ? "Already in your library"
+                      : `Add ${pickerSelected.size} exercise${pickerSelected.size !== 1 ? "s" : ""}`}
                 </button>
                 <button
                   onClick={() => setRoutineSheetOpen(false)}

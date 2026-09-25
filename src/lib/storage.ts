@@ -61,8 +61,14 @@ export interface ExerciseTemplate {
     tutorial_url?: string;
 }
 
-/** Titles are compared ignoring case and surrounding whitespace. */
-const normaliseTitle = (title: string) => title.trim().toLowerCase();
+/**
+ * Titles are compared ignoring case and surrounding whitespace.
+ *
+ * Exported so the UI can decide what to show as "already added" using the
+ * exact rule the write path enforces — otherwise a dialog can promise an add
+ * that addExercisesIfNew then skips.
+ */
+export const normaliseTitle = (title: string) => title.trim().toLowerCase();
 
 const mapExercise = (row: any): Exercise => ({
     id: row.id,
