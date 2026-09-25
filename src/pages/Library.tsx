@@ -622,6 +622,7 @@ const Library = () => {
         open={buildModalOpen}
         onClose={() => setBuildModalOpen(false)}
         onAdd={handleBuildOwn}
+        isAlreadyAdded={isAlreadyAdded}
       />
 
       <AddExerciseDialog

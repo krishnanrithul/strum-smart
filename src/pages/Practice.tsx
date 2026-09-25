@@ -16,6 +16,11 @@ import { useElapsedSeconds } from "@/hooks/useElapsedSeconds";
 
 const glassCard = { border: "1px solid rgba(255,255,255,0.05)" };
 
+// Target tempo bounds. Shown on the input and enforced on save — a value
+// outside them used to be clamped with no explanation.
+const TARGET_BPM_MIN = 20;
+const TARGET_BPM_MAX = 240;
+
 const Practice = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -116,7 +121,16 @@ const Practice = () => {
 
   const handleSaveTargetBpm = async () => {
     if (!exercise) return;
-    const newTarget = Math.max(20, Math.min(240, parseInt(editingTargetValue) || 80));
+    const typed = parseInt(editingTargetValue);
+    const newTarget = Math.max(TARGET_BPM_MIN, Math.min(TARGET_BPM_MAX, typed || 80));
+
+    if (!Number.isNaN(typed) && typed !== newTarget) {
+      toast({
+        title: `Target set to ${newTarget} BPM`,
+        description: `Targets have to be between ${TARGET_BPM_MIN} and ${TARGET_BPM_MAX}.`,
+      });
+    }
+
     try {
       await supabase
         .from("exercises")
@@ -214,11 +228,14 @@ const Practice = () => {
                       value={editingTargetValue}
                       onChange={(e) => setEditingTargetValue(e.target.value)}
                       placeholder="BPM"
-                      min="20"
-                      max="240"
+                      min={TARGET_BPM_MIN}
+                      max={TARGET_BPM_MAX}
                       className="w-16 px-2 py-1 text-xs rounded bg-secondary border border-white/10 text-foreground"
                       autoFocus
                     />
+                    <span className="text-[10px] text-muted-foreground tabular-nums">
+                      {TARGET_BPM_MIN}–{TARGET_BPM_MAX}
+                    </span>
                     <button
                       onClick={handleSaveTargetBpm}
                       className="text-xs px-2 py-1 rounded text-primary hover:opacity-80 transition-opacity"

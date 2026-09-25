@@ -18,9 +18,15 @@ type Props = {
   open: boolean;
   onClose: () => void;
   onAdd: (selectedExercises: Exercise[], selectedSongs: Array<{ title: string; artist: string }>) => Promise<void>;
+  /**
+   * Whether the user's library already holds something with this title.
+   * Supplied by the parent so it uses the same matching rule the write path
+   * enforces — otherwise this modal offers adds that then get skipped.
+   */
+  isAlreadyAdded: (title: string) => boolean;
 };
 
-export const BuildYourOwnModal = ({ open, onClose, onAdd }: Props) => {
+export const BuildYourOwnModal = ({ open, onClose, onAdd, isAlreadyAdded }: Props) => {
   const [mounted, setMounted] = useState(false);
   const [visible, setVisible] = useState(false);
   const [step, setStep] = useState<1 | 2>(1);
@@ -81,7 +87,10 @@ export const BuildYourOwnModal = ({ open, onClose, onAdd }: Props) => {
     const allKeys = new Set<string>();
     exercises
       .filter(e => selectedExerciseIds.has(e.id))
-      .forEach(e => (e.linked_songs || []).forEach(s => allKeys.add(`${s.title}|${s.artist}`)));
+      .forEach(e => (e.linked_songs || []).forEach(s => {
+        // Don't pre-tick a song the user already has; it would only be skipped.
+        if (!isAlreadyAdded(s.title)) allKeys.add(`${s.title}|${s.artist}`);
+      }));
     setSelectedSongKeys(allKeys);
     setStep(2);
   };
@@ -164,28 +173,37 @@ export const BuildYourOwnModal = ({ open, onClose, onAdd }: Props) => {
                 </div>
               ) : (
                 exercises.map(exercise => {
+                  const alreadyAdded = isAlreadyAdded(exercise.title);
                   const isSelected = selectedExerciseIds.has(exercise.id);
                   return (
                     <button
                       key={exercise.id}
+                      disabled={alreadyAdded}
                       onClick={() => toggleExercise(exercise.id)}
-                      className="w-full text-left px-4 py-3.5 bg-card rounded-2xl transition-all"
-                      style={{ border: "1px solid rgba(255,255,255,0.05)" }}
+                      className="w-full text-left px-4 py-3.5 bg-card rounded-2xl transition-all disabled:cursor-default"
+                      style={{
+                        border: "1px solid rgba(255,255,255,0.05)",
+                        opacity: alreadyAdded ? 0.45 : 1,
+                      }}
                     >
                       <div className="flex items-center justify-between gap-3">
                         <div className="min-w-0">
                           <p className="text-sm font-medium text-foreground">{exercise.title}</p>
                           <p className="text-xs text-muted-foreground mt-0.5">{exercise.default_bpm} BPM</p>
                         </div>
-                        <div className={`shrink-0 w-6 h-6 rounded-full flex items-center justify-center transition-all duration-200 ${
-                          isSelected ? "bg-primary border-2 border-primary" : "border-2 border-muted-foreground/40 bg-transparent"
-                        }`}>
-                          {isSelected && (
-                            <svg viewBox="0 0 12 12" className="w-3 h-3">
-                              <polyline points="2,6 5,9 10,3" stroke="white" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-                            </svg>
-                          )}
-                        </div>
+                        {alreadyAdded ? (
+                          <span className="shrink-0 text-xs font-medium text-muted-foreground">Added</span>
+                        ) : (
+                          <div className={`shrink-0 w-6 h-6 rounded-full flex items-center justify-center transition-all duration-200 ${
+                            isSelected ? "bg-primary border-2 border-primary" : "border-2 border-muted-foreground/40 bg-transparent"
+                          }`}>
+                            {isSelected && (
+                              <svg viewBox="0 0 12 12" className="w-3 h-3">
+                                <polyline points="2,6 5,9 10,3" stroke="white" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                              </svg>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </button>
                   );
@@ -209,12 +227,15 @@ export const BuildYourOwnModal = ({ open, onClose, onAdd }: Props) => {
                   <div className="space-y-2">
                     {(exercise.linked_songs || []).map(song => {
                       const key = `${song.title}|${song.artist}`;
+                      const alreadyAdded = isAlreadyAdded(song.title);
                       const isSelected = selectedSongKeys.has(key);
                       return (
                         <button
                           key={key}
+                          disabled={alreadyAdded}
                           onClick={() => toggleSong(key)}
-                          className={`w-full text-left px-4 py-3 rounded-xl border transition-all flex items-center justify-between gap-3 ${
+                          style={{ opacity: alreadyAdded ? 0.45 : 1 }}
+                          className={`w-full text-left px-4 py-3 rounded-xl border transition-all flex items-center justify-between gap-3 disabled:cursor-default ${
                             isSelected
                               ? "border-primary bg-primary/10"
                               : "border-border bg-background hover:border-border/60"
@@ -227,13 +248,17 @@ export const BuildYourOwnModal = ({ open, onClose, onAdd }: Props) => {
                               <p className="text-xs text-muted-foreground">{song.artist}</p>
                             </div>
                           </div>
-                          <div
-                            className={`shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all duration-200 ${
-                              isSelected ? "border-primary bg-primary" : "border-muted-foreground/30"
-                            }`}
-                          >
-                            {isSelected && <Check className="h-3 w-3 text-primary-foreground" />}
-                          </div>
+                          {alreadyAdded ? (
+                            <span className="shrink-0 text-xs font-medium text-muted-foreground">Added</span>
+                          ) : (
+                            <div
+                              className={`shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all duration-200 ${
+                                isSelected ? "border-primary bg-primary" : "border-muted-foreground/30"
+                              }`}
+                            >
+                              {isSelected && <Check className="h-3 w-3 text-primary-foreground" />}
+                            </div>
+                          )}
                         </button>
                       );
                     })}
