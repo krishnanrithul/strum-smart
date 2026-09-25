@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Plus, ChevronRight, ChevronLeft, Pencil, Trash2, CheckCircle2, X, Bookmark } from "lucide-react";
+import { Plus, ChevronRight, ChevronLeft, Pencil, Trash2, CheckCircle2, X } from "lucide-react";
 import AppHeader from "@/components/AppHeader";
 import MiniLogo from "@/components/MiniLogo";
 import WaveformLoader from "@/components/WaveformLoader";
@@ -389,12 +389,6 @@ const Library = () => {
                             className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:opacity-90 transition-opacity"
                           >
                             Start
-                          </button>
-                          <button
-                            className="h-7 w-7 flex items-center justify-center rounded-lg text-white/70 hover:text-white transition-colors"
-                            style={{ background: "rgba(255,255,255,0.1)" }}
-                          >
-                            <Bookmark className="h-3.5 w-3.5" />
                           </button>
                         </div>
                       </div>
